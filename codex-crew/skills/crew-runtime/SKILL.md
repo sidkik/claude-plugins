@@ -41,6 +41,12 @@ Execution rules:
   with those subcommands — never to crew agents.
 - Failures are loud: relay raw stderr and exit code verbatim; never return
   empty output on error.
+- Model-capacity rejections are retried automatically by `crew-codex` itself
+  (3 attempts, jittered 5/15/45s backoff — write-safe because capacity is an
+  admission-time rejection; the turn never started). Retry notices appear on
+  stderr; relay them like any other output. If it still fails after retries,
+  report that verbatim — the orchestrator decides whether to re-dispatch on
+  another tier. Do NOT add your own retry loop on top.
 
 GPT-5.6 family ladder (per OpenAI's own model registry): **sol** = flagship
 frontier coding tier, **terra** = balanced everyday mid tier, **luna** =

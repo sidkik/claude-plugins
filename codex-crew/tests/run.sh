@@ -54,6 +54,64 @@ out="$(CLAUDE_CONFIG_DIR="$TMP/happy" env -u CLAUDE_PLUGIN_DATA bash "$CREW" sta
 check "argv forwarding" 0 "ARGS:status,--json" "$rc" "$out"
 check "CLAUDE_PLUGIN_DATA default" 0 "DATA:$TMP/happy/plugins/data/codex-openai-codex" "$rc" "$out"
 
+# --- Capacity-retry cases: fake companion whose behavior depends on attempt count ---
+mkdir -p "$TMP/retry/plugins" "$TMP/retry/install/scripts"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/retry/install\"}]}}" > "$TMP/retry/plugins/installed_plugins.json"
+cat > "$TMP/retry/install/scripts/codex-companion.mjs" <<'EOF'
+import fs from "node:fs";
+const counter = process.env.CREW_TEST_COUNTER;
+const failuresBeforeSuccess = Number(process.env.CREW_TEST_FAILURES ?? 0);
+const failureMessage = process.env.CREW_TEST_FAILURE_MSG ?? "Selected model is at capacity";
+let n = 0;
+try { n = Number(fs.readFileSync(counter, "utf8")); } catch {}
+n += 1;
+fs.writeFileSync(counter, String(n));
+if (n <= failuresBeforeSuccess) {
+  console.error(`[codex] Turn failed: ${failureMessage}`);
+  process.exit(1);
+}
+console.log("TASK-RESULT-OK");
+EOF
+
+run_retry() {
+  CLAUDE_CONFIG_DIR="$TMP/retry" CREW_CODEX_RETRY_DELAYS="0 0" \
+  CREW_TEST_COUNTER="$1" CREW_TEST_FAILURES="$2" CREW_TEST_FAILURE_MSG="${3:-Selected model is at capacity}" \
+    bash "$CREW" task "test prompt" 2>&1
+}
+
+# Case 7: capacity failure twice, then success -> retried to success, exit 0
+c="$TMP/retry/c7"; out="$(run_retry "$c" 2)" && rc=0 || rc=$?
+attempts="$(cat "$c")"
+check "capacity retry then success" 0 "TASK-RESULT-OK" "$rc" "$out"
+check "capacity retry attempt count" 0 "^3$" "$rc" "$attempts"
+
+# Case 8: capacity failure exhausts all attempts -> loud give-up, nonzero exit
+c="$TMP/retry/c8"; out="$(run_retry "$c" 99)" && rc=0 || rc=$?
+attempts="$(cat "$c")"
+check "capacity exhausted gives up" 1 "still at capacity after 3 attempts" "$rc" "$out"
+check "capacity exhausted attempt count" 1 "^3$" "$rc" "$attempts"
+
+# Case 9: non-capacity failure -> NO retry, error and exit code pass through
+c="$TMP/retry/c9"; out="$(run_retry "$c" 99 "authentication expired")" && rc=0 || rc=$?
+attempts="$(cat "$c")"
+check "non-capacity failure not retried" 1 "authentication expired" "$rc" "$out"
+check "non-capacity single attempt" 1 "^1$" "$rc" "$attempts"
+
+# Case 10: real (1s) delay exercises the sleep + jitter arithmetic path
+c="$TMP/retry/c10"
+start=$(date +%s)
+out="$(CLAUDE_CONFIG_DIR="$TMP/retry" CREW_CODEX_RETRY_DELAYS="1" \
+  CREW_TEST_COUNTER="$c" CREW_TEST_FAILURES=1 bash "$CREW" task "test prompt" 2>&1)" && rc=0 || rc=$?
+elapsed=$(( $(date +%s) - start ))
+check "real-delay retry succeeds" 0 "TASK-RESULT-OK" "$rc" "$out"
+if [[ "$elapsed" -ge 1 ]]; then
+  echo "PASS: real-delay retry actually slept (${elapsed}s)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: real-delay retry did not sleep (${elapsed}s)"
+  fail=$((fail + 1))
+fi
+
 echo
 echo "$pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

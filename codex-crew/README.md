@@ -54,6 +54,14 @@ stdout is the real result. `--background` is opt-in only — it detaches and
 returns just a launch handle (a job id), which must be polled with
 `crew-codex status` / `/codex:status` before the work is treated as complete.
 
+**Capacity retries**: "model is at capacity" rejections are retried by
+`crew-codex` automatically — up to 3 attempts with jittered 5/15/45s backoff
+(override via `CREW_CODEX_RETRY_DELAYS`). This is write-safe: capacity is an
+admission-time rejection, so no partial work exists to double-apply. Retries
+are announced on stderr, never silent. Any other failure passes through
+untouched on the first attempt, and there is no automatic tier fallback —
+substituting a cheaper model is an orchestrator decision, made in the open.
+
 ## Tests
 
 ```bash

@@ -44,4 +44,38 @@ if [[ "${1:-}" == "--resolve" ]]; then
   exit 0
 fi
 
-exec node "$COMPANION" "$@"
+# Bounded retry on model-capacity rejection. The capacity error is an
+# admission-time rejection (the turn never starts), so retrying is write-safe.
+# Jittered backoff so parallel fan-outs don't thundering-herd the quota window.
+# Overridable for tests: CREW_CODEX_RETRY_DELAYS="0 0" collapses the waits.
+RETRY_DELAYS=(${CREW_CODEX_RETRY_DELAYS:-5 15 45})
+MAX_ATTEMPTS=$(( ${#RETRY_DELAYS[@]} + 1 ))
+CAPACITY_PATTERN="at capacity"
+
+TMP_OUT="$(mktemp)" TMP_ERR="$(mktemp)"
+trap 'rm -f "$TMP_OUT" "$TMP_ERR"' EXIT
+
+attempt=1
+while :; do
+  rc=0
+  node "$COMPANION" "$@" >"$TMP_OUT" 2>"$TMP_ERR" || rc=$?
+
+  if [[ $rc -eq 0 ]] || ! grep -qi "$CAPACITY_PATTERN" "$TMP_OUT" "$TMP_ERR"; then
+    break
+  fi
+
+  if [[ $attempt -ge $MAX_ATTEMPTS ]]; then
+    echo "crew-codex: model still at capacity after $MAX_ATTEMPTS attempts — giving up" >&2
+    break
+  fi
+
+  base=${RETRY_DELAYS[$((attempt - 1))]}
+  delay=$(( base + (base > 0 ? RANDOM % (base / 2 + 1) : 0) ))
+  echo "crew-codex: model at capacity (attempt $attempt/$MAX_ATTEMPTS); retrying in ${delay}s" >&2
+  sleep "$delay"
+  attempt=$((attempt + 1))
+done
+
+cat "$TMP_OUT"
+cat "$TMP_ERR" >&2
+exit $rc
