@@ -1,0 +1,13 @@
+{
+  "name": "sidkik-plugins",
+  "owner": {
+    "name": "Sidkik"
+  },
+  "plugins": [
+    {
+      "name": "codex-crew",
+      "source": "./codex-crew",
+      "description": "Purpose-built Codex delegate agents (implementer/reviewer/fast) with pinned models, riding the official codex plugin's companion runtime"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# crew-codex — forward to the official codex plugin's companion runtime.
+# Resolves the runtime through installed_plugins.json so version bumps of
+# codex@openai-codex never break the crew agents.
+set -euo pipefail
+
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+INSTALLED_JSON="$CLAUDE_DIR/plugins/installed_plugins.json"
+CODEX_PLUGIN_ID="codex@openai-codex"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "crew-codex: node is required (the codex companion runtime is a Node script)" >&2
+  exit 1
+fi
+
+if [[ ! -f "$INSTALLED_JSON" ]]; then
+  echo "crew-codex: $INSTALLED_JSON not found — install the official Codex plugin first: /plugin install $CODEX_PLUGIN_ID" >&2
+  exit 1
+fi
+
+if ! COMPANION_ROOT="$(node -e '
+  const fs = require("fs");
+  const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  const entries = (data.plugins || {})[process.argv[2]];
+  if (!Array.isArray(entries) || entries.length === 0 || !entries[0].installPath) process.exit(2);
+  process.stdout.write(entries[0].installPath);
+' "$INSTALLED_JSON" "$CODEX_PLUGIN_ID")"; then
+  echo "crew-codex: $CODEX_PLUGIN_ID is not installed — run: /plugin install $CODEX_PLUGIN_ID" >&2
+  exit 1
+fi
+
+COMPANION="$COMPANION_ROOT/scripts/codex-companion.mjs"
+if [[ ! -f "$COMPANION" ]]; then
+  echo "crew-codex: companion script missing at $COMPANION — the codex plugin layout changed; update codex-crew's resolver" >&2
+  exit 1
+fi
+
+# Job state must land in the codex plugin's data dir so /codex:status,
+# /codex:result and its SessionEnd cleanup see crew-launched jobs too.
+export CLAUDE_PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-$CLAUDE_DIR/plugins/data/codex-openai-codex}"
+
+if [[ "${1:-}" == "--resolve" ]]; then
+  echo "$COMPANION"
+  exit 0
+fi
+
+exec node "$COMPANION" "$@"
