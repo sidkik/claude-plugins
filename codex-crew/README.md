@@ -8,14 +8,19 @@ instead of reimplementing it.
 
 ## Agents
 
-| Agent | Model | Effort | Posture | Use for |
-|---|---|---|---|---|
-| `codex-implementer` | gpt-5.6-terra | high | write | Substantial bounded implementation/debugging |
-| `codex-reviewer` | gpt-5.6-terra | high | read-only | Diff/branch reviews, adversarial reviews, diagnosis |
-| `codex-fast` | gpt-5.4-mini | low | write | Cheap mechanical/parallel grunt work |
+Implementation is tiered across the GPT-5.6 ladder — the orchestrator picks
+the tier per task; each agent's description carries the selection criteria:
 
-Pins are defaults — a dispatch brief that explicitly names a model or effort
-overrides them (`spark` → `gpt-5.3-codex-spark`).
+| Agent | Model | Effort | Posture | Choose when |
+|---|---|---|---|---|
+| `codex-implementer-sol` | gpt-5.6-sol (flagship) | xhigh | write | Novel/intricate logic, cross-cutting multi-file changes, concurrency/money-path correctness, gnarly debugging — anything where mid-tier output would need rework |
+| `codex-implementer-terra` | gpt-5.6-terra (balanced) | xhigh | write | Routine, well-specified implementation with clear spec and existing patterns; the default when a task is real work but not hard |
+| `codex-implementer-luna` | gpt-5.6-luna (affordable) | xhigh | write | Mechanical, repetitive, parallelizable chores with an exact recipe; fan out freely |
+| `codex-reviewer` | gpt-5.6-sol | xhigh | read-only | Diff/branch reviews, adversarial reviews, independent diagnosis |
+
+Rough cost ratio per token: Sol ≈ 2× Terra ≈ 5× Luna. Pins are defaults — a
+dispatch brief that explicitly names a model or effort overrides them
+(`spark` → `gpt-5.3-codex-spark`, `mini` → `gpt-5.4-mini`).
 
 ## Requirements
 

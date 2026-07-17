@@ -6,8 +6,8 @@ user-invocable: false
 
 # Crew Runtime
 
-Use this skill only inside `codex-crew` agents (`codex-implementer`,
-`codex-reviewer`, `codex-fast`).
+Use this skill only inside `codex-crew` agents (`codex-implementer-sol`,
+`codex-implementer-terra`, `codex-implementer-luna`, `codex-reviewer`).
 
 Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 
@@ -35,5 +35,9 @@ Execution rules:
 - Failures are loud: relay raw stderr and exit code verbatim; never return
   empty output on error.
 
-Known models (Codex CLI 0.144.0): gpt-5.6-terra, gpt-5.6-sol, gpt-5.6-luna,
-gpt-5.5, gpt-5.4, gpt-5.4-mini (no xhigh effort), gpt-5.3-codex-spark.
+GPT-5.6 family ladder (per OpenAI's own model registry): **sol** = flagship
+frontier coding tier, **terra** = balanced everyday mid tier, **luna** =
+fast/affordable low tier. Other known models (Codex CLI 0.144.0): gpt-5.5,
+gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark. All listed models accept up to
+`xhigh`; the companion runtime rejects the registry's higher `max`/`ultra`
+efforts — `xhigh` is the ceiling through this plugin.
