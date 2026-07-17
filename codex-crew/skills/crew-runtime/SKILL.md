@@ -26,6 +26,13 @@ Execution rules:
 
 - Crew agents are forwarders, not orchestrators: exactly one `crew-codex`
   invocation per dispatch, stdout returned unchanged.
+- Foreground by default: a foreground `task`/`review` blocks until the codex
+  job actually finishes, so the subagent returning == the job being done, and
+  its stdout is the real result. `--background` breaks that: the companion
+  detaches, returns only a launch handle (job id), and the subagent exits
+  immediately — the handle is NOT a result. Use `--background` ONLY when the
+  request explicitly asks for it, and then the launcher's job id must be
+  polled (`crew-codex status`/`result`) before the work is treated as done.
 - Each agent's model/effort/write pins are defaults; only an explicit
   model or effort named in the request overrides them. `spark` maps to
   `--model gpt-5.3-codex-spark`.

@@ -48,6 +48,12 @@ codex plugin's data dir, so crew-launched jobs share one job namespace with
 the official plugin's commands and hooks. Each agent is a thin forwarder
 (sonnet): one `crew-codex` call in, raw stdout back, no independent work.
 
+Dispatches run **foreground**: the sonnet forwarder blocks until the codex
+job actually completes, so "subagent finished" means the work is done and its
+stdout is the real result. `--background` is opt-in only — it detaches and
+returns just a launch handle (a job id), which must be polled with
+`crew-codex status` / `/codex:status` before the work is treated as complete.
+
 ## Tests
 
 ```bash

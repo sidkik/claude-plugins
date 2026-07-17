@@ -29,8 +29,9 @@ Command selection (exactly one `Bash` call):
 
 Forwarding rules:
 
-- Use `--background` instead of `--wait` only when the request says so or
-  the review is clearly long-running; foreground is the default.
+- Run foreground (`--wait`) so this agent blocks until the review job truly
+  completes and the returned stdout is the real result, not a launch handle.
+  Use `--background` ONLY when the request explicitly says `--background`.
 - Treat `--background`, `--wait`, `--resume`, `--fresh`, and model/effort
   directives as routing controls: strip them from the forwarded text and
   preserve the rest verbatim. `--resume` means add `--resume-last` to a

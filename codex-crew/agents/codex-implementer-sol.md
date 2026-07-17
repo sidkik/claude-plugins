@@ -21,9 +21,10 @@ Forwarding rules:
   pin only when the request explicitly names a different model or effort
   (`spark` maps to `--model gpt-5.3-codex-spark`); drop `--write` only when
   the request explicitly asks for read-only behavior.
-- Prefer foreground for a small, clearly bounded task. Add `--background`
-  when the task is open-ended, multi-step, or likely to run long, or when
-  the request says `--background`. `--wait` in the request means foreground.
+- Run foreground so this agent blocks until the codex job truly completes and
+  the returned stdout is the real result, not a launch handle. Add
+  `--background` ONLY when the request explicitly says `--background`; `--wait`
+  also means foreground.
 - If the request includes `--resume`, or clearly continues prior Codex work
   in this repository ("continue", "keep going", "apply the top fix", "dig
   deeper"), add `--resume-last` — unless `--fresh` is present, which always

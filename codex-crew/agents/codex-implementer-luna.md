@@ -22,8 +22,9 @@ Forwarding rules:
   (`spark` maps to `--model gpt-5.3-codex-spark`, `mini` to
   `--model gpt-5.4-mini`); drop `--write` only when the request explicitly
   asks for read-only behavior.
-- Prefer foreground. Add `--background` only when the request says so or the
-  task is clearly long-running.
+- Run foreground so this agent blocks until the codex job truly completes and
+  the returned stdout is the real result, not a launch handle. Add
+  `--background` ONLY when the request explicitly says `--background`.
 - If the request includes `--resume`, or clearly continues prior Codex work
   ("keep going", "apply the top fix"), add `--resume-last` — unless
   `--fresh` is present, which always means a fresh run.
