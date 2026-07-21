@@ -112,6 +112,69 @@ else
   fail=$((fail + 1))
 fi
 
+# --- await cases: fake companion serving status/result for a synthetic job ---
+mkdir -p "$TMP/await/plugins" "$TMP/await/install/scripts"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/await/install\"}]}}" > "$TMP/await/plugins/installed_plugins.json"
+cat > "$TMP/await/install/scripts/codex-companion.mjs" <<'EOF'
+import fs from "node:fs";
+const [cmd, jobId, flag] = process.argv.slice(2);
+if (jobId === "task-missing") { console.log("{}"); process.exit(0); }
+if (cmd === "result") {
+  if (flag === "--json") console.log(JSON.stringify({ storedJob: { id: jobId, result: { rawOutput: "FINAL-RESULT" } } }));
+  else console.log("FINAL-RESULT");
+  process.exit(0);
+}
+// status: report `running` for CREW_TEST_RUNNING_POLLS polls, then terminal.
+const counter = process.env.CREW_TEST_COUNTER;
+const runningPolls = Number(process.env.CREW_TEST_RUNNING_POLLS ?? 0);
+const terminal = process.env.CREW_TEST_TERMINAL ?? "completed";
+let n = 0;
+try { n = Number(fs.readFileSync(counter, "utf8")); } catch {}
+n += 1;
+fs.writeFileSync(counter, String(n));
+const status = n <= runningPolls ? "running" : terminal;
+console.log(JSON.stringify({
+  job: { id: jobId, status, elapsed: `${n * 5}s`, logFile: "-", progressPreview: ["Turn started.", `poll ${n}`] }
+}));
+EOF
+
+# Case 11: job already terminal -> DONE completed, exit 0, result archived
+c="$TMP/await/c11"; arc="$TMP/await/archive11"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CREW_CODEX_ARCHIVE_DIR="$arc" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" CREW_TEST_RUNNING_POLLS=0 bash "$CREW" await task-x --for 5 2>&1)" && rc=0 || rc=$?
+check "await terminal completed" 0 "DONE completed" "$rc" "$out"
+check "await archived result" 0 "FINAL-RESULT" "$rc" "$(cat "$arc/task-x.result.txt" 2>/dev/null)"
+
+# Case 12: job running past the deadline -> RUNNING line, exit 10, no archive
+c="$TMP/await/c12"; arc="$TMP/await/archive12"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CREW_CODEX_ARCHIVE_DIR="$arc" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" CREW_TEST_RUNNING_POLLS=9999 bash "$CREW" await task-x --for 1 2>&1)" && rc=0 || rc=$?
+check "await still running exits 10" 10 "RUNNING" "$rc" "$out"
+check "await surfaces last progress" 10 "last: poll" "$rc" "$out"
+
+# Case 13: job running then completing -> polls through, then DONE, exit 0
+c="$TMP/await/c13"; arc="$TMP/await/archive13"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CREW_CODEX_ARCHIVE_DIR="$arc" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" CREW_TEST_RUNNING_POLLS=3 bash "$CREW" await task-x --for 30 2>&1)" && rc=0 || rc=$?
+check "await polls then completes" 0 "DONE completed" "$rc" "$out"
+check "await polled 4 times" 0 "^4$" "$rc" "$(cat "$c")"
+
+# Case 14: terminal failure -> DONE failed, exit 1
+c="$TMP/await/c14"; arc="$TMP/await/archive14"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CREW_CODEX_ARCHIVE_DIR="$arc" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" CREW_TEST_RUNNING_POLLS=0 CREW_TEST_TERMINAL=failed bash "$CREW" await task-x --for 5 2>&1)" && rc=0 || rc=$?
+check "await failed job exits 1" 1 "DONE failed" "$rc" "$out"
+
+# Case 15: unknown job -> exit 2 after tolerating transient misses
+c="$TMP/await/c15"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" bash "$CREW" await task-missing --for 30 2>&1)" && rc=0 || rc=$?
+check "await unknown job exits 2" 2 "not found in codex state" "$rc" "$out"
+
+# Case 16: await requires a job id
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" bash "$CREW" await --for 5 2>&1)" && rc=0 || rc=$?
+check "await without job id" 2 "needs a job id" "$rc" "$out"
+
 echo
 echo "$pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

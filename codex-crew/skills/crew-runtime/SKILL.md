@@ -14,6 +14,10 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 - `crew-codex task [--background] [--write] [--resume-last] [--model <m>] [--effort <none|minimal|low|medium|high|xhigh>] "<prompt>"`
 - `crew-codex review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>]`
 - `crew-codex adversarial-review [--wait|--background] [--base <ref>] [--scope <...>] [focus text]`
+- `crew-codex await <job-id> [--for <seconds>]` — block until the job leaves
+  `running`, or until the deadline; prints ONE line. Exit 0 completed,
+  1 failed/cancelled, 2 job not found, 10 still running (call again).
+- `crew-codex result <job-id>` — the finished job's output (plus its resume id)
 - `crew-codex --resolve` — print the resolved companion script path (diagnostics only)
 
 What it does: resolves the official `codex@openai-codex` plugin's
@@ -24,21 +28,25 @@ and the codex plugin's session-end cleanup.
 
 Execution rules:
 
-- Crew agents are forwarders, not orchestrators: exactly one `crew-codex`
-  invocation per dispatch, stdout returned unchanged.
-- Foreground by default: a foreground `task`/`review` blocks until the codex
-  job actually finishes, so the subagent returning == the job being done, and
-  its stdout is the real result. `--background` breaks that: the companion
-  detaches, returns only a launch handle (job id), and the subagent exits
-  immediately — the handle is NOT a result. Use `--background` ONLY when the
-  request explicitly asks for it, and then the launcher's job id must be
-  polled (`crew-codex status`/`result`) before the work is treated as done.
+- **Launch → await → report.** Codex jobs run for hours; Claude Code caps a
+  single Bash call at 600s. So every dispatch detaches the job
+  (`--background`), then loops `crew-codex await <id> --for 540` (each call
+  made with Bash `timeout: 600000`) until it stops returning exit 10, then
+  returns `crew-codex result <id>`. The agent owns the job for its entire
+  life — a launch handle is NEVER a result, and the loop has no iteration
+  limit. Waiting happens inside the shell, so hours of supervision cost only
+  one short status line per ~9 minutes.
 - Each agent's model/effort/write pins are defaults; only an explicit
   model or effort named in the request overrides them. `spark` maps to
   `--model gpt-5.3-codex-spark`.
-- Job control (`status`, `result`, `cancel`) belongs to the main thread —
-  via `/codex:status`, `/codex:result`, `/codex:cancel` or `crew-codex`
-  with those subcommands — never to crew agents.
+- `cancel` and cross-job triage belong to the main thread (`/codex:status`,
+  `/codex:cancel`); a crew agent only awaits the one job it launched.
+- Results are archived by `await` on terminal state to
+  `~/.claude/plugins/data/codex-crew/jobs/<id>.{result.txt,meta.json,log}`,
+  which the companion's 50-job pruner cannot delete. Jobs still die with the
+  Claude session by design (its SessionEnd hook terminates them); the archived
+  transcript and the `threadId` in the meta file survive, so interrupted work
+  resumes (`--resume-last` / `codex resume <threadId>`) instead of restarting.
 - Failures are loud: relay raw stderr and exit code verbatim; never return
   empty output on error.
 - Model-capacity rejections are retried automatically by `crew-codex` itself

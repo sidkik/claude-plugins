@@ -39,9 +39,95 @@ fi
 # /codex:result and its SessionEnd cleanup see crew-launched jobs too.
 export CLAUDE_PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-$CLAUDE_DIR/plugins/data/codex-openai-codex}"
 
+# Our own archive — the companion prunes at 50 jobs (deleting logs) and drops
+# a session's jobs at SessionEnd, so results are copied somewhere it can't reap.
+CREW_ARCHIVE_DIR="${CREW_CODEX_ARCHIVE_DIR:-$CLAUDE_DIR/plugins/data/codex-crew/jobs}"
+
 if [[ "${1:-}" == "--resolve" ]]; then
   echo "$COMPANION"
   exit 0
+fi
+
+# ---- await: poll a detached job toward terminal state, token-free ----------
+# Claude Code's Bash tool caps a single call at 600s, but codex jobs run for
+# hours. Each await call blocks up to --for seconds (default 540, safely under
+# that cap) and prints exactly ONE line; the caller loops until it stops
+# reporting RUNNING. Polling happens in-shell, so a multi-hour job costs no
+# model tokens while it runs. Exit: 0 completed, 1 failed/cancelled,
+# 2 job not found, 10 still running (call again).
+if [[ "${1:-}" == "await" ]]; then
+  shift
+  JOB_ID="${1:-}"
+  if [[ -z "$JOB_ID" || "$JOB_ID" == --* ]]; then
+    echo "crew-codex: await needs a job id — usage: crew-codex await <job-id> [--for <seconds>]" >&2
+    exit 2
+  fi
+  shift
+
+  FOR_SECS=540
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --for) FOR_SECS="${2:-540}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  POLL_SECS="${CREW_CODEX_POLL_SECS:-5}"
+
+  deadline=$(( $(date +%s) + FOR_SECS ))
+  missing_streak=0
+
+  while :; do
+    snap="$(node "$COMPANION" status "$JOB_ID" --json 2>/dev/null || true)"
+    parsed="$(printf '%s' "$snap" | python3 -c '
+import json, sys
+try:
+    j = json.load(sys.stdin)["job"]
+except Exception:
+    print("MISSING\t-\t-\t-")
+    raise SystemExit
+p = j.get("progressPreview") or []
+last = str(p[-1]) if p else "-"
+print("\t".join([
+    str(j.get("status", "?")),
+    str(j.get("elapsed", "?")),
+    str(j.get("logFile", "-")),
+    last.replace("\t", " ")[:80],
+]))
+' 2>/dev/null || printf 'MISSING\t-\t-\t-')"
+    IFS=$'\t' read -r jstatus jelapsed jlog jlast <<<"$parsed"
+
+    case "$jstatus" in
+      queued|running)
+        missing_streak=0
+        ;;
+      completed|failed|cancelled)
+        mkdir -p "$CREW_ARCHIVE_DIR"
+        node "$COMPANION" result "$JOB_ID" >"$CREW_ARCHIVE_DIR/$JOB_ID.result.txt" 2>/dev/null || true
+        node "$COMPANION" result "$JOB_ID" --json >"$CREW_ARCHIVE_DIR/$JOB_ID.meta.json" 2>/dev/null || true
+        if [[ -f "$jlog" ]]; then
+          cp -f "$jlog" "$CREW_ARCHIVE_DIR/$JOB_ID.log" 2>/dev/null || true
+        fi
+        echo "DONE $jstatus | ${jelapsed} | archived: $CREW_ARCHIVE_DIR/$JOB_ID.result.txt"
+        if [[ "$jstatus" == "completed" ]]; then exit 0; fi
+        exit 1
+        ;;
+      *)
+        # Tolerate a couple of transient unreadable snapshots (state.json is
+        # rewritten in place) before declaring the job genuinely gone.
+        missing_streak=$(( missing_streak + 1 ))
+        if [[ $missing_streak -ge 3 ]]; then
+          echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)" >&2
+          exit 2
+        fi
+        ;;
+    esac
+
+    if [[ $(date +%s) -ge $deadline ]]; then
+      echo "RUNNING | ${jelapsed} | last: ${jlast}"
+      exit 10
+    fi
+    sleep "$POLL_SECS"
+  done
 fi
 
 # Bounded retry on model-capacity rejection. The capacity error is an

@@ -48,11 +48,25 @@ codex plugin's data dir, so crew-launched jobs share one job namespace with
 the official plugin's commands and hooks. Each agent is a thin forwarder
 (sonnet): one `crew-codex` call in, raw stdout back, no independent work.
 
-Dispatches run **foreground**: the sonnet forwarder blocks until the codex
-job actually completes, so "subagent finished" means the work is done and its
-stdout is the real result. `--background` is opt-in only — it detaches and
-returns just a launch handle (a job id), which must be polled with
-`crew-codex status` / `/codex:status` before the work is treated as complete.
+**Long runs, owned end to end.** Codex jobs run for hours; Claude Code caps a
+single Bash call at 600s. So a dispatch is three steps — launch detached,
+loop `crew-codex await <id> --for 540`, return `crew-codex result <id>` — and
+the agent owns the job for its whole life. "Subagent finished" therefore still
+means the work is done, with no cap on how long the job takes. The waiting
+happens inside a shell poll loop, so hours of supervision cost one short
+status line per ~9 minutes rather than a streamed transcript.
+
+```
+crew-codex await <job-id> [--for <seconds>]
+  exit 0  DONE completed      exit 1  DONE failed/cancelled
+  exit 2  job not found       exit 10 RUNNING — call again
+```
+
+**Results survive.** On terminal state `await` archives the result, metadata
+and log to `~/.claude/plugins/data/codex-crew/jobs/`, which the companion's
+50-job pruner cannot delete. Jobs still stop when the Claude session ends (by
+design), but the archived transcript and `threadId` remain, so interrupted
+work is resumed rather than re-run from scratch.
 
 **Capacity retries**: "model is at capacity" rejections are retried by
 `crew-codex` automatically — up to 3 attempts with jittered 5/15/45s backoff
