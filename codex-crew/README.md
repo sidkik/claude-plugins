@@ -59,8 +59,15 @@ status line per ~9 minutes rather than a streamed transcript.
 ```
 crew-codex await <job-id> [--for <seconds>]
   exit 0  DONE completed      exit 1  DONE failed/cancelled
-  exit 2  job not found       exit 10 RUNNING — call again
+  exit 2  job not found       exit 3  STALE — died without reporting
+  exit 10 RUNNING — call again
 ```
+
+`await` waits on the job's **own process** (`tail --pid`), so it wakes the
+instant the job ends — not on a poll tick — and costs no CPU while blocked. It
+falls back to a 5s poll when no live pid is available. If the process
+disappears while the job still claims to be `running`, that's a silent death:
+`await` reports `STALE` with exit 3 instead of waiting out the deadline.
 
 **Results survive.** On terminal state `await` archives the result, metadata
 and log to `~/.claude/plugins/data/codex-crew/jobs/`, which the companion's

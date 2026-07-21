@@ -16,7 +16,11 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 - `crew-codex adversarial-review [--wait|--background] [--base <ref>] [--scope <...>] [focus text]`
 - `crew-codex await <job-id> [--for <seconds>]` — block until the job leaves
   `running`, or until the deadline; prints ONE line. Exit 0 completed,
-  1 failed/cancelled, 2 job not found, 10 still running (call again).
+  1 failed/cancelled, 2 job not found, 3 job died silently, 10 still running
+  (call again). It waits on the job's own process (`tail --pid`), so it wakes
+  the instant the job ends rather than on a poll timer.
+  Exit 3 (STALE) means the process vanished without ever reporting terminal —
+  report it verbatim; that job needs a resume or re-dispatch, not more waiting.
 - `crew-codex result <job-id>` — the finished job's output (plus its resume id)
 - `crew-codex --resolve` — print the resolved companion script path (diagnostics only)
 

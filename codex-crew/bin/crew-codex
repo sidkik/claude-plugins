@@ -75,6 +75,7 @@ if [[ "${1:-}" == "await" ]]; then
 
   deadline=$(( $(date +%s) + FOR_SECS ))
   missing_streak=0
+  stale_streak=0
 
   while :; do
     snap="$(node "$COMPANION" status "$JOB_ID" --json 2>/dev/null || true)"
@@ -83,7 +84,7 @@ import json, sys
 try:
     j = json.load(sys.stdin)["job"]
 except Exception:
-    print("MISSING\t-\t-\t-")
+    print("MISSING\t-\t-\t-\t-")
     raise SystemExit
 p = j.get("progressPreview") or []
 last = str(p[-1]) if p else "-"
@@ -92,9 +93,10 @@ print("\t".join([
     str(j.get("elapsed", "?")),
     str(j.get("logFile", "-")),
     last.replace("\t", " ")[:80],
+    str(j.get("pid") or "-"),
 ]))
-' 2>/dev/null || printf 'MISSING\t-\t-\t-')"
-    IFS=$'\t' read -r jstatus jelapsed jlog jlast <<<"$parsed"
+' 2>/dev/null || printf 'MISSING\t-\t-\t-\t-')"
+    IFS=$'\t' read -r jstatus jelapsed jlog jlast jpid <<<"$parsed"
 
     case "$jstatus" in
       queued|running)
@@ -122,11 +124,30 @@ print("\t".join([
         ;;
     esac
 
-    if [[ $(date +%s) -ge $deadline ]]; then
+    remaining=$(( deadline - $(date +%s) ))
+    if [[ $remaining -le 0 ]]; then
       echo "RUNNING | ${jelapsed} | last: ${jlast}"
       exit 10
     fi
-    sleep "$POLL_SECS"
+
+    # Prefer waiting on the job's own process: tail --pid blocks in the kernel
+    # and wakes the instant it exits (verified: state.json is already terminal
+    # by then). Falls back to polling when the pid is absent or already gone.
+    if [[ "$jpid" =~ ^[0-9]+$ ]] && kill -0 "$jpid" 2>/dev/null; then
+      stale_streak=0
+      timeout "$remaining" tail --pid="$jpid" -f /dev/null 2>/dev/null || true
+    else
+      if [[ "$jpid" =~ ^[0-9]+$ ]]; then
+        # Process is gone but the job never reached a terminal status — this is
+        # the signature of a silent death, so say so instead of waiting it out.
+        stale_streak=$(( stale_streak + 1 ))
+        if [[ $stale_streak -ge 3 ]]; then
+          echo "STALE $JOB_ID | ${jelapsed} | process $jpid is gone but status is still '$jstatus' — the job died without reporting; resume it or re-dispatch" >&2
+          exit 3
+        fi
+      fi
+      sleep "$POLL_SECS"
+    fi
   done
 fi
 

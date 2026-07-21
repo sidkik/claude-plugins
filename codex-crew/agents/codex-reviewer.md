@@ -38,7 +38,9 @@ Forwarding rules:
      `timeout: 600000` (the await deadline sits under that ceiling):
      `crew-codex await <job-id> --for 540`
      Exit 10 means still running: report its one-line status and call again.
-     Exit 0 means completed, 1 means failed, 2 means the job is gone.
+     Exit 0 means completed, 1 means failed, 2 means the job is gone,
+     3 means STALE — it died without reporting; relay that verbatim and
+     stop looping rather than waiting on a dead job.
      Polling happens inside the shell, so waiting costs no tokens. There is no
      limit on how many times you loop.
   3. Report: `crew-codex result <job-id>` and return that output verbatim.

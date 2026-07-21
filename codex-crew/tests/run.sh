@@ -171,6 +171,60 @@ out="$(CLAUDE_CONFIG_DIR="$TMP/await" CREW_CODEX_POLL_SECS=0 \
   CREW_TEST_COUNTER="$c" bash "$CREW" await task-missing --for 30 2>&1)" && rc=0 || rc=$?
 check "await unknown job exits 2" 2 "not found in codex state" "$rc" "$out"
 
+# --- pid-aware await: blocks on the job process, detects silent death --------
+cat > "$TMP/await/install/scripts/pid-companion.mjs" <<'EOF'
+import fs from "node:fs";
+const [cmd, jobId, flag] = process.argv.slice(2);
+if (cmd === "result") { console.log("FINAL-RESULT"); process.exit(0); }
+const counter = process.env.CREW_TEST_COUNTER;
+const pid = process.env.CREW_TEST_PID ?? "-";
+const runningPolls = Number(process.env.CREW_TEST_RUNNING_POLLS ?? 0);
+let n = 0;
+try { n = Number(fs.readFileSync(counter, "utf8")); } catch {}
+n += 1;
+fs.writeFileSync(counter, String(n));
+const status = n <= runningPolls ? "running" : "completed";
+console.log(JSON.stringify({
+  job: { id: jobId, status, elapsed: `${n}s`, logFile: "-", pid: Number(pid), progressPreview: [`poll ${n}`] }
+}));
+EOF
+cp "$TMP/await/install/scripts/pid-companion.mjs" "$TMP/await/install/scripts/codex-companion.mjs"
+
+# Case 17: live pid -> await blocks on the process, returns when it exits
+sleep 2 & LIVE_PID=$!
+c="$TMP/await/c17"; arc="$TMP/await/archive17"
+start=$(date +%s)
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CREW_CODEX_ARCHIVE_DIR="$arc" \
+  CREW_TEST_COUNTER="$c" CREW_TEST_PID="$LIVE_PID" CREW_TEST_RUNNING_POLLS=1 \
+  bash "$CREW" await task-x --for 30 2>&1)" && rc=0 || rc=$?
+elapsed=$(( $(date +%s) - start ))
+wait "$LIVE_PID" 2>/dev/null || true
+check "pid-block completes on process exit" 0 "DONE completed" "$rc" "$out"
+if [[ "$elapsed" -ge 2 && "$elapsed" -le 8 ]]; then
+  echo "PASS: pid-block woke on exit, not on poll timer (${elapsed}s)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: pid-block timing off (${elapsed}s, expected 2-8s)"
+  fail=$((fail + 1))
+fi
+
+# Case 18: dead pid + status stuck running -> STALE, exit 3 (silent-death signal)
+DEAD_PID=$(bash -c 'echo $$')
+c="$TMP/await/c18"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" CREW_TEST_PID="$DEAD_PID" CREW_TEST_RUNNING_POLLS=9999 \
+  bash "$CREW" await task-x --for 30 2>&1)" && rc=0 || rc=$?
+check "stale job detected" 3 "died without reporting" "$rc" "$out"
+
+# restore the plain fake for any later cases
+cat > "$TMP/await/install/scripts/codex-companion.mjs" <<'EOF'
+import fs from "node:fs";
+const [cmd, jobId, flag] = process.argv.slice(2);
+if (jobId === "task-missing") { console.log("{}"); process.exit(0); }
+if (cmd === "result") { console.log("FINAL-RESULT"); process.exit(0); }
+console.log(JSON.stringify({ job: { id: jobId, status: "completed", elapsed: "1s", logFile: "-", pid: null, progressPreview: ["done"] } }));
+EOF
+
 # Case 16: await requires a job id
 out="$(CLAUDE_CONFIG_DIR="$TMP/await" bash "$CREW" await --for 5 2>&1)" && rc=0 || rc=$?
 check "await without job id" 2 "needs a job id" "$rc" "$out"
