@@ -320,6 +320,96 @@ check "result not-found gains the cwd hint" 1 \
   "job exists under cwd /home/chad/projects/vail; re-run from that directory" "$rc" "$out"
 check "result not-found keeps the companion error" 1 "codex: job not found" "$rc" "$out"
 
+# --- redirect: interrupt a running job and resume its thread on new text ----
+mkdir -p "$TMP/redir/plugins" "$TMP/redir/install/scripts" "$TMP/redir/data/state/lab-1/jobs"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/redir/install\"}]}}" > "$TMP/redir/plugins/installed_plugins.json"
+# Fake companion: records argv, and answers `task` with a new job id.
+cat > "$TMP/redir/install/scripts/codex-companion.mjs" <<'EOF'
+import fs from "node:fs";
+const argv = process.argv.slice(2);
+fs.appendFileSync(process.env.CREW_TEST_ARGV_LOG, argv.join(" ") + "\n");
+if (argv[0] === "task") { console.log("Codex Resume started in the background as task-new1-aaa1."); }
+else if (argv[0] === "cancel") { console.log("Cancelled " + argv[1] + "."); }
+process.exit(0);
+EOF
+
+write_job() { # dir id status thread createdAt model effort write
+  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"%s","request":{"cwd":"%s","model":"%s","effort":"%s","write":%s}}\n' \
+    "$2" "$3" "$4" "$5" "$PWD" "$6" "$7" "$8" > "$1/$2.json"
+}
+JOBS="$TMP/redir/data/state/lab-1/jobs"
+write_job "$JOBS" task-old1-bbb1 running thread-A 2026-01-01T00:00:00.000Z gpt-5.6-terra xhigh true
+
+run_redirect() {
+  CLAUDE_CONFIG_DIR="$TMP/redir" CLAUDE_PLUGIN_DATA="$TMP/redir/data" \
+  CREW_TEST_ARGV_LOG="$1" bash "$CREW" redirect "${@:2}" 2>&1
+}
+
+# Case 23: redirect without a job id
+out="$(CLAUDE_CONFIG_DIR="$TMP/redir" bash "$CREW" redirect 2>&1)" && rc=0 || rc=$?
+check "redirect without job id" 2 "needs a job id" "$rc" "$out"
+
+# Case 24: redirect without instruction text
+out="$(CLAUDE_CONFIG_DIR="$TMP/redir" CLAUDE_PLUGIN_DATA="$TMP/redir/data" bash "$CREW" redirect task-old1-bbb1 2>&1)" && rc=0 || rc=$?
+check "redirect without instruction" 2 "needs the new instruction text" "$rc" "$out"
+
+# Case 25: happy path -> cancels, resumes the thread, reports old -> new
+log="$TMP/redir/argv1"; : > "$log"
+out="$(run_redirect "$log" task-old1-bbb1 "Change of plan: stop and write NOTES.md")" && rc=0 || rc=$?
+check "redirect interrupts the running job" 0 "interrupted task-old1-bbb1" "$rc" "$out"
+check "redirect reports the successor" 0 "REDIRECTED task-old1-bbb1 -> task-new1-aaa1" "$rc" "$out"
+check "redirect cancelled first" 0 "^cancel task-old1-bbb1$" "$rc" "$(cat "$log")"
+check "redirect resumed the same thread" 0 "task --background --resume-last" "$rc" "$(cat "$log")"
+check "redirect carries the write posture" 0 "resume-last --write" "$rc" "$(cat "$log")"
+check "redirect carries model and effort" 0 "\-\-model gpt-5.6-terra --effort xhigh" "$rc" "$(cat "$log")"
+check "redirect passes the instruction" 0 "Change of plan: stop and write NOTES.md" "$rc" "$(cat "$log")"
+
+# Case 26: explicit --model/--effort override the job's own pins
+log="$TMP/redir/argv2"; : > "$log"
+out="$(run_redirect "$log" task-old1-bbb1 --model gpt-5.6-sol --effort high "escalate this")" && rc=0 || rc=$?
+check "redirect honours model override" 0 "\-\-model gpt-5.6-sol --effort high" "$rc" "$(cat "$log")"
+
+# Case 27: refuse when the target is not the newest task job for this cwd
+write_job "$JOBS" task-new2-ccc2 running thread-B 2026-06-01T00:00:00.000Z gpt-5.6-terra xhigh true
+log="$TMP/redir/argv3"; : > "$log"
+out="$(run_redirect "$log" task-old1-bbb1 "too late")" && rc=0 || rc=$?
+check "redirect refuses a non-newest job" 2 "is not the newest task job for this cwd" "$rc" "$out"
+
+# Case 28: unknown job id -> not found, with the cwd hint machinery intact
+log="$TMP/redir/argv4"; : > "$log"
+out="$(run_redirect "$log" task-zzz9-zzz9 "nothing to redirect")" && rc=0 || rc=$?
+check "redirect on unknown job" 2 "not found in codex state" "$rc" "$out"
+
+# --- await exit 4: a cancelled job whose thread was picked up by a successor -
+mkdir -p "$TMP/sup/plugins" "$TMP/sup/install/scripts" "$TMP/sup/data/state/lab-1/jobs"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/sup/install\"}]}}" > "$TMP/sup/plugins/installed_plugins.json"
+cat > "$TMP/sup/install/scripts/codex-companion.mjs" <<'EOF'
+const [cmd, jobId] = process.argv.slice(2);
+if (cmd === "result") { console.log("FINAL-RESULT"); process.exit(0); }
+console.log(JSON.stringify({ job: { id: jobId, status: "cancelled", elapsed: "9s", logFile: "-", pid: null, progressPreview: ["stopped"] } }));
+EOF
+SJOBS="$TMP/sup/data/state/lab-1/jobs"
+printf '{"id":"task-old2-ddd2","status":"cancelled","threadId":"thread-Z","createdAt":"2026-01-01T00:00:00.000Z"}\n' > "$SJOBS/task-old2-ddd2.json"
+printf '{"id":"task-new3-eee3","status":"running","threadId":"thread-Z","createdAt":"2026-01-02T00:00:00.000Z"}\n' > "$SJOBS/task-new3-eee3.json"
+
+# Case 29: cancelled + later job on the same thread -> SUPERSEDED, exit 4
+out="$(CLAUDE_CONFIG_DIR="$TMP/sup" CLAUDE_PLUGIN_DATA="$TMP/sup/data" CREW_CODEX_ARCHIVE_DIR="$TMP/sup/arc" \
+  CREW_CODEX_POLL_SECS=0 bash "$CREW" await task-old2-ddd2 --for 5 2>&1)" && rc=0 || rc=$?
+check "cancelled job names its successor" 4 "SUPERSEDED task-old2-ddd2 -> task-new3-eee3" "$rc" "$out"
+
+# Case 30: cancelled with NO successor -> ordinary DONE cancelled, exit 1
+printf '{"id":"task-lone1-fff1","status":"cancelled","threadId":"thread-Y","createdAt":"2026-01-01T00:00:00.000Z"}\n' > "$SJOBS/task-lone1-fff1.json"
+out="$(CLAUDE_CONFIG_DIR="$TMP/sup" CLAUDE_PLUGIN_DATA="$TMP/sup/data" CREW_CODEX_ARCHIVE_DIR="$TMP/sup/arc" \
+  CREW_CODEX_POLL_SECS=0 bash "$CREW" await task-lone1-fff1 --for 5 2>&1)" && rc=0 || rc=$?
+check "lone cancelled job stays a failure" 1 "DONE cancelled" "$rc" "$out"
+
+# Case 31: the prompts tell agents how to handle a redirect
+for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do
+  check_contains "$(basename "$f") handles the SUPERSEDED exit" "$f" "SUPERSEDED"
+done
+check_contains "SKILL.md documents redirect" "$SKILL_FILE" "crew-codex redirect <job-id>"
+check_contains "SKILL.md warns against cancel-and-restart" "$SKILL_FILE" "Do not cancel and re-dispatch fresh"
+
 echo
 echo "$pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

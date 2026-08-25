@@ -81,6 +81,7 @@ re-run from that directory` to the error. State keying is unchanged.
 crew-codex await <job-id> [--for <seconds>]
   exit 0  DONE completed      exit 1  DONE failed/cancelled
   exit 2  job not found       exit 3  STALE — died without reporting
+  exit 4  SUPERSEDED by a redirect (line names the successor id)
   exit 10 RUNNING — call again
 ```
 
@@ -89,6 +90,31 @@ instant the job ends — not on a poll tick — and costs no CPU while blocked. 
 falls back to a 5s poll when no live pid is available. If the process
 disappears while the job still claims to be `running`, that's a silent death:
 `await` reports `STALE` with exit 3 instead of waiting out the deadline.
+
+**Redirect a running job instead of restarting it.** A long job going the
+wrong way does not have to be thrown away:
+
+```
+cd <sandbox root> && crew-codex redirect <job-id> "Change of plan: <new instruction>"
+```
+
+That interrupts the live turn and resumes the *same* Codex thread with the new
+text, so everything the job already did stays in context. It prints
+`REDIRECTED <old> -> <new>`; await the new id. Model, effort and write posture
+carry over unless you override them. The agent that was awaiting the old id
+gets exit 4 (`SUPERSEDED`) naming the successor, so it follows the thread
+rather than reporting a failure.
+
+Verified in a sandbox: a job cancelled after creating 4 of 30 files resumed
+knowing it had made exactly 4, then carried out the new instruction instead.
+
+Why not true mid-turn steering? Codex does support it (`turn/steer` on the
+app-server), but the codex plugin's broker forwards exactly one method while a
+turn is streaming, `turn/interrupt` (`app-server-broker.mjs`). Everything else
+gets `-32001 Shared Codex broker is busy`. `codex queue --thread` is accepted
+for a crew job's thread and then never drained, since the job's app-server goes
+away with the job. Interrupt-then-resume is the mechanism that actually works
+end to end today.
 
 **Results survive.** On terminal state `await` archives the result, metadata
 and log to `~/.claude/plugins/data/codex-crew/jobs/`, which the companion's

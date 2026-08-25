@@ -40,8 +40,9 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 - `crew-codex adversarial-review [--wait|--background] [--base <ref>] [--scope <...>] [focus text]`
 - `crew-codex await <job-id> [--for <seconds>]` — block until the job leaves
   `running`, or until the deadline; prints ONE line. Exit 0 completed,
-  1 failed/cancelled, 2 job not found, 3 job died silently, 10 still running
-  (call again). Exit 2 is usually a working-directory mismatch rather than a
+  1 failed/cancelled, 2 job not found, 3 job died silently, 4 SUPERSEDED by a
+  redirect, 10 still running (call again). Exit 4 names the successor job id:
+  await that one and own it to the end. A redirect is never a failure. Exit 2 is usually a working-directory mismatch rather than a
   dead job: `crew-codex` probes the sibling state directories and, when it
   finds the job, prints the cwd to re-run from. Verify with the two probes
   above before treating exit 2 as gone. It waits on the job's own process
@@ -49,6 +50,12 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
   timer.
   Exit 3 (STALE) means the process vanished without ever reporting terminal —
   report it verbatim; that job needs a resume or re-dispatch, not more waiting.
+- `crew-codex redirect <job-id> [--model <m>] [--effort <e>] "<instruction>"` —
+  put a RUNNING job onto new instructions without losing its work: interrupts
+  the live turn, then resumes the same Codex thread with the new text. Prints
+  `REDIRECTED <old> -> <new>`; await the NEW id. Model, effort and write
+  posture carry over from the original job unless overridden. Belongs to the
+  main thread, not to the crew agent that owns the job.
 - `crew-codex result <job-id>` — the finished job's output (plus its resume id)
 - `crew-codex --resolve` — print the resolved companion script path (diagnostics only)
 
@@ -73,8 +80,16 @@ Execution rules:
 - Each agent's model/effort/write pins are defaults; only an explicit
   model or effort named in the request overrides them. `spark` maps to
   `--model gpt-5.3-codex-spark`.
-- `cancel` and cross-job triage belong to the main thread (`/codex:status`,
-  `/codex:cancel`); a crew agent only awaits the one job it launched.
+- `cancel`, `redirect` and cross-job triage belong to the main thread
+  (`/codex:status`, `/codex:cancel`); a crew agent only awaits the one job it
+  launched, or the successor a redirect hands it via exit 4.
+- **Changing a running job's instructions.** Codex can steer a turn in flight
+  (`turn/steer`), but the codex plugin's broker forwards exactly one method
+  while a turn streams: `turn/interrupt`. `codex queue` is accepted for the
+  thread and then never drained by a crew job. So the working move is
+  `crew-codex redirect`, which interrupts and resumes the same thread with the
+  work so far still in context. Do not cancel and re-dispatch fresh: that
+  throws away everything the job had already done.
 - Results are archived by `await` on terminal state to
   `~/.claude/plugins/data/codex-crew/jobs/<id>.{result.txt,meta.json,log}`,
   which the companion's 50-job pruner cannot delete. Jobs still die with the
