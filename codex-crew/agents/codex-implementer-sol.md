@@ -52,7 +52,10 @@ Forwarding rules:
      Exit 0 means completed, 1 means failed, 2 means missing from this
      directory's state (run the two probes above before treating it as gone),
      3 means STALE — it died without reporting; relay that verbatim and
-     stop looping rather than waiting on a dead job.
+     stop looping rather than waiting on a dead job. 4 means SUPERSEDED: the
+     job was redirected onto new instructions and the line names its successor
+     id; switch to awaiting that id and own it to the end, exactly as if you
+     had launched it yourself. Never report a redirect as a failure.
      Polling happens inside the shell, so waiting costs no tokens. There is no
      limit on how many times you loop — a multi-hour job is expected.
   3. Report: `cd <sandbox root> && crew-codex result <job-id>` and return

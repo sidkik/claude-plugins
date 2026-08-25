@@ -71,8 +71,147 @@ crew_cwd_hint() {
   return 0
 }
 
+# A redirect cancels the old job and resumes its Codex thread under a NEW job
+# id. An agent still awaiting the old id would otherwise read that cancellation
+# as failure, so name the successor: same threadId, created later.
+crew_successor() {
+  node -e '
+    const fs = require("fs"), path = require("path");
+    const [dataDir, jobId] = process.argv.slice(1);
+    const stateRoot = path.join(dataDir, "state");
+    const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
+    let dirs = [];
+    try { dirs = fs.readdirSync(stateRoot); } catch { }
+    for (const d of dirs) {
+      const jobsDir = path.join(stateRoot, d, "jobs");
+      const self = read(path.join(jobsDir, `${jobId}.json`));
+      if (!self) continue;
+      if (!self.threadId) process.exit(0);
+      const mine = String(self.createdAt || "");
+      let best = "", bestAt = "";
+      for (const f of fs.readdirSync(jobsDir)) {
+        if (!f.endsWith(".json") || f === `${jobId}.json`) continue;
+        const other = read(path.join(jobsDir, f));
+        if (!other || other.threadId !== self.threadId) continue;
+        const at = String(other.createdAt || "");
+        if (at > mine && at > bestAt) { bestAt = at; best = other.id; }
+      }
+      if (best) process.stdout.write(best);
+      process.exit(0);
+    }
+  ' "$CLAUDE_PLUGIN_DATA" "$1" 2>/dev/null || true
+}
+
 if [[ "${1:-}" == "--resolve" ]]; then
   echo "$COMPANION"
+  exit 0
+fi
+
+# ---- redirect: put a running job onto new instructions, keeping its thread --
+# Codex itself can steer a turn in flight (turn/steer), but the codex plugin's
+# broker forwards exactly ONE method while a turn streams: turn/interrupt
+# (app-server-broker.mjs). So mid-turn steering is not reachable from here, and
+# `codex queue` writes to a queue a crew job never drains. What IS reachable is
+# interrupt-then-resume: cancel stops the live turn, and --resume-last picks the
+# same Codex thread back up with the work so far still in context. Verified: a
+# job cancelled after 4 of 30 files resumed knowing it had made exactly 4.
+if [[ "${1:-}" == "redirect" ]]; then
+  shift
+  JOB_ID="${1:-}"
+  if [[ -z "$JOB_ID" || "$JOB_ID" == --* ]]; then
+    echo "crew-codex: redirect needs a job id — usage: crew-codex redirect <job-id> [--model <m>] [--effort <e>] \"<instruction>\"" >&2
+    exit 2
+  fi
+  shift
+
+  R_MODEL="" R_EFFORT="" INSTRUCTION=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --model) R_MODEL="${2:-}"; shift 2 ;;
+      --effort) R_EFFORT="${2:-}"; shift 2 ;;
+      *) INSTRUCTION="${INSTRUCTION:+$INSTRUCTION }$1"; shift ;;
+    esac
+  done
+
+  if [[ -z "$INSTRUCTION" ]]; then
+    echo "crew-codex: redirect needs the new instruction text — usage: crew-codex redirect <job-id> \"<instruction>\"" >&2
+    exit 2
+  fi
+
+  # --resume-last resumes the newest task thread for THIS cwd, so the job being
+  # redirected has to be that newest job or we would silently steer another one.
+  META="$(node -e '
+    const fs = require("fs"), path = require("path");
+    const [dataDir, jobId, pwd] = process.argv.slice(1);
+    const stateRoot = path.join(dataDir, "state");
+    const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
+    let dirs = [];
+    try { dirs = fs.readdirSync(stateRoot); } catch { }
+    for (const d of dirs) {
+      const jobsDir = path.join(stateRoot, d, "jobs");
+      const file = path.join(jobsDir, `${jobId}.json`);
+      if (!fs.existsSync(file)) continue;
+      const job = read(file);
+      if (!job) continue;
+      const cwd = (job.request && job.request.cwd) || job.workspaceRoot || "";
+      let newest = jobId, newestAt = "";
+      for (const f of fs.readdirSync(jobsDir)) {
+        if (!f.endsWith(".json")) continue;
+        const other = read(path.join(jobsDir, f));
+        if (!other || !String(other.id || "").startsWith("task-")) continue;
+        const at = String(other.createdAt || "");
+        if (at > newestAt) { newestAt = at; newest = other.id; }
+      }
+      const req = job.request || {};
+      process.stdout.write([
+        "FOUND", job.status || "?", job.threadId || "", cwd,
+        req.model || "", req.effort || "", req.write ? "true" : "false",
+        newest === jobId ? "newest" : newest
+      ].join("\t"));
+      process.exit(0);
+    }
+    process.stdout.write("MISSING\t\t\t\t\t\t\t");
+  ' "$CLAUDE_PLUGIN_DATA" "$JOB_ID" "$PWD" 2>/dev/null || printf 'MISSING\t\t\t\t\t\t\t')"
+  IFS=$'\t' read -r jfound jstatus jthread jcwd jmodel jeffort jwrite jnewest <<<"$META"
+
+  if [[ "$jfound" != "FOUND" ]]; then
+    echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
+    exit 2
+  fi
+  if [[ -n "$jcwd" && "$jcwd" != "$PWD" ]]; then
+    echo "crew-codex: job $JOB_ID belongs to cwd $jcwd; re-run redirect from that directory so --resume-last targets its thread" >&2
+    exit 2
+  fi
+  if [[ "$jnewest" != "newest" ]]; then
+    echo "crew-codex: job $JOB_ID is not the newest task job for this cwd ($jnewest is); redirect resumes the newest thread, so cancel and re-dispatch explicitly instead" >&2
+    exit 2
+  fi
+
+  if [[ "$jstatus" == "running" || "$jstatus" == "queued" ]]; then
+    cancel_out="$(node "$COMPANION" cancel "$JOB_ID" 2>&1)" || true
+    echo "crew-codex: interrupted $JOB_ID (was $jstatus)"
+  else
+    echo "crew-codex: $JOB_ID was already $jstatus; resuming its thread"
+  fi
+
+  relaunch=(task --background --resume-last)
+  [[ "$jwrite" == "true" ]] && relaunch+=(--write)
+  use_model="${R_MODEL:-$jmodel}"
+  use_effort="${R_EFFORT:-$jeffort}"
+  [[ -n "$use_model" ]] && relaunch+=(--model "$use_model")
+  [[ -n "$use_effort" ]] && relaunch+=(--effort "$use_effort")
+  relaunch+=("$INSTRUCTION")
+
+  rrc=0
+  relaunch_out="$(node "$COMPANION" "${relaunch[@]}" 2>&1)" || rrc=$?
+  echo "$relaunch_out"
+  if [[ $rrc -ne 0 ]]; then
+    echo "crew-codex: redirect relaunch failed (exit $rrc); the thread is intact — resume it manually with --resume-last" >&2
+    exit $rrc
+  fi
+
+  NEW_ID="$(grep -oE '\b(task|review)-[a-z0-9]+-[a-z0-9]+\b' <<<"$relaunch_out" | head -1 || true)"
+  echo "REDIRECTED $JOB_ID -> ${NEW_ID:-<unknown>} | thread ${jthread:-<pending>} | await the NEW id"
   exit 0
 fi
 
@@ -82,7 +221,7 @@ fi
 # that cap) and prints exactly ONE line; the caller loops until it stops
 # reporting RUNNING. Polling happens in-shell, so a multi-hour job costs no
 # model tokens while it runs. Exit: 0 completed, 1 failed/cancelled,
-# 2 job not found, 10 still running (call again).
+# 2 job not found, 3 stale, 4 superseded by a redirect, 10 still running.
 if [[ "${1:-}" == "await" ]]; then
   shift
   JOB_ID="${1:-}"
@@ -136,6 +275,13 @@ print("\t".join([
         node "$COMPANION" result "$JOB_ID" --json >"$CREW_ARCHIVE_DIR/$JOB_ID.meta.json" 2>/dev/null || true
         if [[ -f "$jlog" ]]; then
           cp -f "$jlog" "$CREW_ARCHIVE_DIR/$JOB_ID.log" 2>/dev/null || true
+        fi
+        if [[ "$jstatus" == "cancelled" ]]; then
+          successor="$(crew_successor "$JOB_ID")"
+          if [[ -n "$successor" ]]; then
+            echo "SUPERSEDED $JOB_ID -> $successor | redirected onto the same Codex thread; await the NEW id"
+            exit 4
+          fi
         fi
         echo "DONE $jstatus | ${jelapsed} | archived: $CREW_ARCHIVE_DIR/$JOB_ID.result.txt"
         if [[ "$jstatus" == "completed" ]]; then exit 0; fi
