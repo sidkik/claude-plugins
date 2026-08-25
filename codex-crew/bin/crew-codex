@@ -43,6 +43,34 @@ export CLAUDE_PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-$CLAUDE_DIR/plugins/data/codex-
 # a session's jobs at SessionEnd, so results are copied somewhere it can't reap.
 CREW_ARCHIVE_DIR="${CREW_CODEX_ARCHIVE_DIR:-$CLAUDE_DIR/plugins/data/codex-crew/jobs}"
 
+# The companion keys job state to a hash of the shell's cwd, and Claude Code
+# resets the cwd between Bash calls, so a job launched from one directory is
+# invisible to a call made from another. Keying stays as it is; we just refuse
+# to report a live job as gone. On "not found", probe the sibling state
+# directories under the same parent and name the cwd to re-run from.
+crew_cwd_hint() {
+  local job="$1" f jcwd
+  for f in "$CLAUDE_PLUGIN_DATA"/state/*/jobs/"$job".json; do
+    [[ -f "$f" ]] || continue
+    jcwd="$(node -e '
+      const fs = require("fs");
+      try {
+        const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+        process.stdout.write(String((j.request && j.request.cwd) || j.workspaceRoot || ""));
+      } catch (e) {}
+    ' "$f" 2>/dev/null || true)"
+    if [[ "$jcwd" == "$PWD" ]]; then continue; fi
+    if [[ -n "$jcwd" ]]; then
+      printf '; job exists under cwd %s; re-run from that directory' "$jcwd"
+    else
+      printf '; job exists in state dir %s; re-run from the directory it was launched from' \
+        "$(dirname "$(dirname "$f")")"
+    fi
+    return 0
+  done
+  return 0
+}
+
 if [[ "${1:-}" == "--resolve" ]]; then
   echo "$COMPANION"
   exit 0
@@ -118,7 +146,7 @@ print("\t".join([
         # rewritten in place) before declaring the job genuinely gone.
         missing_streak=$(( missing_streak + 1 ))
         if [[ $missing_streak -ge 3 ]]; then
-          echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)" >&2
+          echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
           exit 2
         fi
         ;;
@@ -185,4 +213,19 @@ done
 
 cat "$TMP_OUT"
 cat "$TMP_ERR" >&2
+
+# Same cwd trap on status/result/cancel: the companion says "not found" when
+# the call comes from a directory other than the one the job was launched from.
+if [[ $rc -ne 0 ]] && grep -qi "not found" "$TMP_OUT" "$TMP_ERR"; then
+  for arg in "$@"; do
+    if [[ "$arg" =~ ^(task|review|adversarial-review)-[a-z0-9]+-[a-z0-9]+$ ]]; then
+      hint="$(crew_cwd_hint "$arg")"
+      if [[ -n "$hint" ]]; then
+        echo "crew-codex: job $arg${hint}" >&2
+      fi
+      break
+    fi
+  done
+fi
+
 exit $rc
