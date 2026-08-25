@@ -9,6 +9,30 @@ user-invocable: false
 Use this skill only inside `codex-crew` agents (`codex-implementer-sol`,
 `codex-implementer-terra`, `codex-implementer-luna`, `codex-reviewer`).
 
+Directory and ownership rules (these bind every command below):
+
+- **Every `crew-codex` call is ONE shell call that begins with
+  `cd <sandbox root> && ` on the same line.** No exceptions: `task`, `review`,
+  `await`, `result`, `status`, `cancel`. Use the sandbox root the dispatch
+  brief names. Codex keys job state to a hash of the shell's working directory
+  and Claude Code resets that directory between Bash calls, so an `await`
+  issued from anywhere else reads a different state directory and reports a
+  live job as missing.
+- **Launch and await never share a shell call.** The launch call returns as
+  soon as it prints the job id; awaiting inside that same call rides the tool's
+  600s timeout, and when the tool cuts the call off it kills the job with it.
+  Every `await` is its own call, `--for 540`, made with Bash `timeout: 600000`.
+- **Exit 2 means check the directory first, never relaunch first.** Before any
+  relaunch, run both probes:
+  `ps -eo pid,args | grep <job-id>`
+  `ls ~/.claude/plugins/data/codex-openai-codex/state/*/jobs/<job-id>.json`
+  If either probe finds the job, it is alive: go back to
+  `cd <sandbox root> && crew-codex await <job-id> --for 540` and keep awaiting
+  from the correct directory. Do not relaunch a live job, since a second
+  dispatch puts two Codex processes in the same working tree.
+- **The relaunch-once rule applies only when both probes come back empty.**
+  That is the only state in which the job is genuinely gone.
+
 Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 
 - `crew-codex task [--background] [--write] [--resume-last] [--model <m>] [--effort <none|minimal|low|medium|high|xhigh>] "<prompt>"`
@@ -17,8 +41,12 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 - `crew-codex await <job-id> [--for <seconds>]` — block until the job leaves
   `running`, or until the deadline; prints ONE line. Exit 0 completed,
   1 failed/cancelled, 2 job not found, 3 job died silently, 10 still running
-  (call again). It waits on the job's own process (`tail --pid`), so it wakes
-  the instant the job ends rather than on a poll timer.
+  (call again). Exit 2 is usually a working-directory mismatch rather than a
+  dead job: `crew-codex` probes the sibling state directories and, when it
+  finds the job, prints the cwd to re-run from. Verify with the two probes
+  above before treating exit 2 as gone. It waits on the job's own process
+  (`tail --pid`), so it wakes the instant the job ends rather than on a poll
+  timer.
   Exit 3 (STALE) means the process vanished without ever reporting terminal —
   report it verbatim; that job needs a resume or re-dispatch, not more waiting.
 - `crew-codex result <job-id>` — the finished job's output (plus its resume id)
@@ -34,12 +62,14 @@ Execution rules:
 
 - **Launch → await → report.** Codex jobs run for hours; Claude Code caps a
   single Bash call at 600s. So every dispatch detaches the job
-  (`--background`), then loops `crew-codex await <id> --for 540` (each call
-  made with Bash `timeout: 600000`) until it stops returning exit 10, then
-  returns `crew-codex result <id>`. The agent owns the job for its entire
-  life — a launch handle is NEVER a result, and the loop has no iteration
-  limit. Waiting happens inside the shell, so hours of supervision cost only
-  one short status line per ~9 minutes.
+  (`--background`), then loops
+  `cd <sandbox root> && crew-codex await <id> --for 540` (each call made with
+  Bash `timeout: 600000`, and never in the same shell call as the launch) until
+  it stops returning exit 10, then returns
+  `cd <sandbox root> && crew-codex result <id>`. The agent owns the job for its
+  entire life — a launch handle is NEVER a result, and the loop has no
+  iteration limit. Waiting happens inside the shell, so hours of supervision
+  cost only one short status line per ~9 minutes.
 - Each agent's model/effort/write pins are defaults; only an explicit
   model or effort named in the request overrides them. `spark` maps to
   `--model gpt-5.3-codex-spark`.

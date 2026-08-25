@@ -50,11 +50,32 @@ the official plugin's commands and hooks. Each agent is a thin forwarder
 
 **Long runs, owned end to end.** Codex jobs run for hours; Claude Code caps a
 single Bash call at 600s. So a dispatch is three steps — launch detached,
-loop `crew-codex await <id> --for 540`, return `crew-codex result <id>` — and
+loop `cd <root> && crew-codex await <id> --for 540`, return the result — and
 the agent owns the job for its whole life. "Subagent finished" therefore still
 means the work is done, with no cap on how long the job takes. The waiting
 happens inside a shell poll loop, so hours of supervision cost one short
 status line per ~9 minutes rather than a streamed transcript.
+
+**Every call is pinned to the sandbox root.** The companion keys job state to a
+hash of the shell's working directory, and Claude Code resets that directory
+between Bash calls. A dispatch therefore looks like this, one shell call per
+line, launch and await never sharing a call:
+
+```
+cd <sandbox root> && crew-codex task --background --model gpt-5.6-terra --effort xhigh --write "<task text>"
+cd <sandbox root> && crew-codex await <job-id> --for 540      # repeat while exit 10
+cd <sandbox root> && crew-codex result <job-id>
+```
+
+Drop the `cd` prefix on the await and the call hashes to a different state
+directory: `await` reports exit 2 for a job that is alive and still editing
+files. So exit 2 is a directory check before it is a relaunch. The agent probes
+`ps -eo pid,args | grep <job-id>` and
+`~/.claude/plugins/data/codex-openai-codex/state/*/jobs/<job-id>.json`, and
+relaunches only when both come back empty. `crew-codex` helps from its side:
+on "not found" it scans the sibling state directories under the same parent
+and, when the job turns up in one, appends `job exists under cwd <path>;
+re-run from that directory` to the error. State keying is unchanged.
 
 ```
 crew-codex await <job-id> [--for <seconds>]

@@ -229,6 +229,97 @@ EOF
 out="$(CLAUDE_CONFIG_DIR="$TMP/await" bash "$CREW" await --for 5 2>&1)" && rc=0 || rc=$?
 check "await without job id" 2 "needs a job id" "$rc" "$out"
 
+# --- prompt-contract cases: the dispatch prompts must carry the cwd rule ----
+# The failure these guard against is silent: an await run from a different
+# directory hashes to a different state dir and reports a live job as gone.
+AGENT_DIR="$HERE/../agents"
+SKILL_FILE="$HERE/../skills/crew-runtime/SKILL.md"
+
+check_contains() {
+  local name="$1" file="$2" phrase="$3"
+  if grep -qF -- "$phrase" "$file"; then
+    echo "PASS: $name"
+    pass=$((pass + 1))
+  else
+    echo "FAIL: $name (missing '$phrase' in $(basename "$file"))"
+    fail=$((fail + 1))
+  fi
+}
+
+for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do
+  b="$(basename "$f")"
+  check_contains "$b pins calls to the sandbox root" "$f" \
+    'cd <sandbox root> && '
+  check_contains "$b prefixes the await command" "$f" \
+    'cd <sandbox root> && crew-codex await <job-id> --for 540'
+  check_contains "$b keeps launch and await in separate calls" "$f" \
+    'never share a shell call'
+  check_contains "$b holds the await deadline at 540" "$f" \
+    '--for 540'
+  check_contains "$b probes ps before relaunch" "$f" \
+    'ps -eo pid,args | grep <job-id>'
+  check_contains "$b probes the job state file before relaunch" "$f" \
+    '~/.claude/plugins/data/codex-openai-codex/state/*/jobs/<job-id>.json'
+  check_contains "$b gates relaunch on both probes" "$f" \
+    'relaunch-once rule applies only when both probes come back empty'
+done
+
+# --- cwd-mismatch hint: exit 2 names the directory the job really lives in --
+mkdir -p "$TMP/cwd/elsewhere/state/vail-deadbeef/jobs" "$TMP/cwd/empty"
+cat > "$TMP/cwd/elsewhere/state/vail-deadbeef/jobs/task-missing.json" <<'EOF'
+{"id":"task-missing","status":"running","request":{"cwd":"/home/chad/projects/vail"},"workspaceRoot":"/home/chad/projects/vail"}
+EOF
+
+# Case 19: job present in a sibling state dir -> exit 2 carries the cwd hint
+c="$TMP/await/c19"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CLAUDE_PLUGIN_DATA="$TMP/cwd/elsewhere" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" bash "$CREW" await task-missing --for 30 2>&1)" && rc=0 || rc=$?
+check "exit 2 names the job's real cwd" 2 \
+  "job exists under cwd /home/chad/projects/vail; re-run from that directory" "$rc" "$out"
+
+# Case 20: job nowhere on disk -> plain not-found, no misleading hint
+c="$TMP/await/c20"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CLAUDE_PLUGIN_DATA="$TMP/cwd/empty" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" bash "$CREW" await task-missing --for 30 2>&1)" && rc=0 || rc=$?
+if [[ "$rc" == 2 ]] && ! grep -q "job exists under cwd" <<<"$out"; then
+  echo "PASS: genuinely gone job gets no cwd hint"
+  pass=$((pass + 1))
+else
+  echo "FAIL: genuinely gone job got a cwd hint (exit=$rc; output: $out)"
+  fail=$((fail + 1))
+fi
+
+# Case 21: state file whose cwd IS this cwd -> not a mismatch, so no hint
+mkdir -p "$TMP/cwd/samedir/state/here-cafe/jobs"
+printf '{"id":"task-missing","request":{"cwd":"%s"}}\n' "$PWD" \
+  > "$TMP/cwd/samedir/state/here-cafe/jobs/task-missing.json"
+c="$TMP/await/c21"
+out="$(CLAUDE_CONFIG_DIR="$TMP/await" CLAUDE_PLUGIN_DATA="$TMP/cwd/samedir" CREW_CODEX_POLL_SECS=0 \
+  CREW_TEST_COUNTER="$c" bash "$CREW" await task-missing --for 30 2>&1)" && rc=0 || rc=$?
+if [[ "$rc" == 2 ]] && ! grep -q "job exists under cwd" <<<"$out"; then
+  echo "PASS: same-cwd state file is not reported as a mismatch"
+  pass=$((pass + 1))
+else
+  echo "FAIL: same-cwd state file reported as a mismatch (exit=$rc; output: $out)"
+  fail=$((fail + 1))
+fi
+
+# Case 22: status/result hits the same trap -> passthrough error gains the hint
+mkdir -p "$TMP/notfound/plugins" "$TMP/notfound/install/scripts" \
+  "$TMP/cwd/elsewhere/state/vail-deadbeef/jobs"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/notfound/install\"}]}}" > "$TMP/notfound/plugins/installed_plugins.json"
+cat > "$TMP/notfound/install/scripts/codex-companion.mjs" <<'EOF'
+console.error("codex: job not found");
+process.exit(1);
+EOF
+cp "$TMP/cwd/elsewhere/state/vail-deadbeef/jobs/task-missing.json" \
+  "$TMP/cwd/elsewhere/state/vail-deadbeef/jobs/task-aaa1-bbb2.json"
+out="$(CLAUDE_CONFIG_DIR="$TMP/notfound" CLAUDE_PLUGIN_DATA="$TMP/cwd/elsewhere" \
+  bash "$CREW" result task-aaa1-bbb2 2>&1)" && rc=0 || rc=$?
+check "result not-found gains the cwd hint" 1 \
+  "job exists under cwd /home/chad/projects/vail; re-run from that directory" "$rc" "$out"
+check "result not-found keeps the companion error" 1 "codex: job not found" "$rc" "$out"
+
 echo
 echo "$pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
