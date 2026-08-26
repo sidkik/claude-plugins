@@ -36,6 +36,20 @@ Directory and ownership rules (these bind every command below):
   dispatch puts two Codex processes in the same working tree.
 - **The relaunch-once rule applies only when both probes come back empty.**
   That is the only state in which the job is genuinely gone.
+- **To change a running job's course, queue a message. Never interrupt it.**
+  `cd <sandbox root> && crew-codex queue <job-id> "<message>"` hands the job
+  new instructions without stopping it: the message waits, and the agent reads
+  it the moment it finishes the turn it is already running. A job halfway
+  through a large multi-file edit therefore lands that edit first.
+  `crew-codex redirect` is the destructive alternative, since it interrupts
+  the turn wherever it happens to be and can leave an edit half applied. Keep
+  redirect for a job that is genuinely off the rails, never for a routine
+  course correction.
+- **Relay what the queued message produced.** The job's own result covers only
+  its first turn. When `await` prints `QUEUED-REPLIES n/n captured` it has
+  appended the queued turn's answer to the archived result, so
+  `crew-codex result` carries both; return all of it verbatim. If it prints
+  `QUEUED-REPLIES 0/n`, say so rather than implying the message was acted on.
 
 Forwarding rules:
 

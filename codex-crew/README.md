@@ -91,30 +91,71 @@ falls back to a 5s poll when no live pid is available. If the process
 disappears while the job still claims to be `running`, that's a silent death:
 `await` reports `STALE` with exit 3 instead of waiting out the deadline.
 
-**Redirect a running job instead of restarting it.** A long job going the
-wrong way does not have to be thrown away:
+**Say something to a running job.** A long job going the wrong way does not
+have to be thrown away, and does not have to be interrupted either:
+
+```
+cd <sandbox root> && crew-codex queue <job-id> "When you finish this file, switch to <X>"
+QUEUED task-abc-123 | thread 01a03e38-... | id crew-task-abc-123-1 | the agent reads it when its current turn ends
+```
+
+The message waits on the thread and the agent reads it the moment it finishes
+the turn it is already running. Nothing is interrupted, so a job halfway
+through a large multi-file edit lands that edit first. This is how a person
+redirects an agent: you type the next message, you do not hit escape.
+
+Because the companion closes a job at its first `turn/completed`, the queued
+turn's answer would otherwise be lost. `await` waits for it and appends it to
+the archived result:
+
+```
+QUEUED-REPLIES 1/1 captured | appended to .../task-abc-123.result.txt
+DONE completed | 1m 45s | archived: .../task-abc-123.result.txt
+```
+
+Verified end to end: queued at file 2 of 10, the series ran intact through file
+10, then the agent carried out the queued instruction and reported it.
+
+**This needs the codex plugin patched.** Stock, the plugin refuses a queued
+message on two counts: its broker forwards only `turn/interrupt` while a turn
+is streaming, and its client declares `experimentalApi: false`, which the
+server requires for `thread/queue/add`. Neither limit is Codex's own.
+
+```
+crew-codex patch --status     # PATCHED / UNPATCHED, for whatever version is installed
+crew-codex patch --apply      # idempotent, keeps *.crew-orig backups
+crew-codex patch --revert
+```
+
+Everyone installs their own copy of `codex@openai-codex` at their own version,
+so the fix ships as a patch in `patches/` applied by context matching rather
+than line numbers, which absorbs the drift between releases. It refuses to
+half-apply if upstream moves the code out from under it. A SessionStart hook
+re-applies it after the codex plugin updates; set `CREW_CODEX_NO_AUTO_PATCH=1`
+to opt out.
+
+**Redirect is the destructive one.** Reach for it only when a job is genuinely
+off the rails:
 
 ```
 cd <sandbox root> && crew-codex redirect <job-id> "Change of plan: <new instruction>"
 ```
 
-That interrupts the live turn and resumes the *same* Codex thread with the new
-text, so everything the job already did stays in context. It prints
-`REDIRECTED <old> -> <new>`; await the new id. Model, effort and write posture
-carry over unless you override them. The agent that was awaiting the old id
-gets exit 4 (`SUPERSEDED`) naming the successor, so it follows the thread
-rather than reporting a failure.
+That INTERRUPTS the live turn and resumes the *same* Codex thread with the new
+text, so everything the job already did stays in context. The interrupt is the
+catch: it stops the turn wherever it stands, so an edit in progress can be left
+half applied. It prints `REDIRECTED <old> -> <new>`; await the new id. Model,
+effort and write posture carry over unless you override them. The agent that
+was awaiting the old id gets exit 4 (`SUPERSEDED`) naming the successor, so it
+follows the thread rather than reporting a failure.
 
 Verified in a sandbox: a job cancelled after creating 4 of 30 files resumed
 knowing it had made exactly 4, then carried out the new instruction instead.
 
-Why not true mid-turn steering? Codex does support it (`turn/steer` on the
-app-server), but the codex plugin's broker forwards exactly one method while a
-turn is streaming, `turn/interrupt` (`app-server-broker.mjs`). Everything else
-gets `-32001 Shared Codex broker is busy`. `codex queue --thread` is accepted
-for a crew job's thread and then never drained, since the job's app-server goes
-away with the job. Interrupt-then-resume is the mechanism that actually works
-end to end today.
+True mid-turn steering (`turn/steer`) exists in the app-server, but the
+plugin's broker will not forward it during a streaming turn, and steering
+mid-edit carries the same corruption risk as interrupting. Queueing is both
+reachable and safe, so that is what crew uses.
 
 **Results survive.** On terminal state `await` archives the result, metadata
 and log to `~/.claude/plugins/data/codex-crew/jobs/`, which the companion's

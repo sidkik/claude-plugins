@@ -71,6 +71,45 @@ crew_cwd_hint() {
   return 0
 }
 
+# One read of a job's state file, as TSV:
+#   FOUND|MISSING, status, threadId, cwd, model, effort, write, newest-or-id
+# "newest" reports whether this is the most recent task job for its cwd, which
+# is what --resume-last would pick up.
+crew_job_meta() {
+  node -e '
+    const fs = require("fs"), path = require("path");
+    const [dataDir, jobId] = process.argv.slice(1);
+    const stateRoot = path.join(dataDir, "state");
+    const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
+    let dirs = [];
+    try { dirs = fs.readdirSync(stateRoot); } catch { }
+    for (const d of dirs) {
+      const jobsDir = path.join(stateRoot, d, "jobs");
+      const file = path.join(jobsDir, `${jobId}.json`);
+      if (!fs.existsSync(file)) continue;
+      const job = read(file);
+      if (!job) continue;
+      const cwd = (job.request && job.request.cwd) || job.workspaceRoot || "";
+      let newest = jobId, newestAt = "";
+      for (const f of fs.readdirSync(jobsDir)) {
+        if (!f.endsWith(".json")) continue;
+        const other = read(path.join(jobsDir, f));
+        if (!other || !String(other.id || "").startsWith("task-")) continue;
+        const at = String(other.createdAt || "");
+        if (at > newestAt) { newestAt = at; newest = other.id; }
+      }
+      const req = job.request || {};
+      process.stdout.write([
+        "FOUND", job.status || "?", job.threadId || "", cwd,
+        req.model || "", req.effort || "", req.write ? "true" : "false",
+        newest === jobId ? "newest" : newest
+      ].join("\t"));
+      process.exit(0);
+    }
+    process.stdout.write("MISSING\t\t\t\t\t\t\t");
+  ' "$CLAUDE_PLUGIN_DATA" "$1" 2>/dev/null || printf 'MISSING\t\t\t\t\t\t\t'
+}
+
 # A redirect cancels the old job and resumes its Codex thread under a NEW job
 # id. An agent still awaiting the old id would otherwise read that cancellation
 # as failure, so name the successor: same threadId, created later.
@@ -107,6 +146,157 @@ if [[ "${1:-}" == "--resolve" ]]; then
   exit 0
 fi
 
+# ---- patch: teach the installed codex plugin to accept a queued message -----
+# Every user installs their own copy of codex@openai-codex, at whatever version
+# they happen to be on, so we carry the fix as a patch and apply it to the tree
+# we resolve rather than pinning a version. Context matching (fuzz 3) absorbs
+# the line drift between plugin releases; a release that moves the code out from
+# under the patch fails loudly instead of half-applying.
+CREW_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+CREW_PATCH_FILE="${CREW_CODEX_PATCH_FILE:-$CREW_ROOT/patches/codex-plugin-queue-passthrough.patch}"
+
+crew_patch_state() {
+  # applied | appliable | stale
+  if patch -p1 -R --dry-run -s -F3 -d "$COMPANION_ROOT" <"$CREW_PATCH_FILE" >/dev/null 2>&1; then
+    echo applied
+  elif patch -p1 --dry-run -s -F3 -d "$COMPANION_ROOT" <"$CREW_PATCH_FILE" >/dev/null 2>&1; then
+    echo appliable
+  else
+    echo stale
+  fi
+}
+
+if [[ "${1:-}" == "patch" ]]; then
+  shift
+  ACTION="status"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --apply) ACTION="apply"; shift ;;
+      --revert) ACTION="revert"; shift ;;
+      --status) ACTION="status"; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  if ! command -v patch >/dev/null 2>&1; then
+    echo "crew-codex: GNU patch is required to manage the codex plugin patch" >&2
+    exit 1
+  fi
+  if [[ ! -f "$CREW_PATCH_FILE" ]]; then
+    echo "crew-codex: patch file missing at $CREW_PATCH_FILE" >&2
+    exit 1
+  fi
+
+  PLUGIN_VERSION="$(basename "$COMPANION_ROOT")"
+  state="$(crew_patch_state)"
+
+  case "$ACTION" in
+    status)
+      case "$state" in
+        applied)   echo "PATCHED | codex plugin $PLUGIN_VERSION at $COMPANION_ROOT"; exit 0 ;;
+        appliable) echo "UNPATCHED | codex plugin $PLUGIN_VERSION applies cleanly; run: crew-codex patch --apply"; exit 10 ;;
+        *)         echo "crew-codex: patch does not apply to codex plugin $PLUGIN_VERSION at $COMPANION_ROOT — the upstream code moved; re-cut patches/codex-plugin-queue-passthrough.patch" >&2; exit 1 ;;
+      esac
+      ;;
+    apply)
+      if [[ "$state" == "applied" ]]; then
+        echo "PATCHED | codex plugin $PLUGIN_VERSION was already patched; nothing to do"
+        exit 0
+      fi
+      if [[ "$state" != "appliable" ]]; then
+        echo "crew-codex: patch does not apply to codex plugin $PLUGIN_VERSION at $COMPANION_ROOT — refusing to half-apply; re-cut the patch against this version" >&2
+        exit 1
+      fi
+      if ! patch -p1 -s -F3 -b --suffix=.crew-orig -d "$COMPANION_ROOT" <"$CREW_PATCH_FILE"; then
+        echo "crew-codex: applying the patch failed partway; restore from the .crew-orig backups in $COMPANION_ROOT" >&2
+        exit 1
+      fi
+      if [[ "$(crew_patch_state)" != "applied" ]]; then
+        echo "crew-codex: patch reported success but verification failed; inspect $COMPANION_ROOT" >&2
+        exit 1
+      fi
+      echo "PATCHED | codex plugin $PLUGIN_VERSION | backups: *.crew-orig | brokers already running keep the old code until their job ends"
+      exit 0
+      ;;
+    revert)
+      if [[ "$state" != "applied" ]]; then
+        echo "UNPATCHED | codex plugin $PLUGIN_VERSION is not patched; nothing to revert"
+        exit 0
+      fi
+      if ! patch -p1 -R -s -F3 -d "$COMPANION_ROOT" <"$CREW_PATCH_FILE"; then
+        echo "crew-codex: reverting the patch failed; restore from the .crew-orig backups in $COMPANION_ROOT" >&2
+        exit 1
+      fi
+      echo "UNPATCHED | codex plugin $PLUGIN_VERSION restored"
+      exit 0
+      ;;
+  esac
+fi
+
+# ---- queue: say something to a running job without stopping it --------------
+# The non-destructive way to change a job's course. The message waits; the
+# agent reads it when it finishes the turn it is already running, so a job
+# halfway through a multi-file edit lands that edit first. This is how a person
+# redirects an agent, and it is the default: `redirect` interrupts, and an
+# interrupt mid-edit leaves the tree half-written.
+# Requires the codex plugin patch (crew-codex patch --apply).
+if [[ "${1:-}" == "queue" ]]; then
+  shift
+  JOB_ID="${1:-}"
+  if [[ -z "$JOB_ID" || "$JOB_ID" == --* ]]; then
+    echo "crew-codex: queue needs a job id — usage: crew-codex queue <job-id> \"<message>\"" >&2
+    exit 2
+  fi
+  shift
+  MESSAGE="$*"
+  if [[ -z "$MESSAGE" ]]; then
+    echo "crew-codex: queue needs the message text — usage: crew-codex queue <job-id> \"<message>\"" >&2
+    exit 2
+  fi
+
+  IFS=$'\t' read -r jfound jstatus jthread jcwd _jmodel _jeffort _jwrite _jnewest <<<"$(crew_job_meta "$JOB_ID")"
+
+  if [[ "$jfound" != "FOUND" ]]; then
+    echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
+    exit 2
+  fi
+  if [[ -n "$jcwd" && "$jcwd" != "$PWD" ]]; then
+    echo "crew-codex: job $JOB_ID belongs to cwd $jcwd; re-run queue from that directory" >&2
+    exit 2
+  fi
+  if [[ -z "$jthread" ]]; then
+    echo "crew-codex: job $JOB_ID has no Codex thread yet; wait for it to start before queueing" >&2
+    exit 2
+  fi
+  if [[ "$jstatus" != "running" && "$jstatus" != "queued" ]]; then
+    echo "crew-codex: job $JOB_ID is $jstatus, so a queued message would never be read; resume the thread instead (crew-codex redirect, or task --resume-last)" >&2
+    exit 2
+  fi
+
+  mkdir -p "$CREW_ARCHIVE_DIR"
+  seq_file="$CREW_ARCHIVE_DIR/$JOB_ID.queued.txt"
+  next=1
+  if [[ -f "$seq_file" ]]; then
+    next=$(( $(wc -l <"$seq_file") + 1 ))
+  fi
+  CLIENT_ID="crew-$JOB_ID-$next"
+
+  qrc=0
+  submission="$(printf '%s' "$MESSAGE" | node "$CREW_ROOT/lib/appserver-cli.mjs" \
+    queue-add "$COMPANION_ROOT" "$PWD" "$jthread" "$CLIENT_ID" 2>&1)" || qrc=$?
+  if [[ $qrc -ne 0 ]]; then
+    echo "crew-codex: queueing failed: $submission" >&2
+    if grep -qiE "busy|experimentalApi" <<<"$submission"; then
+      echo "crew-codex: that is the unpatched codex plugin refusing a queued message — run: crew-codex patch --apply" >&2
+    fi
+    exit 1
+  fi
+
+  printf '%s\t%s\n' "$CLIENT_ID" "$MESSAGE" >>"$seq_file"
+  echo "QUEUED $JOB_ID | thread $jthread | id $CLIENT_ID | the agent reads it when its current turn ends; keep awaiting"
+  exit 0
+fi
+
 # ---- redirect: put a running job onto new instructions, keeping its thread --
 # Codex itself can steer a turn in flight (turn/steer), but the codex plugin's
 # broker forwards exactly ONE method while a turn streams: turn/interrupt
@@ -140,39 +330,7 @@ if [[ "${1:-}" == "redirect" ]]; then
 
   # --resume-last resumes the newest task thread for THIS cwd, so the job being
   # redirected has to be that newest job or we would silently steer another one.
-  META="$(node -e '
-    const fs = require("fs"), path = require("path");
-    const [dataDir, jobId, pwd] = process.argv.slice(1);
-    const stateRoot = path.join(dataDir, "state");
-    const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
-    let dirs = [];
-    try { dirs = fs.readdirSync(stateRoot); } catch { }
-    for (const d of dirs) {
-      const jobsDir = path.join(stateRoot, d, "jobs");
-      const file = path.join(jobsDir, `${jobId}.json`);
-      if (!fs.existsSync(file)) continue;
-      const job = read(file);
-      if (!job) continue;
-      const cwd = (job.request && job.request.cwd) || job.workspaceRoot || "";
-      let newest = jobId, newestAt = "";
-      for (const f of fs.readdirSync(jobsDir)) {
-        if (!f.endsWith(".json")) continue;
-        const other = read(path.join(jobsDir, f));
-        if (!other || !String(other.id || "").startsWith("task-")) continue;
-        const at = String(other.createdAt || "");
-        if (at > newestAt) { newestAt = at; newest = other.id; }
-      }
-      const req = job.request || {};
-      process.stdout.write([
-        "FOUND", job.status || "?", job.threadId || "", cwd,
-        req.model || "", req.effort || "", req.write ? "true" : "false",
-        newest === jobId ? "newest" : newest
-      ].join("\t"));
-      process.exit(0);
-    }
-    process.stdout.write("MISSING\t\t\t\t\t\t\t");
-  ' "$CLAUDE_PLUGIN_DATA" "$JOB_ID" "$PWD" 2>/dev/null || printf 'MISSING\t\t\t\t\t\t\t')"
-  IFS=$'\t' read -r jfound jstatus jthread jcwd jmodel jeffort jwrite jnewest <<<"$META"
+  IFS=$'\t' read -r jfound jstatus jthread jcwd jmodel jeffort jwrite jnewest <<<"$(crew_job_meta "$JOB_ID")"
 
   if [[ "$jfound" != "FOUND" ]]; then
     echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
@@ -276,6 +434,45 @@ print("\t".join([
         if [[ -f "$jlog" ]]; then
           cp -f "$jlog" "$CREW_ARCHIVE_DIR/$JOB_ID.log" 2>/dev/null || true
         fi
+        # The companion closes the job at the FIRST turn/completed, so a turn
+        # started from a queued message finishes outside the job record. Pull
+        # those replies off the thread and append them, or the queued
+        # instruction succeeds invisibly.
+        if [[ -s "$CREW_ARCHIVE_DIR/$JOB_ID.queued.txt" ]]; then
+          IFS=$'\t' read -r _qf _qs qthread _rest <<<"$(crew_job_meta "$JOB_ID")"
+          if [[ -n "$qthread" ]]; then
+            # The job reports terminal the moment its FIRST turn ends, which is
+            # before the queued turn has run. Wait for the replies we know were
+            # queued rather than racing them, but stay bounded: a queued turn
+            # can be lost if the worker tears down first.
+            expected=$(wc -l <"$CREW_ARCHIVE_DIR/$JOB_ID.queued.txt")
+            grace_deadline=$(( $(date +%s) + ${CREW_CODEX_QUEUE_GRACE_SECS:-180} ))
+            followups=""
+            while :; do
+              followups="$(node "$CREW_ROOT/lib/appserver-cli.mjs" followups \
+                "$COMPANION_ROOT" "$PWD" "$qthread" "crew-$JOB_ID-" 2>/dev/null || true)"
+              got=$(grep -c "^\[crew-$JOB_ID-" <<<"$followups" || true)
+              [[ "$got" -ge "$expected" ]] && break
+              if [[ $(date +%s) -ge $grace_deadline ]]; then
+                # Out of patience: take whatever the turn has said so far rather
+                # than reporting nothing, and let the count show it is partial.
+                followups="$(node "$CREW_ROOT/lib/appserver-cli.mjs" followups --any-phase \
+                  "$COMPANION_ROOT" "$PWD" "$qthread" "crew-$JOB_ID-" 2>/dev/null || true)"
+                got=$(grep -c "^\[crew-$JOB_ID-" <<<"$followups" || true)
+                break
+              fi
+              sleep "${CREW_CODEX_POLL_SECS:-5}"
+            done
+            if [[ -n "$followups" ]]; then
+              printf '\n--- queued follow-ups ---\n%s\n' "$followups" \
+                >>"$CREW_ARCHIVE_DIR/$JOB_ID.result.txt"
+              echo "QUEUED-REPLIES $got/$expected captured | appended to $CREW_ARCHIVE_DIR/$JOB_ID.result.txt"
+            else
+              echo "QUEUED-REPLIES 0/$expected | the queued turn did not run before the job's runtime went away; resume the thread to deliver it" >&2
+            fi
+          fi
+        fi
+
         if [[ "$jstatus" == "cancelled" ]]; then
           successor="$(crew_successor "$JOB_ID")"
           if [[ -n "$successor" ]]; then

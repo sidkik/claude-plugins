@@ -32,6 +32,20 @@ Directory and ownership rules (these bind every command below):
   dispatch puts two Codex processes in the same working tree.
 - **The relaunch-once rule applies only when both probes come back empty.**
   That is the only state in which the job is genuinely gone.
+- **To change a running job's course, queue a message. Never interrupt it.**
+  `cd <sandbox root> && crew-codex queue <job-id> "<message>"` hands the job
+  new instructions without stopping it: the message waits, and the agent reads
+  it the moment it finishes the turn it is already running. A job halfway
+  through a large multi-file edit therefore lands that edit first.
+  `crew-codex redirect` is the destructive alternative, since it interrupts
+  the turn wherever it happens to be and can leave an edit half applied. Keep
+  redirect for a job that is genuinely off the rails, never for a routine
+  course correction.
+- **Relay what the queued message produced.** The job's own result covers only
+  its first turn. When `await` prints `QUEUED-REPLIES n/n captured` it has
+  appended the queued turn's answer to the archived result, so
+  `crew-codex result` carries both; return all of it verbatim. If it prints
+  `QUEUED-REPLIES 0/n`, say so rather than implying the message was acted on.
 
 Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 
@@ -50,12 +64,23 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
   timer.
   Exit 3 (STALE) means the process vanished without ever reporting terminal —
   report it verbatim; that job needs a resume or re-dispatch, not more waiting.
+- `crew-codex queue <job-id> "<message>"` — the normal way to change a running
+  job's course. Puts the message on the job's Codex thread; the agent reads it
+  when it finishes the turn it is already running, so nothing is interrupted
+  and no edit is left half applied. Prints `QUEUED <job-id> | ... | id
+  crew-<job-id>-<n>`. Requires the codex plugin patch (`crew-codex patch
+  --apply`); without it the plugin's broker refuses the method.
 - `crew-codex redirect <job-id> [--model <m>] [--effort <e>] "<instruction>"` —
-  put a RUNNING job onto new instructions without losing its work: interrupts
-  the live turn, then resumes the same Codex thread with the new text. Prints
+  **destructive**, and the exception rather than the rule. It INTERRUPTS the
+  live turn, then resumes the same Codex thread with the new text. Interrupting
+  stops the turn wherever it stands, so a job mid-way through a multi-file edit
+  can be left half written. Use it only when a job is genuinely off the rails;
+  for every ordinary course correction use `queue`. Prints
   `REDIRECTED <old> -> <new>`; await the NEW id. Model, effort and write
-  posture carry over from the original job unless overridden. Belongs to the
-  main thread, not to the crew agent that owns the job.
+  posture carry over unless overridden.
+- `crew-codex patch [--status|--apply|--revert]` — apply the queue passthrough
+  fix to whichever version of the codex plugin is installed. Idempotent and
+  reversible; the plugin's SessionStart hook applies it automatically.
 - `crew-codex result <job-id>` — the finished job's output (plus its resume id)
 - `crew-codex --resolve` — print the resolved companion script path (diagnostics only)
 
@@ -83,13 +108,14 @@ Execution rules:
 - `cancel`, `redirect` and cross-job triage belong to the main thread
   (`/codex:status`, `/codex:cancel`); a crew agent only awaits the one job it
   launched, or the successor a redirect hands it via exit 4.
-- **Changing a running job's instructions.** Codex can steer a turn in flight
-  (`turn/steer`), but the codex plugin's broker forwards exactly one method
-  while a turn streams: `turn/interrupt`. `codex queue` is accepted for the
-  thread and then never drained by a crew job. So the working move is
-  `crew-codex redirect`, which interrupts and resumes the same thread with the
-  work so far still in context. Do not cancel and re-dispatch fresh: that
-  throws away everything the job had already done.
+- **Changing a running job's instructions.** Use `crew-codex queue`. The
+  message lands on the thread and the agent picks it up at the end of its
+  current turn, which is how a person redirects an agent and is the only option
+  that cannot corrupt work in progress. `crew-codex redirect` is destructive
+  (it interrupts first) and `cancel` plus a fresh dispatch is worse still,
+  throwing away everything the job had already done. Verified end to end: a
+  message queued at file 2 of 10 left the series intact through file 10, and
+  the agent then carried out the queued instruction.
 - Results are archived by `await` on terminal state to
   `~/.claude/plugins/data/codex-crew/jobs/<id>.{result.txt,meta.json,log}`,
   which the companion's 50-job pruner cannot delete. Jobs still die with the

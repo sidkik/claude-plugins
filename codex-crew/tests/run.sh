@@ -235,6 +235,17 @@ check "await without job id" 2 "needs a job id" "$rc" "$out"
 AGENT_DIR="$HERE/../agents"
 SKILL_FILE="$HERE/../skills/crew-runtime/SKILL.md"
 
+check_absent() { # assert a phrase is NOT present; the inverse of check_contains
+  local name="$1" haystack="$2" phrase="$3"
+  if grep -qF -- "$phrase" <<<"$haystack"; then
+    echo "FAIL: $name (unexpectedly found '$phrase')"
+    fail=$((fail + 1))
+  else
+    echo "PASS: $name"
+    pass=$((pass + 1))
+  fi
+}
+
 check_contains() {
   local name="$1" file="$2" phrase="$3"
   if grep -qF -- "$phrase" "$file"; then
@@ -408,7 +419,218 @@ for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do
   check_contains "$(basename "$f") handles the SUPERSEDED exit" "$f" "SUPERSEDED"
 done
 check_contains "SKILL.md documents redirect" "$SKILL_FILE" "crew-codex redirect <job-id>"
-check_contains "SKILL.md warns against cancel-and-restart" "$SKILL_FILE" "Do not cancel and re-dispatch fresh"
+check_contains "SKILL.md warns against cancel-and-restart" "$SKILL_FILE" "cancel\` plus a fresh dispatch is worse"
+
+# --- patch: applying the codex-plugin fix to whatever version is installed ---
+# The fixture is reconstructed FROM the shipped patch's own pre-image, so these
+# cases exercise the real patch file and never touch the real codex install.
+PATCH_FILE="$HERE/../patches/codex-plugin-queue-passthrough.patch"
+
+build_fixture() { # $1 = destination plugin root
+  python3 - "$PATCH_FILE" "$1" <<'PYEOF'
+import sys, os
+patch, out = sys.argv[1], sys.argv[2]
+cur, files, order = None, {}, []
+for line in open(patch):
+    if line.startswith("--- a/"):
+        cur = line[6:].strip()
+        if cur not in files:
+            files[cur] = []; order.append(cur)
+    elif line.startswith("+++") or cur is None:
+        continue
+    elif line.startswith("@@"):
+        files[cur].append("// ---- unrelated code between hunks ----")
+    elif line.startswith(" ") or line.startswith("-"):
+        files[cur].append(line[1:].rstrip("\n"))
+for f in order:
+    p = os.path.join(out, f)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    open(p, "w").write("\n".join(files[f]) + "\n")
+PYEOF
+}
+
+mkdir -p "$TMP/patch/plugins" "$TMP/patch/install/scripts"
+touch "$TMP/patch/install/scripts/codex-companion.mjs"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/patch/install\"}]}}" > "$TMP/patch/plugins/installed_plugins.json"
+build_fixture "$TMP/patch/install"
+
+crew_patch() { CLAUDE_CONFIG_DIR="$TMP/patch" bash "$CREW" patch "$@" 2>&1; }
+
+# Case 32: an unpatched install reports appliable, exit 10
+out="$(crew_patch --status)" && rc=0 || rc=$?
+check "patch status on unpatched install" 10 "UNPATCHED" "$rc" "$out"
+
+# Case 33: apply succeeds and verifies
+out="$(crew_patch --apply)" && rc=0 || rc=$?
+check "patch applies" 0 "PATCHED" "$rc" "$out"
+check "patch flips experimentalApi" 0 "experimentalApi: true" "$rc" "$(cat "$TMP/patch/install/scripts/lib/app-server.mjs")"
+check "patch forwards the queue method" 0 "thread/queue/add" "$rc" "$(cat "$TMP/patch/install/scripts/app-server-broker.mjs")"
+check "patch keeps interrupt forwarded" 0 "turn/interrupt" "$rc" "$(cat "$TMP/patch/install/scripts/app-server-broker.mjs")"
+check "patch leaves a backup" 0 "experimentalApi: false" "$rc" "$(cat "$TMP/patch/install/scripts/lib/app-server.mjs.crew-orig" 2>/dev/null)"
+
+# Case 34: status now reports patched, and a second apply is a no-op
+out="$(crew_patch --status)" && rc=0 || rc=$?
+check "patch status on patched install" 0 "PATCHED" "$rc" "$out"
+out="$(crew_patch --apply)" && rc=0 || rc=$?
+check "patch apply is idempotent" 0 "already patched" "$rc" "$out"
+
+# Case 35: revert restores the original, and a second revert is a no-op
+out="$(crew_patch --revert)" && rc=0 || rc=$?
+check "patch reverts" 0 "UNPATCHED" "$rc" "$out"
+check "revert restores experimentalApi" 0 "experimentalApi: false" "$rc" "$(cat "$TMP/patch/install/scripts/lib/app-server.mjs")"
+out="$(crew_patch --revert)" && rc=0 || rc=$?
+check "patch revert is idempotent" 0 "nothing to revert" "$rc" "$out"
+
+# Case 36: a DIFFERENT plugin version (line drift) still takes the patch
+mkdir -p "$TMP/patchdrift/plugins" "$TMP/patchdrift/install/scripts"
+touch "$TMP/patchdrift/install/scripts/codex-companion.mjs"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/patchdrift/install\"}]}}" > "$TMP/patchdrift/plugins/installed_plugins.json"
+build_fixture "$TMP/patchdrift/install"
+python3 - "$TMP/patchdrift/install" <<'PYEOF'
+import sys, os
+root = sys.argv[1]
+for rel in ["scripts/lib/app-server.mjs", "scripts/app-server-broker.mjs"]:
+    p = os.path.join(root, rel)
+    lines = open(p).read().split("\n")
+    lines = ["// a later release added this above" for _ in range(37)] + lines
+    open(p, "w").write("\n".join(lines))
+PYEOF
+out="$(CLAUDE_CONFIG_DIR="$TMP/patchdrift" bash "$CREW" patch --apply 2>&1)" && rc=0 || rc=$?
+check "patch survives version line drift" 0 "PATCHED" "$rc" "$out"
+check "drifted install got the queue method" 0 "thread/queue/add" "$rc" "$(cat "$TMP/patchdrift/install/scripts/app-server-broker.mjs")"
+
+# Case 37: a version that moved the code out from under the patch -> refuse
+mkdir -p "$TMP/patchgone/plugins" "$TMP/patchgone/install/scripts/lib"
+touch "$TMP/patchgone/install/scripts/codex-companion.mjs"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/patchgone/install\"}]}}" > "$TMP/patchgone/plugins/installed_plugins.json"
+echo "// upstream rewrote this file entirely" > "$TMP/patchgone/install/scripts/lib/app-server.mjs"
+echo "// upstream rewrote this file entirely" > "$TMP/patchgone/install/scripts/app-server-broker.mjs"
+out="$(CLAUDE_CONFIG_DIR="$TMP/patchgone" bash "$CREW" patch --apply 2>&1)" && rc=0 || rc=$?
+check "patch refuses to half-apply" 1 "refusing to half-apply" "$rc" "$out"
+check "refused install is untouched" 1 "upstream rewrote this file entirely" "$rc" "$(cat "$TMP/patchgone/install/scripts/app-server-broker.mjs")"
+
+# --- queue: say something to a running job without stopping it ---------------
+# Stubs the codex plugin's app-server client, so the real lib/appserver-cli.mjs
+# and the real queue/await paths run against a scripted server.
+mkdir -p "$TMP/q/plugins" "$TMP/q/install/scripts/lib" "$TMP/q/data/state/lab-1/jobs" "$TMP/q/arc"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/q/install\"}]}}" > "$TMP/q/plugins/installed_plugins.json"
+cat > "$TMP/q/install/scripts/codex-companion.mjs" <<'EOF'
+const [cmd, jobId] = process.argv.slice(2);
+if (cmd === "result") { console.log("FIRST-TURN-RESULT"); process.exit(0); }
+console.log(JSON.stringify({ job: { id: jobId, status: "completed", elapsed: "4s", logFile: "-", pid: null, progressPreview: ["done"] } }));
+EOF
+cat > "$TMP/q/install/scripts/lib/app-server.mjs" <<'EOF'
+import fs from "node:fs";
+export class CodexAppServerClient {
+  static async connect() { return new CodexAppServerClient(); }
+  async request(method, params) {
+    fs.appendFileSync(process.env.CREW_TEST_RPC_LOG, method + " " + JSON.stringify(params) + "\n");
+    if (method === "thread/queue/add") {
+      if (process.env.CREW_TEST_QUEUE_FAIL) throw new Error(process.env.CREW_TEST_QUEUE_FAIL);
+      return { queuedSubmission: { id: "sub-1", clientUserMessageId: params.clientUserMessageId } };
+    }
+    if (method === "thread/turns/list") {
+      if (process.env.CREW_TEST_NO_TURN) return { data: [] };
+      // Mirror a real turn: chatter lands first, the final answer only once the
+      // turn actually finishes. CREW_TEST_CHATTER_POLLS controls how many reads
+      // see chatter alone, which is the race that made an early capture return
+      // a preamble instead of the answer.
+      let n = 0;
+      const counter = process.env.CREW_TEST_TURN_COUNTER;
+      if (counter) {
+        try { n = Number(fs.readFileSync(counter, "utf8")); } catch {}
+        n += 1;
+        fs.writeFileSync(counter, String(n));
+      }
+      const chatterOnly = n <= Number(process.env.CREW_TEST_CHATTER_POLLS ?? 0);
+      const items = [
+        { type: "userMessage", id: "i1", clientId: process.env.CREW_TEST_CLIENT_ID, content: [] },
+        { type: "agentMessage", id: "i2", text: "preamble, about to start", phase: "chatter" }
+      ];
+      if (!chatterOnly) {
+        items.push({ type: "agentMessage", id: "i3", text: "QUEUED-TURN-ANSWER", phase: "final_answer" });
+      }
+      return { data: [{ id: "turn-2", items }] };
+    }
+    return {};
+  }
+  async close() {}
+}
+EOF
+QJOBS="$TMP/q/data/state/lab-1/jobs"
+qjob() { # id status thread
+  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"2026-02-01T00:00:00.000Z","request":{"cwd":"%s","model":"gpt-5.6-terra","effort":"xhigh","write":true}}\n' \
+    "$1" "$2" "$3" "$PWD" > "$QJOBS/$1.json"
+}
+qjob task-run1-aaa1 running thread-Q
+
+crew_queue() {
+  CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_TEST_RPC_LOG="${CREW_TEST_RPC_LOG:-$TMP/q/rpc.log}" bash "$CREW" queue "$@" 2>&1
+}
+
+# Case 38: usage errors
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" bash "$CREW" queue 2>&1)" && rc=0 || rc=$?
+check "queue without job id" 2 "needs a job id" "$rc" "$out"
+out="$(crew_queue task-run1-aaa1)" && rc=0 || rc=$?
+check "queue without message" 2 "needs the message text" "$rc" "$out"
+
+# Case 39: happy path -> queues, records the marker, never cancels
+: > "$TMP/q/rpc.log"
+out="$(CREW_TEST_RPC_LOG="$TMP/q/rpc.log" crew_queue task-run1-aaa1 "finish then write NOTES.md")" && rc=0 || rc=$?
+check "queue reports success" 0 "QUEUED task-run1-aaa1" "$rc" "$out"
+check "queue names the client id" 0 "crew-task-run1-aaa1-1" "$rc" "$out"
+check "queue used thread/queue/add" 0 "^thread/queue/add" "$rc" "$(cat "$TMP/q/rpc.log")"
+check "queue sent the message text" 0 "finish then write NOTES.md" "$rc" "$(cat "$TMP/q/rpc.log")"
+check_absent "queue never interrupts the turn" "$(cat "$TMP/q/rpc.log")" "turn/interrupt"
+check_absent "queue never cancels the job" "$(cat "$TMP/q/rpc.log")" "cancel"
+check "queue records the marker" 0 "crew-task-run1-aaa1-1" "$rc" "$(cat "$TMP/q/arc/task-run1-aaa1.queued.txt")"
+
+# Case 40: a second queued message increments the client id
+out="$(CREW_TEST_RPC_LOG="$TMP/q/rpc.log" crew_queue task-run1-aaa1 "and update the README")" && rc=0 || rc=$?
+check "second queue increments the id" 0 "crew-task-run1-aaa1-2" "$rc" "$out"
+
+# Case 41: refuse to queue onto a job that will never read it
+qjob task-done1-bbb1 completed thread-R
+out="$(crew_queue task-done1-bbb1 "too late")" && rc=0 || rc=$?
+check "queue refuses a finished job" 2 "would never be read" "$rc" "$out"
+
+# Case 42: unknown job id
+out="$(crew_queue task-zzz9-zzz9 "nobody home")" && rc=0 || rc=$?
+check "queue on unknown job" 2 "not found in codex state" "$rc" "$out"
+
+# Case 43: an unpatched plugin refusing the method points at the patch
+out="$(CREW_TEST_QUEUE_FAIL="Shared Codex broker is busy." CREW_TEST_RPC_LOG="$TMP/q/rpc.log" \
+  crew_queue task-run1-aaa1 "will be refused")" && rc=0 || rc=$?
+check "queue failure explains the patch" 1 "crew-codex patch --apply" "$rc" "$out"
+
+# Case 44: await captures the queued turn's FINAL answer into the archive
+: > "$TMP/q/arc/task-run1-aaa1.queued.txt"
+printf 'crew-task-run1-aaa1-1\tfinish then write NOTES.md\n' > "$TMP/q/arc/task-run1-aaa1.queued.txt"
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_CODEX_POLL_SECS=0 CREW_TEST_RPC_LOG="$TMP/q/rpc.log" CREW_TEST_CLIENT_ID="crew-task-run1-aaa1-1" \
+  CREW_TEST_TURN_COUNTER="$TMP/q/turnc" CREW_TEST_CHATTER_POLLS=2 \
+  bash "$CREW" await task-run1-aaa1 --for 5 2>&1)" && rc=0 || rc=$?
+check "await reports captured replies" 0 "QUEUED-REPLIES 1/1 captured" "$rc" "$out"
+check "await appends the follow-up" 0 "QUEUED-TURN-ANSWER" "$rc" "$(cat "$TMP/q/arc/task-run1-aaa1.result.txt")"
+check "await keeps the first turn's result" 0 "FIRST-TURN-RESULT" "$rc" "$(cat "$TMP/q/arc/task-run1-aaa1.result.txt")"
+check_absent "await captures the answer, not the preamble" \
+  "$(cat "$TMP/q/arc/task-run1-aaa1.result.txt")" "preamble, about to start"
+
+# Case 45: a queued turn that never runs is reported, not silently dropped
+printf 'crew-task-run2-ccc2\tnever read\n' > "$TMP/q/arc/task-run2-ccc2.queued.txt"
+qjob task-run2-ccc2 running thread-S
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_CODEX_POLL_SECS=0 CREW_CODEX_QUEUE_GRACE_SECS=0 CREW_TEST_RPC_LOG="$TMP/q/rpc.log" \
+  CREW_TEST_NO_TURN=1 bash "$CREW" await task-run2-ccc2 --for 5 2>&1)" && rc=0 || rc=$?
+check "unread queued message is reported" 0 "QUEUED-REPLIES 0/1" "$rc" "$out"
+
+# Case 46: prompts and docs put queue ahead of the destructive path
+for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do
+  check_contains "$(basename "$f") teaches queue" "$f" "crew-codex queue <job-id>"
+done
+check_contains "SKILL.md calls redirect destructive" "$SKILL_FILE" "destructive"
+check_contains "README documents the patch" "$HERE/../README.md" "crew-codex patch --apply"
 
 echo
 echo "$pass passed, $fail failed"
