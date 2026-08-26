@@ -529,6 +529,10 @@ export class CodexAppServerClient {
       if (process.env.CREW_TEST_QUEUE_FAIL) throw new Error(process.env.CREW_TEST_QUEUE_FAIL);
       return { queuedSubmission: { id: "sub-1", clientUserMessageId: params.clientUserMessageId } };
     }
+    if (method === "turn/steer") {
+      if (process.env.CREW_TEST_STEER_FAIL) throw new Error(process.env.CREW_TEST_STEER_FAIL);
+      return { turnId: params.expectedTurnId };
+    }
     if (method === "thread/turns/list") {
       if (process.env.CREW_TEST_NO_TURN) return { data: [] };
       // Mirror a real turn: chatter lands first, the final answer only once the
@@ -625,7 +629,58 @@ out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_AR
   CREW_TEST_NO_TURN=1 bash "$CREW" await task-run2-ccc2 --for 5 2>&1)" && rc=0 || rc=$?
 check "unread queued message is reported" 0 "QUEUED-REPLIES 0/1" "$rc" "$out"
 
-# Case 46: prompts and docs put queue ahead of the destructive path
+# --- steer: interject into the turn that is running right now ----------------
+qjob task-steer1-ddd1 running thread-T
+python3 - "$QJOBS/task-steer1-ddd1.json" <<'PYEOF'
+import json, sys
+p = sys.argv[1]
+j = json.load(open(p))
+j["turnId"] = "turn-live-1"
+json.dump(j, open(p, "w"))
+PYEOF
+
+crew_steer() {
+  CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_TEST_RPC_LOG="$TMP/q/rpc.log" bash "$CREW" steer "$@" 2>&1
+}
+
+# Case 46: usage errors
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" bash "$CREW" steer 2>&1)" && rc=0 || rc=$?
+check "steer without job id" 2 "needs a job id" "$rc" "$out"
+out="$(crew_steer task-steer1-ddd1)" && rc=0 || rc=$?
+check "steer without message" 2 "needs the message text" "$rc" "$out"
+
+# Case 47: happy path -> turn/steer with the live turn id, nothing destroyed
+: > "$TMP/q/rpc.log"
+out="$(crew_steer task-steer1-ddd1 "stop adding files and fix the test")" && rc=0 || rc=$?
+check "steer reports success" 0 "STEERED task-steer1-ddd1" "$rc" "$out"
+check "steer used turn/steer" 0 "^turn/steer" "$rc" "$(cat "$TMP/q/rpc.log")"
+check "steer sends expectedTurnId" 0 "expectedTurnId.*turn-live-1" "$rc" "$(cat "$TMP/q/rpc.log")"
+check "steer sends the message" 0 "stop adding files and fix the test" "$rc" "$(cat "$TMP/q/rpc.log")"
+check_absent "steer never interrupts" "$(cat "$TMP/q/rpc.log")" "turn/interrupt"
+check_absent "steer never queues instead" "$(cat "$TMP/q/rpc.log")" "thread/queue/add"
+check_absent "steer leaves no follow-up marker to collect" \
+  "$(ls "$TMP/q/arc")" "task-steer1-ddd1.queued.txt"
+
+# Case 48: a job with no live turn cannot be steered, and says what to use
+qjob task-steer2-eee2 completed thread-U
+out="$(crew_steer task-steer2-eee2 "too late")" && rc=0 || rc=$?
+check "steer refuses a finished job" 2 "no live turn to steer" "$rc" "$out"
+check "steer points at queue instead" 2 "crew-codex queue" "$rc" "$out"
+
+# Case 49: turn ended between read and send -> explain, do not fall back blindly
+out="$(CREW_TEST_STEER_FAIL="no active turn to steer" crew_steer task-steer1-ddd1 "just missed it")" && rc=0 || rc=$?
+check "steer explains a turn that moved on" 1 "use crew-codex queue" "$rc" "$out"
+
+# Case 50: an unpatched plugin refusing to steer points at the patch
+out="$(CREW_TEST_STEER_FAIL="Shared Codex broker is busy." crew_steer task-steer1-ddd1 "refused")" && rc=0 || rc=$?
+check "steer failure explains the patch" 1 "crew-codex patch --apply" "$rc" "$out"
+
+# Case 51: the patch must forward steer, not just queue
+check_contains "patch forwards turn/steer" "$PATCH_FILE" "turn/steer"
+check_contains "patch still forwards interrupt" "$PATCH_FILE" "turn/interrupt"
+
+# Case 52: prompts and docs put queue ahead of the destructive path
 for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do
   check_contains "$(basename "$f") teaches queue" "$f" "crew-codex queue <job-id>"
 done

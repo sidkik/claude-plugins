@@ -42,7 +42,20 @@ let client = null;
 try {
   client = await CodexAppServerClient.connect(cwd, { reuseExistingBroker: true });
 
-  if (mode === "queue-add") {
+  if (mode === "steer") {
+    // Interject into the turn that is already running. Unlike turn/interrupt
+    // this stops nothing: the in-flight tool call finishes and the model reads
+    // the message at its next step. turnId identifies the turn being steered,
+    // so a turn that has since ended is rejected rather than silently missed.
+    const text = await readStdin();
+    if (!text) fail("steer: the message text was empty");
+    const result = await client.request("turn/steer", {
+      threadId,
+      expectedTurnId: clientArg,
+      input: [{ type: "text", text, text_elements: [] }]
+    });
+    process.stdout.write(JSON.stringify(result ?? {}));
+  } else if (mode === "queue-add") {
     const text = await readStdin();
     if (!text) fail("queue-add: the message text was empty");
     const result = await client.request("thread/queue/add", {

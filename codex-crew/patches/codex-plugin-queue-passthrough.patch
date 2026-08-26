@@ -42,18 +42,22 @@ are unchanged. Reverse with: crew-codex patch --revert
      "item/agentMessage/delta",
 --- a/scripts/app-server-broker.mjs
 +++ b/scripts/app-server-broker.mjs
-@@ -33,8 +33,17 @@
+@@ -33,8 +33,21 @@
    socket.write(`${JSON.stringify(message)}\n`);
  }
- 
+
 -function isInterruptRequest(message) {
 -  return message?.method === "turn/interrupt";
-+// Requests that stay safe to forward while another socket owns the stream:
-+// interrupting the active turn, and queueing a message the agent picks up when
-+// it finishes the turn it is already running. Queueing is the non-destructive
-+// half of that pair - it never stops work mid-edit.
++// Requests that stay safe to forward while another socket owns the stream.
++// turn/interrupt was already allowed and is the destructive one: it stops the
++// turn wherever it stands. The other two are not destructive. turn/steer
++// interjects a message into the running turn, which the model reads at its
++// next step once the in-flight tool call has finished, and thread/queue/add
++// leaves a message the agent picks up after the turn completes. Refusing them
++// leaves interrupt as the only way to say anything to a running job.
 +const ACTIVE_STREAM_PASSTHROUGH_METHODS = new Set([
 +  "turn/interrupt",
++  "turn/steer",
 +  "thread/queue/add"
 +]);
 +

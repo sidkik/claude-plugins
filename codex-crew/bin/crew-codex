@@ -102,12 +102,12 @@ crew_job_meta() {
       process.stdout.write([
         "FOUND", job.status || "?", job.threadId || "", cwd,
         req.model || "", req.effort || "", req.write ? "true" : "false",
-        newest === jobId ? "newest" : newest
+        newest === jobId ? "newest" : newest, job.turnId || ""
       ].join("\t"));
       process.exit(0);
     }
-    process.stdout.write("MISSING\t\t\t\t\t\t\t");
-  ' "$CLAUDE_PLUGIN_DATA" "$1" 2>/dev/null || printf 'MISSING\t\t\t\t\t\t\t'
+    process.stdout.write("MISSING\t\t\t\t\t\t\t\t");
+  ' "$CLAUDE_PLUGIN_DATA" "$1" 2>/dev/null || printf 'MISSING\t\t\t\t\t\t\t\t'
 }
 
 # A redirect cancels the old job and resumes its Codex thread under a NEW job
@@ -231,6 +231,63 @@ if [[ "${1:-}" == "patch" ]]; then
       exit 0
       ;;
   esac
+fi
+
+# ---- steer: interject into the turn a job is running right now --------------
+# The primary way to correct a job in flight. Unlike interrupt, this stops
+# nothing: the tool call in progress finishes, and the model reads the message
+# at its next step, so it can change course before it has done all the wrong
+# work. Verified: a job told to stop at file 9 of 20 read the message and
+# stopped at 16, reporting "I had created exactly 16 iota files when I read
+# your message." Requires the codex plugin patch (crew-codex patch --apply).
+if [[ "${1:-}" == "steer" ]]; then
+  shift
+  JOB_ID="${1:-}"
+  if [[ -z "$JOB_ID" || "$JOB_ID" == --* ]]; then
+    echo "crew-codex: steer needs a job id — usage: crew-codex steer <job-id> \"<message>\"" >&2
+    exit 2
+  fi
+  shift
+  MESSAGE="$*"
+  if [[ -z "$MESSAGE" ]]; then
+    echo "crew-codex: steer needs the message text — usage: crew-codex steer <job-id> \"<message>\"" >&2
+    exit 2
+  fi
+
+  IFS=$'\t' read -r jfound jstatus jthread jcwd _m _e _w _n jturn <<<"$(crew_job_meta "$JOB_ID")"
+
+  if [[ "$jfound" != "FOUND" ]]; then
+    echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
+    exit 2
+  fi
+  if [[ -n "$jcwd" && "$jcwd" != "$PWD" ]]; then
+    echo "crew-codex: job $JOB_ID belongs to cwd $jcwd; re-run steer from that directory" >&2
+    exit 2
+  fi
+  if [[ "$jstatus" != "running" ]]; then
+    echo "crew-codex: job $JOB_ID is $jstatus, so there is no live turn to steer; use crew-codex queue to leave a message for its next turn" >&2
+    exit 2
+  fi
+  if [[ -z "$jthread" || -z "$jturn" ]]; then
+    echo "crew-codex: job $JOB_ID has not started a turn yet; try again in a moment" >&2
+    exit 2
+  fi
+
+  src=0
+  steered="$(printf '%s' "$MESSAGE" | node "$CREW_ROOT/lib/appserver-cli.mjs" \
+    steer "$COMPANION_ROOT" "$PWD" "$jthread" "$jturn" 2>&1)" || src=$?
+  if [[ $src -ne 0 ]]; then
+    echo "crew-codex: steering failed: $steered" >&2
+    if grep -qiE "busy|experimentalApi" <<<"$steered"; then
+      echo "crew-codex: that is the unpatched codex plugin refusing to steer — run: crew-codex patch --apply" >&2
+    elif grep -qiE "no active turn|ExpectedTurnMismatch|not steerable" <<<"$steered"; then
+      echo "crew-codex: the turn ended or moved on; use crew-codex queue to leave a message for the next one" >&2
+    fi
+    exit 1
+  fi
+
+  echo "STEERED $JOB_ID | thread $jthread | turn $jturn | the agent reads it at its next step; its reply lands in this job's own result"
+  exit 0
 fi
 
 # ---- queue: say something to a running job without stopping it --------------
