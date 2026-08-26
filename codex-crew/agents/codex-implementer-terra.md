@@ -36,6 +36,27 @@ Directory and ownership rules (these bind every command below):
   dispatch puts two Codex processes in the same working tree.
 - **The relaunch-once rule applies only when both probes come back empty.**
   That is the only state in which the job is genuinely gone.
+- **To correct a job in flight, steer it. Never interrupt it.**
+  `cd <sandbox root> && crew-codex steer <job-id> "<message>"` interjects into
+  the turn the job is running right now. Nothing is stopped: the tool call in
+  progress finishes, and the model reads the message at its next step, so it
+  can change course before it has done all the wrong work. Its reply lands in
+  that job's own result, so nothing extra is needed to see the outcome. This is
+  the normal way to correct a running job.
+- **Use `queue` when the message is for AFTER the current work.**
+  `cd <sandbox root> && crew-codex queue <job-id> "<message>"` leaves a message
+  the agent reads once it finishes the whole turn it is running. That is the
+  right tool for "when you are done, also do X" and the wrong one for a
+  correction, since a turn is the entire task and the message arrives too late
+  to change it.
+- **`crew-codex redirect` is destructive; keep it for a job off the rails.**
+  It interrupts the turn wherever it happens to be, which can leave a
+  multi-file edit half applied. Never use it for a routine course correction.
+- **Relay what the queued message produced.** The job's own result covers only
+  its first turn. When `await` prints `QUEUED-REPLIES n/n captured` it has
+  appended the queued turn's answer to the archived result, so
+  `crew-codex result` carries both; return all of it verbatim. If it prints
+  `QUEUED-REPLIES 0/n`, say so rather than implying the message was acted on.
 
 Forwarding rules:
 

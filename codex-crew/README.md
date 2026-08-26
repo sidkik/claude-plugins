@@ -91,30 +91,99 @@ falls back to a 5s poll when no live pid is available. If the process
 disappears while the job still claims to be `running`, that's a silent death:
 `await` reports `STALE` with exit 3 instead of waiting out the deadline.
 
-**Redirect a running job instead of restarting it.** A long job going the
-wrong way does not have to be thrown away:
+**Correct a running job in flight.** A job going the wrong way does not have to
+be thrown away, and does not have to be interrupted either:
+
+```
+cd <sandbox root> && crew-codex steer <job-id> "Stop adding files; switch to fixing the failing test"
+STEERED task-abc-123 | thread 01a03e70-... | turn 01a03e70-... | the agent reads it at its next step
+```
+
+Steering interjects into the turn the job is running **right now**. Nothing is
+stopped: the tool call in progress finishes normally, and the model reads the
+message at its next step, so it can change course before doing all the wrong
+work. The reply is part of the same turn, so it appears in the job's own
+result with nothing extra to collect.
+
+Verified end to end: a job creating 25 files one at a time was steered at file
+2 and stopped at exactly 2, finishing in 30 seconds with "2 kappa files had
+been created when I read your message." A second run steered at file 9 of 20
+stopped at 16.
+
+**A turn is the whole task, not one step.** That distinction is why steering
+exists and why queueing is not a substitute:
+
+```
+user message ──► turn starts
+  model call → tool call → result     (x30 for a 10-file job)
+  model call → final answer ──► turn/completed
+```
+
+Everything a job does is one turn, so a message that waits for the turn to end
+arrives after the work is finished.
+
+**Queue is for the message that should follow the current work.**
+
+```
+cd <sandbox root> && crew-codex queue <job-id> "When you are done, also update the changelog"
+QUEUED task-abc-123 | id crew-task-abc-123-1 | the agent reads it when its current turn ends
+```
+
+Because the companion closes a job at its first `turn/completed`, the queued
+turn's answer would otherwise be lost. `await` waits for it and appends it to
+the archived result:
+
+```
+QUEUED-REPLIES 1/1 captured | appended to .../task-abc-123.result.txt
+DONE completed | 1m 45s | archived: .../task-abc-123.result.txt
+```
+
+**Both need the codex plugin patched.** Stock, the plugin refuses on two
+counts: its broker forwards only `turn/interrupt` while a turn is streaming, so
+`turn/steer` and `thread/queue/add` come back `-32001 Shared Codex broker is
+busy`, and its client declares `experimentalApi: false`, which the server
+requires for the queue method. Neither limit is Codex's own. Note what that
+left behind: interrupt, the one destructive option, was the only thing that
+got through.
+
+```
+crew-codex patch --status     # PATCHED / UNPATCHED, for whatever version is installed
+crew-codex patch --apply      # idempotent, keeps *.crew-orig backups
+crew-codex patch --revert
+```
+
+Everyone installs their own copy of `codex@openai-codex` at their own version,
+so the fix ships as a patch in `patches/` applied by context matching rather
+than line numbers, which absorbs the drift between releases. It refuses to
+half-apply if upstream moves the code out from under it. A SessionStart hook
+re-applies it after the codex plugin updates; set `CREW_CODEX_NO_AUTO_PATCH=1`
+to opt out.
+
+**Redirect is the destructive one.** Reach for it only when a job is genuinely
+off the rails:
 
 ```
 cd <sandbox root> && crew-codex redirect <job-id> "Change of plan: <new instruction>"
 ```
 
-That interrupts the live turn and resumes the *same* Codex thread with the new
-text, so everything the job already did stays in context. It prints
-`REDIRECTED <old> -> <new>`; await the new id. Model, effort and write posture
-carry over unless you override them. The agent that was awaiting the old id
-gets exit 4 (`SUPERSEDED`) naming the successor, so it follows the thread
-rather than reporting a failure.
+That INTERRUPTS the live turn and resumes the *same* Codex thread with the new
+text, so everything the job already did stays in context. The interrupt is the
+catch: it stops the turn wherever it stands, so an edit in progress can be left
+half applied. It prints `REDIRECTED <old> -> <new>`; await the new id. Model,
+effort and write posture carry over unless you override them. The agent that
+was awaiting the old id gets exit 4 (`SUPERSEDED`) naming the successor, so it
+follows the thread rather than reporting a failure.
 
 Verified in a sandbox: a job cancelled after creating 4 of 30 files resumed
 knowing it had made exactly 4, then carried out the new instruction instead.
 
-Why not true mid-turn steering? Codex does support it (`turn/steer` on the
-app-server), but the codex plugin's broker forwards exactly one method while a
-turn is streaming, `turn/interrupt` (`app-server-broker.mjs`). Everything else
-gets `-32001 Shared Codex broker is busy`. `codex queue --thread` is accepted
-for a crew job's thread and then never drained, since the job's app-server goes
-away with the job. Interrupt-then-resume is the mechanism that actually works
-end to end today.
+The three are genuinely different, and only one of them destroys work:
+
+| | What it does | When the agent sees it |
+|---|---|---|
+| `steer` | Interjects into the running turn | At its next step, after the in-flight tool call |
+| `queue` | Appends to the thread queue | After the turn completes, so after the whole task |
+| `redirect` | Interrupts the turn, then resumes | Never sees it; work in flight is destroyed |
 
 **Results survive.** On terminal state `await` archives the result, metadata
 and log to `~/.claude/plugins/data/codex-crew/jobs/`, which the companion's
