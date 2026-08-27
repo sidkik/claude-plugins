@@ -28,6 +28,24 @@ check() {
   fi
 }
 
+# A broker stub shaped like the real thing: it opens the unix socket and writes
+# the pid file, so crew_spawn_job_broker actually succeeds. Without this every
+# per-job-broker path silently no-ops and the tests cannot see it.
+write_broker_stub() { # $1 = scripts dir
+  cat > "$1/app-server-broker.mjs" <<'BROKEREOF'
+import net from "node:net";
+import fs from "node:fs";
+const a = process.argv.slice(2);
+const endpoint = a[a.indexOf("--endpoint") + 1] || "";
+const pidFile = a[a.indexOf("--pid-file") + 1] || "";
+const sockPath = endpoint.replace(/^unix:/, "");
+if (pidFile) fs.writeFileSync(pidFile, String(process.pid));
+net.createServer(() => {}).listen(sockPath);
+setInterval(() => {}, 1 << 30);
+BROKEREOF
+}
+export CREW_CODEX_BROKER_TMPDIR="$TMP"
+
 # Case 1: missing installed_plugins.json -> loud error, exit 1
 out="$(CLAUDE_CONFIG_DIR="$TMP/empty" bash "$CREW" --resolve 2>&1)" && rc=0 || rc=$?
 check "missing installed_plugins.json" 1 "install the official Codex plugin" "$rc" "$out"
@@ -344,7 +362,8 @@ echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TM
 cat > "$TMP/redir/install/scripts/codex-companion.mjs" <<'EOF'
 import fs from "node:fs";
 const argv = process.argv.slice(2);
-fs.appendFileSync(process.env.CREW_TEST_ARGV_LOG, argv.join(" ") + "\n");
+fs.appendFileSync(process.env.CREW_TEST_ARGV_LOG,
+  argv.join(" ") + " @endpoint=" + (process.env.CODEX_COMPANION_APP_SERVER_ENDPOINT || "none") + "\n");
 if (argv[0] === "task") { console.log("Codex Resume started in the background as task-new1-aaa1."); }
 else if (argv[0] === "cancel") { console.log("Cancelled " + argv[1] + "."); }
 process.exit(0);
@@ -359,6 +378,7 @@ write_job() { # dir id status thread createdAt model effort write
     "$2" "$3" "$4" "$5" "$2" "$PWD" "$6" "$7" "$8" > "$1/$2.json"
 }
 JOBS="$TMP/redir/data/state/lab-1/jobs"
+write_broker_stub "$TMP/redir/install/scripts"
 write_job "$JOBS" task-old1-bbb1 running thread-A 2026-01-01T00:00:00.000Z gpt-5.6-terra xhigh true
 
 run_redirect() {
@@ -379,7 +399,7 @@ log="$TMP/redir/argv1"; : > "$log"
 out="$(run_redirect "$log" task-old1-bbb1 "Change of plan: stop and write NOTES.md")" && rc=0 || rc=$?
 check "redirect interrupts the running job" 0 "interrupted task-old1-bbb1" "$rc" "$out"
 check "redirect reports the successor" 0 "REDIRECTED task-old1-bbb1 -> task-new1-aaa1" "$rc" "$out"
-check "redirect cancelled first" 0 "^cancel task-old1-bbb1$" "$rc" "$(cat "$log")"
+check "redirect cancelled first" 0 "^cancel task-old1-bbb1 " "$rc" "$(cat "$log")"
 check "redirect resumed the same thread" 0 "task --background --resume-last" "$rc" "$(cat "$log")"
 check "redirect carries the write posture" 0 "resume-last --write" "$rc" "$(cat "$log")"
 check "redirect carries model and effort" 0 "\-\-model gpt-5.6-terra --effort xhigh" "$rc" "$(cat "$log")"
@@ -579,6 +599,7 @@ export class CodexAppServerClient {
   async close() {}
 }
 EOF
+write_broker_stub "$TMP/q/install/scripts"
 QJOBS="$TMP/q/data/state/lab-1/jobs"
 qjob() { # id status thread
   printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"2026-02-01T00:00:00.000Z","pid":424242,"request":{"cwd":"%s","model":"gpt-5.6-terra","effort":"xhigh","write":true}}\n' \
@@ -818,6 +839,17 @@ else
   echo "FAIL: a half-written job file got its broker reaped"; fail=$((fail + 1))
 fi
 check_contains "unreadable snapshot keeps its sidecar" "$TMP/q/arc/task-unread1-bbb1.broker" "broker.sock"
+
+# ...but it must not skip forever: a file left invalid by a crashed rewrite
+# would otherwise hold its broker for the life of the machine.
+crew_reap >/dev/null 2>&1 || true
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$bpu" 2>/dev/null; then
+  echo "FAIL: permanently unreadable record held its broker forever"; fail=$((fail + 1)); kill -9 "$bpu" 2>/dev/null || true
+else
+  echo "PASS: permanently unreadable record eventually releases its broker"; pass=$((pass + 1))
+fi
+check_absent "aged-out record leaves no sidecar" "$(ls "$TMP/q/arc")" "task-unread1-bbb1.broker"
 kill -9 "$bpu" 2>/dev/null || true; rm -f "$TMP/q/arc/task-unread1-bbb1.broker" "$QJOBS/task-unread1-bbb1.json"
 
 # --- a failed cancel must not destroy a live job's broker -------------------
@@ -838,6 +870,33 @@ kill -9 "$bpc" 2>/dev/null || true
 out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
   bash "$CREW" cancel task-cxfail1-ccc1 2>&1)" && rc=0 || rc=$?
 check_absent "successful cancel removes the sidecar" "$(ls "$TMP/q/arc")" "task-cxfail1-ccc1.broker"
+
+# --- redirect: broker routing, publication and refusal ----------------------
+# The old job's cancel must go to the broker that job runs on, the successor
+# must get its own recorded broker, and a broker that cannot be started must
+# abort BEFORE the old turn is destroyed.
+redir_jobs="$TMP/redir/data/state/lab-1/jobs"
+write_job "$redir_jobs" task-rr1-aaa1 running thread-RR 2026-09-01T00:00:00.000Z gpt-5.6-terra xhigh true
+mkdir -p "$TMP/redir/arc"
+printf 'unix:/tmp/old-broker.sock\t888888\t/tmp/old-broker-dir\t%s\n' "$PWD" > "$TMP/redir/arc/task-rr1-aaa1.broker"
+log="$TMP/redir/argv_rr"; : > "$log"
+out="$(CLAUDE_CONFIG_DIR="$TMP/redir" CLAUDE_PLUGIN_DATA="$TMP/redir/data" CREW_CODEX_ARCHIVE_DIR="$TMP/redir/arc" \
+  CREW_TEST_ARGV_LOG="$log" bash "$CREW" redirect task-rr1-aaa1 "switch approach" 2>&1)" && rc=0 || rc=$?
+check "redirect routes the cancel to the old job's broker" 0 \
+  "^cancel task-rr1-aaa1 @endpoint=unix:/tmp/old-broker.sock" "$rc" "$(cat "$log")"
+check "redirect relaunches on a NEW broker" 0 \
+  "resume-last.*@endpoint=unix:$TMP/crewb-" "$rc" "$(grep resume-last "$log")"
+check_absent "redirect drops the old job's sidecar" "$(ls "$TMP/redir/arc")" "task-rr1-aaa1.broker"
+check_contains "redirect publishes the successor's broker" "$TMP/redir/arc/task-new1-aaa1.broker" "crewb-"
+
+# allocation failure must not destroy the old turn
+write_job "$redir_jobs" task-rr2-bbb2 running thread-RR2 2026-09-02T00:00:00.000Z gpt-5.6-terra xhigh true
+log="$TMP/redir/argv_rr2"; : > "$log"
+out="$(CLAUDE_CONFIG_DIR="$TMP/redir" CLAUDE_PLUGIN_DATA="$TMP/redir/data" CREW_CODEX_ARCHIVE_DIR="$TMP/redir/arc" \
+  CREW_CODEX_BROKER_TMPDIR="$TMP/no-such-dir-for-brokers" \
+  CREW_TEST_ARGV_LOG="$log" bash "$CREW" redirect task-rr2-bbb2 "should refuse" 2>&1)" && rc=0 || rc=$?
+check "redirect refuses when it cannot start a broker" 1 "leaving task-rr2-bbb2 running" "$rc" "$out"
+check_absent "refused redirect never cancelled the old job" "$(cat "$log")" "cancel task-rr2-bbb2"
 
 summary_reached=1
 echo
