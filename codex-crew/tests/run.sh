@@ -6,16 +6,36 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CREW="$HERE/../bin/crew-codex"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+STUB_PIDS=""
 
 pass=0
 fail=0
 summary_reached=0
 
-# set -e can kill this script mid-run (a cleanup kill on an already-dead pid
-# used to do exactly that). A truncated run still prints PASS lines, so without
-# this it can be mistaken for a green suite.
-trap 'if [[ "$summary_reached" -ne 1 ]]; then echo; echo "SUITE ABORTED before the summary - treat as FAILURE"; fi' EXIT
+# ONE exit handler. Bash keeps a single trap per signal, so the abort guard and
+# the temp-dir cleanup have to live in the same function or the second silently
+# replaces the first - which is how earlier runs leaked both their temp trees
+# and the broker stubs they started.
+cleanup_suite() {
+  local status=$?
+  if [[ "$summary_reached" -ne 1 ]]; then
+    echo
+    echo "SUITE ABORTED before the summary - treat as FAILURE"
+    status=1
+  fi
+  local pf p
+  for pf in "$TMP"/crewb-*/broker.pid; do
+    [[ -f "$pf" ]] || continue
+    p="$(cat "$pf" 2>/dev/null || true)"
+    [[ "$p" =~ ^[0-9]+$ ]] && kill -9 "$p" 2>/dev/null
+  done
+  for p in $STUB_PIDS; do
+    kill -9 "$p" 2>/dev/null
+  done
+  rm -rf "$TMP"
+  exit "$status"
+}
+trap cleanup_suite EXIT
 
 check() {
   local name="$1" expected_exit="$2" grep_for="$3" actual_exit="$4" output="$5"
@@ -730,6 +750,7 @@ fake_broker() { # $1 = job id -> writes sidecar, echoes the pid
   local job="$1" dir pid
   dir="$(mktemp -d "$TMP/q/fakebroker-XXXXXX")"
   sleep 300 >/dev/null 2>&1 & pid=$!
+  STUB_PIDS="$STUB_PIDS $pid"
   : > "$dir/broker.sock"; echo "$pid" > "$dir/broker.pid"; : > "$dir/broker.log"
   printf 'unix:%s/broker.sock\t%s\t%s\t%s\n' "$dir" "$pid" "$dir" "$PWD" \
     > "$TMP/q/arc/$job.broker"
@@ -841,8 +862,10 @@ fi
 check_contains "unreadable snapshot keeps its sidecar" "$TMP/q/arc/task-unread1-bbb1.broker" "broker.sock"
 
 # ...but it must not skip forever: a file left invalid by a crashed rewrite
-# would otherwise hold its broker for the life of the machine.
-crew_reap >/dev/null 2>&1 || true
+# would otherwise hold its broker for the life of the machine. Ageing is by
+# wall clock, so back-date the marker rather than sweeping in a loop, which is
+# also what stops a burst of concurrent sweeps from racing through it.
+printf '%s' "$(( $(date +%s) - 9999 ))" > "$TMP/q/arc/task-unread1-bbb1.broker.unreadable"
 crew_reap >/dev/null 2>&1 || true
 if kill -0 "$bpu" 2>/dev/null; then
   echo "FAIL: permanently unreadable record held its broker forever"; fail=$((fail + 1)); kill -9 "$bpu" 2>/dev/null || true
@@ -897,6 +920,39 @@ out="$(CLAUDE_CONFIG_DIR="$TMP/redir" CLAUDE_PLUGIN_DATA="$TMP/redir/data" CREW_
   CREW_TEST_ARGV_LOG="$log" bash "$CREW" redirect task-rr2-bbb2 "should refuse" 2>&1)" && rc=0 || rc=$?
 check "redirect refuses when it cannot start a broker" 1 "leaving task-rr2-bbb2 running" "$rc" "$out"
 check_absent "refused redirect never cancelled the old job" "$(cat "$log")" "cancel task-rr2-bbb2"
+
+# A burst of sweeps inside the grace period must NOT age a record out: that was
+# the concurrency hole in counting sweeps instead of seconds.
+qjob task-burst1-ddd1 running thread-BURST
+bpb="$(fake_broker task-burst1-ddd1)"
+printf '{"id":"task-burst1-ddd1","status":"run' > "$QJOBS/task-burst1-ddd1.json"
+crew_reap >/dev/null 2>&1 || true
+crew_reap >/dev/null 2>&1 || true
+crew_reap >/dev/null 2>&1 || true
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$bpb" 2>/dev/null; then
+  echo "PASS: a burst of sweeps cannot age out a record early"; pass=$((pass + 1))
+else
+  echo "FAIL: rapid sweeps reaped a live broker inside the grace period"; fail=$((fail + 1))
+fi
+kill -9 "$bpb" 2>/dev/null || true
+rm -f "$TMP/q/arc/task-burst1-ddd1.broker" "$TMP/q/arc/task-burst1-ddd1.broker.unreadable" "$QJOBS/task-burst1-ddd1.json"
+
+# Identity check: a sidecar naming a pid that has been recycled must not be
+# signalled. A live process with a mismatched start time stands in for the
+# recycled pid.
+qjob task-recycle1-eee1 completed thread-REC
+sleep 300 >/dev/null 2>&1 & innocent=$!
+STUB_PIDS="$STUB_PIDS $innocent"
+printf 'unix:/tmp/gone.sock\t%s\t/tmp/gone-dir\t%s\t1\n' "$innocent" "$PWD" \
+  > "$TMP/q/arc/task-recycle1-eee1.broker"
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$innocent" 2>/dev/null; then
+  echo "PASS: a recycled pid is not signalled"; pass=$((pass + 1))
+else
+  echo "FAIL: cleanup killed an unrelated process holding a recycled pid"; fail=$((fail + 1))
+fi
+kill -9 "$innocent" 2>/dev/null || true
 
 summary_reached=1
 echo

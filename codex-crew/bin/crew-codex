@@ -70,9 +70,34 @@ crew_job_endpoint() {
   cut -f1 <"$f"
 }
 
-# Stop one broker and remove everything it left behind.
+# A pid alone is not an identity: pids get recycled, and a sidecar can outlive
+# its broker by hours. Field 22 of /proc/<pid>/stat is the process start time in
+# clock ticks, which together with the pid is stable and unforgeable enough to
+# prove we are signalling the same process we started.
+crew_pid_starttime() {
+  local pid="$1"
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 0
+  awk '{ n = split($0, a, ") "); print a[n] }' "/proc/$pid/stat" 2>/dev/null \
+    | awk '{ print $20 }' 2>/dev/null || true
+}
+
+# Stop one broker and remove everything it left behind. Refuses to signal a pid
+# whose start time no longer matches the one recorded at spawn.
 crew_kill_broker() {
-  local pid="$1" dir="$2"
+  local pid="$1" dir="$2" expect_start="${3:-}"
+  if [[ -n "$expect_start" && "$pid" =~ ^[0-9]+$ ]]; then
+    local now_start
+    now_start="$(crew_pid_starttime "$pid")"
+    if [[ -n "$now_start" && "$now_start" != "$expect_start" ]]; then
+      # Same pid, different process: the broker died and something else took
+      # its number. Clean the files, never signal the stranger.
+      if [[ -n "$dir" && -d "$dir" ]]; then
+        rm -f "$dir/broker.sock" "$dir/broker.pid" "$dir/broker.log" 2>/dev/null || true
+        rmdir "$dir" 2>/dev/null || true
+      fi
+      return 0
+    fi
+  fi
   if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
     kill "$pid" 2>/dev/null || true
     local i=0
@@ -95,7 +120,7 @@ crew_reap_brokers() {
   for f in "$CREW_ARCHIVE_DIR"/*.broker; do
     [[ -f "$f" ]] || continue
     job="$(basename "$f" .broker)"
-    IFS=$'\t' read -r endpoint pid dir _ <"$f" || continue
+    IFS=$'\t' read -r endpoint pid dir _cwd startt _rest <"$f" || true
     # "running" is not proof of life: a worker killed with the session leaves
     # the index saying running forever, and its broker with it. Require a live
     # worker process too, or the leak this whole sidecar exists to prevent just
@@ -108,16 +133,25 @@ crew_reap_brokers() {
     # forever leaks the broker, so count strikes and give up after a few.
     strikes_file="$f.unreadable"
     if [[ "$mfound" == "UNREADABLE" ]]; then
-      strikes=0
-      [[ -f "$strikes_file" ]] && strikes="$(cat "$strikes_file" 2>/dev/null || echo 0)"
-      [[ "$strikes" =~ ^[0-9]+$ ]] || strikes=0
-      strikes=$((strikes + 1))
-      if [[ $strikes -lt ${CREW_CODEX_UNREADABLE_STRIKES:-3} ]]; then
-        echo "$strikes" >"$strikes_file" 2>/dev/null || true
+      # Age it by WALL CLOCK, not by sweep count: several sweeps can fire in the
+      # same second (a fan-out of launches each sweeping first) and race through
+      # a count while the companion is mid-rewrite, killing a live broker. The
+      # file records when the record first read badly; it has to stay bad for a
+      # while before we believe it.
+      now="$(date +%s)"
+      first="$now"
+      if [[ -f "$strikes_file" ]]; then
+        first="$(cat "$strikes_file" 2>/dev/null || echo "$now")"
+        [[ "$first" =~ ^[0-9]+$ ]] || first="$now"
+      else
+        printf '%s' "$now" >"$strikes_file.tmp.$$" 2>/dev/null \
+          && mv -f "$strikes_file.tmp.$$" "$strikes_file" 2>/dev/null || true
+      fi
+      if [[ $(( now - first )) -lt ${CREW_CODEX_UNREADABLE_SECS:-120} ]]; then
         continue
       fi
-      # Out of patience: the record has been unreadable across several sweeps,
-      # so treat it as gone rather than holding its broker forever.
+      # Unreadable continuously for the whole grace period: a crashed rewrite,
+      # not a busy one. Release the broker rather than hold it forever.
     else
       rm -f "$strikes_file" 2>/dev/null || true
     fi
@@ -126,7 +160,7 @@ crew_reap_brokers() {
         continue
       fi
     fi
-    crew_kill_broker "$pid" "$dir"
+    crew_kill_broker "$pid" "$dir" "$startt"
     rm -f "$f" "$f.unreadable" 2>/dev/null || true
   done
   local d
@@ -150,13 +184,13 @@ crew_reap_brokers() {
 # so there is exactly one EXIT trap and it consults state instead of capturing
 # it; and a signal handler that does not exit lets bash resume, which could
 # publish a sidecar naming the broker it just killed.
-CREW_CLEANUP_PID="" CREW_CLEANUP_DIR=""
+CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
 
 crew_cleanup() {
   if [[ -n "${CREW_CLEANUP_PID:-}" ]]; then
-    local p="$CREW_CLEANUP_PID" d="$CREW_CLEANUP_DIR"
-    CREW_CLEANUP_PID="" CREW_CLEANUP_DIR=""
-    crew_kill_broker "$p" "$d"
+    local p="$CREW_CLEANUP_PID" d="$CREW_CLEANUP_DIR" st="$CREW_CLEANUP_START"
+    CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
+    crew_kill_broker "$p" "$d" "$st"
   fi
   rm -f "${TMP_OUT:-}" "${TMP_ERR:-}" 2>/dev/null || true
 }
@@ -170,8 +204,16 @@ crew_arm_cleanup() {
 # Start a broker for one job. Socket paths live under a short tmp dir because a
 # unix
 # socket path is capped near 108 bytes and the plugin data dir can be deep.
+# Sets CREW_SPAWNED_ENDPOINT/PID/DIR/START; returns 1 on failure.
+#
+# Deliberately NOT called through command substitution. A subshell owns $! only
+# inside itself, so between spawning and returning, the parent knows nothing to
+# clean up while the broker is already alive and disowned - a TERM in that
+# window left it running forever. Ownership is handed to the cleanup path on
+# the line after $!, before anything that can block.
 crew_spawn_job_broker() {
   local cwd="$1" dir sock pid i=0
+  CREW_SPAWNED_ENDPOINT="" CREW_SPAWNED_PID="" CREW_SPAWNED_DIR="" CREW_SPAWNED_START=""
   [[ -f "$CREW_BROKER_SCRIPT" ]] || return 1
   dir="$(mktemp -d "${CREW_CODEX_BROKER_TMPDIR:-${TMPDIR:-/tmp}}/crewb-XXXXXXXX" 2>/dev/null)" || return 1
   sock="$dir/broker.sock"
@@ -182,6 +224,7 @@ crew_spawn_job_broker() {
   node "$CREW_BROKER_SCRIPT" serve --endpoint "unix:$sock" --cwd "$cwd" \
     --pid-file "$dir/broker.pid" >"$dir/broker.log" 2>&1 &
   pid=$!
+  CREW_CLEANUP_PID="$pid" CREW_CLEANUP_DIR="$dir" CREW_CLEANUP_START="$(crew_pid_starttime "$pid")"
   disown "$pid" 2>/dev/null || true
   while [[ $i -lt 100 ]]; do
     [[ -S "$sock" ]] && break
@@ -190,10 +233,56 @@ crew_spawn_job_broker() {
     i=$((i + 1))
   done
   if [[ ! -S "$sock" ]]; then
-    crew_kill_broker "$pid" "$dir"
+    crew_kill_broker "$pid" "$dir" "$CREW_CLEANUP_START"
+    CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
     return 1
   fi
-  printf 'unix:%s\t%s\t%s' "$sock" "$pid" "$dir"
+  CREW_SPAWNED_ENDPOINT="unix:$sock" CREW_SPAWNED_PID="$pid" CREW_SPAWNED_DIR="$dir"
+  CREW_SPAWNED_START="$CREW_CLEANUP_START"
+  return 0
+}
+
+# Publish ownership atomically. A truncating write can be read half-formed by a
+# concurrent sweep; a rename cannot.
+crew_publish_sidecar() {
+  local job="$1" side tmp
+  side="$(crew_sidecar "$job")"
+  mkdir -p "$CREW_ARCHIVE_DIR" || return 1
+  tmp="$side.tmp.$$"
+  printf '%s\t%s\t%s\t%s\t%s\n' "$CREW_SPAWNED_ENDPOINT" "$CREW_SPAWNED_PID" \
+    "$CREW_SPAWNED_DIR" "$PWD" "$CREW_SPAWNED_START" >"$tmp" || return 1
+  mv -f "$tmp" "$side" || { rm -f "$tmp" 2>/dev/null || true; return 1; }
+  return 0
+}
+
+# --resume-last resolves "newest job in this cwd" at the moment it runs, so a
+# launch landing between redirect's check and its relaunch makes redirect resume
+# the wrong thread - after it has already cancelled the intended one. A per-cwd
+# lock closes that window for the calls that can create the race.
+#
+# Deliberately fails OPEN. A fleet running many jobs in one directory would be
+# far worse off deadlocked than racy, so a missing flock or a wait timeout warns
+# and proceeds instead of blocking the launch.
+crew_lock_acquire() {
+  command -v flock >/dev/null 2>&1 || return 0
+  mkdir -p "$CREW_ARCHIVE_DIR" 2>/dev/null || return 0
+  local key
+  key="$(printf '%s' "$PWD" | md5sum 2>/dev/null | cut -c1-16)" || return 0
+  [[ -n "$key" ]] || return 0
+  exec 9>"$CREW_ARCHIVE_DIR/.launch-$key.lock" 2>/dev/null || return 0
+  if ! flock -w "${CREW_CODEX_LOCK_WAIT:-60}" 9 2>/dev/null; then
+    echo "crew-codex: timed out waiting for the per-cwd launch lock; proceeding without it (a concurrent launch could race a redirect)" >&2
+  fi
+  return 0
+}
+
+crew_lock_release() {
+  exec 9>&- 2>/dev/null || true
+}
+
+# One remover, so a sidecar and its strike file never drift apart.
+crew_drop_sidecar() {
+  rm -f "$(crew_sidecar "$1")" "$(crew_sidecar "$1").unreadable" 2>/dev/null || true
 }
 
 # The companion keys job state to a hash of the shell's cwd, and Claude Code
@@ -587,11 +676,11 @@ if [[ "${1:-}" == "redirect" ]]; then
   # an allocation failure left the turn destroyed AND the successor on an
   # unreachable private app-server, the exact failure this release prevents.
   old_ep="$(crew_job_endpoint "$JOB_ID")"
-  RED_PID="" RED_DIR="" RED_EP=""
+  RED_PID="" RED_DIR="" RED_EP="" RED_START=""
   if [[ -z "${CREW_CODEX_NO_JOB_BROKER:-}" ]]; then
-    if red_info="$(crew_spawn_job_broker "$PWD")"; then
-      IFS=$'\t' read -r RED_EP RED_PID RED_DIR <<<"$red_info"
-      CREW_CLEANUP_PID="$RED_PID" CREW_CLEANUP_DIR="$RED_DIR"
+    if crew_spawn_job_broker "$PWD"; then
+      RED_EP="$CREW_SPAWNED_ENDPOINT" RED_PID="$CREW_SPAWNED_PID"
+      RED_DIR="$CREW_SPAWNED_DIR" RED_START="$CREW_SPAWNED_START"
       crew_arm_cleanup
     else
       echo "crew-codex: could not start a broker for the successor; leaving $JOB_ID running rather than cancelling it and relaunching somewhere unreachable" >&2
@@ -599,12 +688,15 @@ if [[ "${1:-}" == "redirect" ]]; then
     fi
   fi
 
-  # --resume-last picks the newest job at the moment it runs, so re-check right
-  # before the destructive step: a launch that landed since the first check
-  # would otherwise have us resume the wrong thread.
+  # Hold the per-cwd lock from here until the successor exists, so no launch can
+  # slip in and become "newest" between the check and the relaunch.
+  crew_lock_acquire
+
+  # Re-check under the lock, right before the destructive step.
   IFS=$'\037' read -r _rf _rs _rt _rc _rm _re _rw rnewest _rturn _rpid _rrest <<<"$(crew_job_meta "$JOB_ID")"
   if [[ "$rnewest" != "newest" ]]; then
     echo "crew-codex: $JOB_ID stopped being the newest job for this cwd ($rnewest launched since); not cancelling it, re-run the redirect against the newest job" >&2
+    crew_lock_release
     exit 2
   fi
 
@@ -627,9 +719,9 @@ if [[ "${1:-}" == "redirect" ]]; then
   # unreachable, which is the whole failure this release exists to fix.
   old_side="$(crew_sidecar "$JOB_ID")"
   if [[ -f "$old_side" ]]; then
-    IFS=$'\t' read -r _oe obpid obdir _ <"$old_side"
-    crew_kill_broker "$obpid" "$obdir"
-    rm -f "$old_side" 2>/dev/null || true
+    IFS=$'\t' read -r _oe obpid obdir _ocwd obstart _orest <"$old_side" || true
+    crew_kill_broker "$obpid" "$obdir" "$obstart"
+    crew_drop_sidecar "$JOB_ID"
   fi
   unset CODEX_COMPANION_APP_SERVER_ENDPOINT
   if [[ -n "$RED_EP" ]]; then
@@ -655,14 +747,17 @@ if [[ "${1:-}" == "redirect" ]]; then
   NEW_ID="$(grep -oE '\b(task|review)-[a-z0-9]+-[a-z0-9]+\b' <<<"$relaunch_out" | head -1 || true)"
   if [[ -n "$RED_PID" ]]; then
     if [[ -n "$NEW_ID" ]]; then
-      mkdir -p "$CREW_ARCHIVE_DIR"
-      printf '%s\t%s\t%s\t%s\n' "$RED_EP" "$RED_PID" "$RED_DIR" "$PWD" >"$(crew_sidecar "$NEW_ID")"
-      RED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR=""
+      if ! crew_publish_sidecar "$NEW_ID"; then
+        # The successor is already running; killing its broker would strand it.
+        echo "crew-codex: successor $NEW_ID started but its broker could not be recorded; steer/queue will not route to it (endpoint $RED_EP)" >&2
+      fi
+      RED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
     else
-      crew_kill_broker "$RED_PID" "$RED_DIR"
-      RED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR=""
+      crew_kill_broker "$RED_PID" "$RED_DIR" "$RED_START"
+      RED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
     fi
   fi
+  crew_lock_release
   echo "REDIRECTED $JOB_ID -> ${NEW_ID:-<unknown>} | thread ${jthread:-<pending>} | await the NEW id"
   exit 0
 fi
@@ -784,9 +879,9 @@ print("\t".join([
         # later sweep.
         side="$(crew_sidecar "$JOB_ID")"
         if [[ -f "$side" ]]; then
-          IFS=$'\t' read -r _ep bpid bdir _ <"$side"
-          crew_kill_broker "$bpid" "$bdir"
-          rm -f "$side" 2>/dev/null || true
+          IFS=$'\t' read -r _ep bpid bdir _bcwd bstart _brest <"$side" || true
+          crew_kill_broker "$bpid" "$bdir" "$bstart"
+          crew_drop_sidecar "$JOB_ID"
         fi
 
         echo "DONE $jstatus | ${jelapsed} | archived: $CREW_ARCHIVE_DIR/$JOB_ID.result.txt"
@@ -846,18 +941,24 @@ crew_arm_cleanup
 
 # A launch gets its own broker so it can never be pushed onto a private
 # app-server; every later call for that job is routed back to the same one.
-CREW_SPAWNED_ENDPOINT="" CREW_SPAWNED_PID="" CREW_SPAWNED_DIR=""
+CREW_SPAWNED_ENDPOINT="" CREW_SPAWNED_PID="" CREW_SPAWNED_DIR="" CREW_HELD_LOCK=""
 case "${1:-}" in
   task|review|adversarial-review)
     if [[ -z "${CREW_CODEX_NO_JOB_BROKER:-}" && -z "${!CREW_BROKER_ENV:-}" ]]; then
       crew_reap_brokers || true
-      if broker_info="$(crew_spawn_job_broker "$PWD")"; then
-        IFS=$'\t' read -r CREW_SPAWNED_ENDPOINT CREW_SPAWNED_PID CREW_SPAWNED_DIR <<<"$broker_info"
+      # Only detached launches take the lock: they return in seconds. A
+      # foreground launch holds for the whole job, which would serialise the
+      # fleet, so it stays unlocked and can still race a redirect.
+      if [[ " $* " == *" --background "* ]]; then
+        crew_lock_acquire
+        CREW_HELD_LOCK=1
+      fi
+      if crew_spawn_job_broker "$PWD"; then
         export CODEX_COMPANION_APP_SERVER_ENDPOINT="$CREW_SPAWNED_ENDPOINT"
-        # Until the sidecar names it this broker is unreferenced: nothing could
-        # find it again, and the sweep spares it because its process is alive.
-        # Hand it to the cleanup path until publication succeeds.
-        CREW_CLEANUP_PID="$CREW_SPAWNED_PID" CREW_CLEANUP_DIR="$CREW_SPAWNED_DIR"
+      else
+        # Degrading quietly here recreates the exact failure this exists to
+        # prevent: the job runs on a private app-server nothing can reach.
+        echo "crew-codex: could not start a per-job broker; this job may be unreachable to steer/queue/cancel if another job holds the shared broker" >&2
       fi
     fi
     ;;
@@ -910,23 +1011,30 @@ cat "$TMP_ERR" >&2
 if [[ -n "$CREW_SPAWNED_PID" ]]; then
   launched_id="$(grep -oE '\b(task|review|adversarial-review)-[a-z0-9]+-[a-z0-9]+\b' "$TMP_OUT" | head -1 || true)"
   if [[ -n "$launched_id" && $rc -eq 0 ]]; then
-    mkdir -p "$CREW_ARCHIVE_DIR"
-    printf '%s\t%s\t%s\t%s\n' "$CREW_SPAWNED_ENDPOINT" "$CREW_SPAWNED_PID" "$CREW_SPAWNED_DIR" "$PWD" \
-      >"$(crew_sidecar "$launched_id")"
-    # Ownership is published, so cleanup must stop treating it as a leak.
-    CREW_SPAWNED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR=""
+    if crew_publish_sidecar "$launched_id"; then
+      # Ownership is published, so cleanup must stop treating it as a leak.
+      CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
+    else
+      # The job is live. Killing its broker now would disconnect it, so keep
+      # the broker and say what is unrouted; the sweep retires it later.
+      echo "crew-codex: job $launched_id started but its broker could not be recorded; steer/queue will not route to it (endpoint $CREW_SPAWNED_ENDPOINT)" >&2
+      CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
+    fi
+    CREW_SPAWNED_PID=""
+    if [[ -n "$CREW_HELD_LOCK" ]]; then crew_lock_release; CREW_HELD_LOCK=""; fi
     # A foreground launch has already finished by the time it returns, so its
     # broker has nothing left to serve and goes now rather than at the next
     # sweep.
     if [[ " $* " != *" --background "* ]]; then
       side="$(crew_sidecar "$launched_id")"
-      IFS=$'\t' read -r _fe fbpid fbdir _ <"$side"
-      crew_kill_broker "$fbpid" "$fbdir"
-      rm -f "$side" 2>/dev/null || true
+      IFS=$'\t' read -r _fe fbpid fbdir _fcwd fbstart _frest <"$side" || true
+      crew_kill_broker "$fbpid" "$fbdir" "$fbstart"
+      crew_drop_sidecar "$launched_id"
     fi
   else
-    crew_kill_broker "$CREW_SPAWNED_PID" "$CREW_SPAWNED_DIR"
-    CREW_SPAWNED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR=""
+    crew_kill_broker "$CREW_SPAWNED_PID" "$CREW_SPAWNED_DIR" "$CREW_SPAWNED_START"
+    CREW_SPAWNED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
+    if [[ -n "$CREW_HELD_LOCK" ]]; then crew_lock_release; CREW_HELD_LOCK=""; fi
   fi
 fi
 
@@ -938,9 +1046,9 @@ if [[ "${1:-}" == "cancel" && $rc -eq 0 ]]; then
     if [[ "$arg" =~ ^(task|review|adversarial-review)-[a-z0-9]+-[a-z0-9]+$ ]]; then
       side="$(crew_sidecar "$arg")"
       if [[ -f "$side" ]]; then
-        IFS=$'\t' read -r _ep bpid bdir _ <"$side"
-        crew_kill_broker "$bpid" "$bdir"
-        rm -f "$side" 2>/dev/null || true
+        IFS=$'\t' read -r _ep bpid bdir _bcwd bstart _brest <"$side" || true
+        crew_kill_broker "$bpid" "$bdir" "$bstart"
+        crew_drop_sidecar "$arg"
       fi
       break
     fi
