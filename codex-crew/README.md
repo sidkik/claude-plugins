@@ -138,6 +138,31 @@ QUEUED-REPLIES 1/1 captured | appended to .../task-abc-123.result.txt
 DONE completed | 1m 45s | archived: .../task-abc-123.result.txt
 ```
 
+**Every job gets its own broker.** The companion runs one broker per working
+directory, and a broker carries exactly one streaming turn. Its answer to a
+busy broker (`withAppServer` in `lib/codex.mjs`) is to run the whole job on a
+private stdio app-server, which has no socket, so nothing can steer, queue or
+interrupt it, ever. In a shared parent directory that means exactly one
+reachable job: whichever won the broker first. Everything launched during its
+turn is unreachable for life, and `cancel` on those jobs falls back to killing
+the process.
+
+So `crew-codex` starts a broker per launch and records the endpoint against the
+job, then routes every later `steer`, `queue`, `await`, `status`, `result` and
+`cancel` back to it. Measured: two jobs launched seconds apart in the same cwd,
+zero private app-servers, both steerable. Without it, the second was
+`thread not found` from birth.
+
+Each broker holds a codex app-server, so leaks are expensive and reaping is
+deliberate:
+
+- terminal state in `await`, and `cancel`, retire that job's broker immediately
+- every launch sweeps first, and `crew-codex reap` does it on demand
+- a job whose status still says `running` but whose worker is dead is reaped
+  too, which is the session-death path that would otherwise leak one broker per
+  crashed job
+- `CREW_CODEX_NO_JOB_BROKER=1` opts out
+
 **Both need the codex plugin patched.** Stock, the plugin refuses on two
 counts: its broker forwards only `turn/interrupt` while a turn is streaming, so
 `turn/steer` and `thread/queue/add` come back `-32001 Shared Codex broker is

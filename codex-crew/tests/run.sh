@@ -525,6 +525,10 @@ export class CodexAppServerClient {
   static async connect() { return new CodexAppServerClient(); }
   async request(method, params) {
     fs.appendFileSync(process.env.CREW_TEST_RPC_LOG, method + " " + JSON.stringify(params) + "\n");
+    if (process.env.CREW_TEST_DUMP_ENDPOINT) {
+      fs.appendFileSync(process.env.CREW_TEST_RPC_LOG,
+        "endpoint=" + (process.env.CODEX_COMPANION_APP_SERVER_ENDPOINT || "<none>") + "\n");
+    }
     if (method === "thread/queue/add") {
       if (process.env.CREW_TEST_QUEUE_FAIL) throw new Error(process.env.CREW_TEST_QUEUE_FAIL);
       return { queuedSubmission: { id: "sub-1", clientUserMessageId: params.clientUserMessageId } };
@@ -680,7 +684,90 @@ check "steer failure explains the patch" 1 "crew-codex patch --apply" "$rc" "$ou
 check_contains "patch forwards turn/steer" "$PATCH_FILE" "turn/steer"
 check_contains "patch still forwards interrupt" "$PATCH_FILE" "turn/interrupt"
 
-# Case 52: prompts and docs put queue ahead of the destructive path
+# --- per-job brokers and reaping --------------------------------------------
+# A broker holds a codex app-server, so a leaked one is expensive. Stand-in
+# "brokers" are real sleep processes, which is all crew_kill_broker needs.
+fake_broker() { # $1 = job id -> writes sidecar, echoes the pid
+  local job="$1" dir pid
+  dir="$(mktemp -d "$TMP/q/fakebroker-XXXXXX")"
+  sleep 300 >/dev/null 2>&1 & pid=$!
+  : > "$dir/broker.sock"; echo "$pid" > "$dir/broker.pid"; : > "$dir/broker.log"
+  printf 'unix:%s/broker.sock\t%s\t%s\t%s\n' "$dir" "$pid" "$dir" "$PWD" \
+    > "$TMP/q/arc/$job.broker"
+  echo "$pid"
+}
+crew_reap() {
+  CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+    bash "$CREW" reap 2>&1
+}
+
+# Case 52: a terminal job's broker is reaped and its sidecar removed
+qjob task-reap1-aaa1 completed thread-R1
+bp1="$(fake_broker task-reap1-aaa1)"
+out="$(crew_reap)" && rc=0 || rc=$?
+check "reap runs" 0 "REAPED" "$rc" "$out"
+if kill -0 "$bp1" 2>/dev/null; then
+  echo "FAIL: terminal job's broker survived reap"; fail=$((fail + 1)); kill -9 "$bp1" 2>/dev/null
+else
+  echo "PASS: terminal job's broker is reaped"; pass=$((pass + 1))
+fi
+check_absent "reaped broker leaves no sidecar" "$(ls "$TMP/q/arc")" "task-reap1-aaa1.broker"
+
+# Case 53: a RUNNING job with a live worker keeps its broker
+sleep 300 >/dev/null 2>&1 & live_worker=$!
+python3 - "$QJOBS/task-reap2-bbb2.json" "$live_worker" <<'PYEOF'
+import json, sys
+json.dump({"id": "task-reap2-bbb2", "status": "running", "threadId": "thread-R2",
+           "createdAt": "2026-02-02T00:00:00.000Z", "pid": int(sys.argv[2]),
+           "request": {"cwd": "/nowhere"}}, open(sys.argv[1], "w"))
+PYEOF
+bp2="$(fake_broker task-reap2-bbb2)"
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$bp2" 2>/dev/null; then
+  echo "PASS: live job keeps its broker"; pass=$((pass + 1))
+else
+  echo "FAIL: reap killed a live job's broker"; fail=$((fail + 1))
+fi
+
+# Case 54: status says running but the worker is DEAD -> reap anyway.
+# This is the session-death path; without it every crashed job leaks a broker.
+sleep 300 >/dev/null 2>&1 & dead_worker=$!
+kill -9 "$dead_worker" 2>/dev/null; wait "$dead_worker" 2>/dev/null || true
+python3 - "$QJOBS/task-reap3-ccc3.json" "$dead_worker" <<'PYEOF'
+import json, sys
+json.dump({"id": "task-reap3-ccc3", "status": "running", "threadId": "thread-R3",
+           "createdAt": "2026-02-03T00:00:00.000Z", "pid": int(sys.argv[2]),
+           "request": {"cwd": "/nowhere"}}, open(sys.argv[1], "w"))
+PYEOF
+bp3="$(fake_broker task-reap3-ccc3)"
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$bp3" 2>/dev/null; then
+  echo "FAIL: orphaned broker of a silently dead job survived"; fail=$((fail + 1)); kill -9 "$bp3" 2>/dev/null
+else
+  echo "PASS: silently dead job's broker is reaped"; pass=$((pass + 1))
+fi
+check_absent "orphan reap leaves no sidecar" "$(ls "$TMP/q/arc")" "task-reap3-ccc3.broker"
+kill -9 "$bp2" 2>/dev/null; kill -9 "$live_worker" 2>/dev/null
+
+# Case 55: steer/queue route to the job's recorded broker
+qjob task-route1-ddd1 running thread-RT
+python3 - "$QJOBS/task-route1-ddd1.json" <<'PYEOF'
+import json, sys
+j = json.load(open(sys.argv[1])); j["turnId"] = "turn-rt-1"; json.dump(j, open(sys.argv[1], "w"))
+PYEOF
+printf 'unix:/tmp/does-not-matter.sock\t999999\t/tmp/nope\t%s\n' "$PWD" > "$TMP/q/arc/task-route1-ddd1.broker"
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_TEST_RPC_LOG="$TMP/q/rpc.log" CREW_TEST_DUMP_ENDPOINT=1 \
+  bash "$CREW" steer task-route1-ddd1 "routed" 2>&1)" && rc=0 || rc=$?
+check "steer routes to the job's own broker" 0 "unix:/tmp/does-not-matter.sock" "$rc" "$(cat "$TMP/q/rpc.log")"
+rm -f "$TMP/q/arc/task-route1-ddd1.broker"
+
+# Case 56: no recorded broker -> say so instead of a bare "thread not found"
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_TEST_RPC_LOG="$TMP/q/rpc.log" bash "$CREW" steer task-route1-ddd1 "unrouted" 2>&1)" && rc=0 || rc=$?
+check "steer warns when the job has no broker" 0 "no broker recorded" "$rc" "$out"
+
+# Case 57: prompts and docs put queue ahead of the destructive path
 for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do
   check_contains "$(basename "$f") teaches queue" "$f" "crew-codex queue <job-id>"
 done

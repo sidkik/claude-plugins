@@ -90,6 +90,9 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
   for every ordinary course correction use `queue`. Prints
   `REDIRECTED <old> -> <new>`; await the NEW id. Model, effort and write
   posture carry over unless overridden.
+- `crew-codex reap` — retire brokers whose jobs have finished. Runs
+  automatically before every launch and on terminal state; only needed by hand
+  after an abnormal exit.
 - `crew-codex patch [--status|--apply|--revert]` — apply the queue passthrough
   fix to whichever version of the codex plugin is installed. Idempotent and
   reversible; the plugin's SessionStart hook applies it automatically.
@@ -120,6 +123,14 @@ Execution rules:
 - `cancel`, `redirect` and cross-job triage belong to the main thread
   (`/codex:status`, `/codex:cancel`); a crew agent only awaits the one job it
   launched, or the successor a redirect hands it via exit 4.
+- **Every job is reachable, whatever else is running.** A broker carries one
+  streaming turn per directory, and the companion's answer to a busy broker is
+  to run the job on a private app-server that nothing can reach. In a shared
+  parent directory that left exactly one steerable job: whichever won the
+  broker first. `crew-codex` now gives each launch its own broker and routes
+  later calls back to it, so concurrency no longer decides which jobs can be
+  corrected. Brokers are reaped when their job ends; `crew-codex reap` cleans
+  up after an abnormal exit.
 - **Changing a running job's instructions.** A turn is the WHOLE task, not one
   step, so anything that waits for the turn to end arrives after the work is
   done. To correct a job, `crew-codex steer` it: the message goes into the
