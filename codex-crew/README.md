@@ -184,6 +184,13 @@ half-apply if upstream moves the code out from under it. A SessionStart hook
 re-applies it after the codex plugin updates; set `CREW_CODEX_NO_AUTO_PATCH=1`
 to opt out.
 
+**A stale `running` record blocks a redirect.** The companion refuses
+`--resume-last` while it believes any task in that cwd is still running, so a
+job whose worker died without updating its record (a killed session, a crash)
+makes every later redirect in that directory fail with "Task <id> is still
+running". `crew-codex reap` clears the broker but not the companion's own
+index; clear the stale entry with `/codex:cancel <id>` before redirecting.
+
 **Redirect is the destructive one.** Reach for it only when a job is genuinely
 off the rails:
 

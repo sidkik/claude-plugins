@@ -6,10 +6,36 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CREW="$HERE/../bin/crew-codex"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+STUB_PIDS=""
 
 pass=0
 fail=0
+summary_reached=0
+
+# ONE exit handler. Bash keeps a single trap per signal, so the abort guard and
+# the temp-dir cleanup have to live in the same function or the second silently
+# replaces the first - which is how earlier runs leaked both their temp trees
+# and the broker stubs they started.
+cleanup_suite() {
+  local status=$?
+  if [[ "$summary_reached" -ne 1 ]]; then
+    echo
+    echo "SUITE ABORTED before the summary - treat as FAILURE"
+    status=1
+  fi
+  local pf p
+  for pf in "$TMP"/crewb-*/broker.pid; do
+    [[ -f "$pf" ]] || continue
+    p="$(cat "$pf" 2>/dev/null || true)"
+    [[ "$p" =~ ^[0-9]+$ ]] && kill -9 "$p" 2>/dev/null
+  done
+  for p in $STUB_PIDS; do
+    kill -9 "$p" 2>/dev/null
+  done
+  rm -rf "$TMP"
+  exit "$status"
+}
+trap cleanup_suite EXIT
 
 check() {
   local name="$1" expected_exit="$2" grep_for="$3" actual_exit="$4" output="$5"
@@ -21,6 +47,24 @@ check() {
     fail=$((fail + 1))
   fi
 }
+
+# A broker stub shaped like the real thing: it opens the unix socket and writes
+# the pid file, so crew_spawn_job_broker actually succeeds. Without this every
+# per-job-broker path silently no-ops and the tests cannot see it.
+write_broker_stub() { # $1 = scripts dir
+  cat > "$1/app-server-broker.mjs" <<'BROKEREOF'
+import net from "node:net";
+import fs from "node:fs";
+const a = process.argv.slice(2);
+const endpoint = a[a.indexOf("--endpoint") + 1] || "";
+const pidFile = a[a.indexOf("--pid-file") + 1] || "";
+const sockPath = endpoint.replace(/^unix:/, "");
+if (pidFile) fs.writeFileSync(pidFile, String(process.pid));
+net.createServer(() => {}).listen(sockPath);
+setInterval(() => {}, 1 << 30);
+BROKEREOF
+}
+export CREW_CODEX_BROKER_TMPDIR="$TMP"
 
 # Case 1: missing installed_plugins.json -> loud error, exit 1
 out="$(CLAUDE_CONFIG_DIR="$TMP/empty" bash "$CREW" --resolve 2>&1)" && rc=0 || rc=$?
@@ -338,17 +382,23 @@ echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TM
 cat > "$TMP/redir/install/scripts/codex-companion.mjs" <<'EOF'
 import fs from "node:fs";
 const argv = process.argv.slice(2);
-fs.appendFileSync(process.env.CREW_TEST_ARGV_LOG, argv.join(" ") + "\n");
+fs.appendFileSync(process.env.CREW_TEST_ARGV_LOG,
+  argv.join(" ") + " @endpoint=" + (process.env.CODEX_COMPANION_APP_SERVER_ENDPOINT || "none") + "\n");
 if (argv[0] === "task") { console.log("Codex Resume started in the background as task-new1-aaa1."); }
 else if (argv[0] === "cancel") { console.log("Cancelled " + argv[1] + "."); }
 process.exit(0);
 EOF
 
 write_job() { # dir id status thread createdAt model effort write
-  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"%s","request":{"cwd":"%s","model":"%s","effort":"%s","write":%s}}\n' \
-    "$2" "$3" "$4" "$5" "$PWD" "$6" "$7" "$8" > "$1/$2.json"
+  # A real job record always carries a pid. Fixtures without one hid a field
+  # gluing bug for a whole release: crew_job_meta's last field was empty, bash
+  # stripped the trailing tab, and the corruption only appeared against live
+  # data. Keep every field populated the way production populates it.
+  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"%s","turnId":"turn-%s","pid":424242,"request":{"cwd":"%s","model":"%s","effort":"%s","write":%s}}\n' \
+    "$2" "$3" "$4" "$5" "$2" "$PWD" "$6" "$7" "$8" > "$1/$2.json"
 }
 JOBS="$TMP/redir/data/state/lab-1/jobs"
+write_broker_stub "$TMP/redir/install/scripts"
 write_job "$JOBS" task-old1-bbb1 running thread-A 2026-01-01T00:00:00.000Z gpt-5.6-terra xhigh true
 
 run_redirect() {
@@ -369,7 +419,7 @@ log="$TMP/redir/argv1"; : > "$log"
 out="$(run_redirect "$log" task-old1-bbb1 "Change of plan: stop and write NOTES.md")" && rc=0 || rc=$?
 check "redirect interrupts the running job" 0 "interrupted task-old1-bbb1" "$rc" "$out"
 check "redirect reports the successor" 0 "REDIRECTED task-old1-bbb1 -> task-new1-aaa1" "$rc" "$out"
-check "redirect cancelled first" 0 "^cancel task-old1-bbb1$" "$rc" "$(cat "$log")"
+check "redirect cancelled first" 0 "^cancel task-old1-bbb1 " "$rc" "$(cat "$log")"
 check "redirect resumed the same thread" 0 "task --background --resume-last" "$rc" "$(cat "$log")"
 check "redirect carries the write posture" 0 "resume-last --write" "$rc" "$(cat "$log")"
 check "redirect carries model and effort" 0 "\-\-model gpt-5.6-terra --effort xhigh" "$rc" "$(cat "$log")"
@@ -516,6 +566,10 @@ mkdir -p "$TMP/q/plugins" "$TMP/q/install/scripts/lib" "$TMP/q/data/state/lab-1/
 echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/q/install\"}]}}" > "$TMP/q/plugins/installed_plugins.json"
 cat > "$TMP/q/install/scripts/codex-companion.mjs" <<'EOF'
 const [cmd, jobId] = process.argv.slice(2);
+if (cmd === "cancel" && process.env.CREW_TEST_CANCEL_FAIL) {
+  console.error("cancel failed: " + process.env.CREW_TEST_CANCEL_FAIL);
+  process.exit(1);
+}
 if (cmd === "result") { console.log("FIRST-TURN-RESULT"); process.exit(0); }
 console.log(JSON.stringify({ job: { id: jobId, status: "completed", elapsed: "4s", logFile: "-", pid: null, progressPreview: ["done"] } }));
 EOF
@@ -565,9 +619,10 @@ export class CodexAppServerClient {
   async close() {}
 }
 EOF
+write_broker_stub "$TMP/q/install/scripts"
 QJOBS="$TMP/q/data/state/lab-1/jobs"
 qjob() { # id status thread
-  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"2026-02-01T00:00:00.000Z","request":{"cwd":"%s","model":"gpt-5.6-terra","effort":"xhigh","write":true}}\n' \
+  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"2026-02-01T00:00:00.000Z","pid":424242,"request":{"cwd":"%s","model":"gpt-5.6-terra","effort":"xhigh","write":true}}\n' \
     "$1" "$2" "$3" "$PWD" > "$QJOBS/$1.json"
 }
 qjob task-run1-aaa1 running thread-Q
@@ -659,7 +714,11 @@ check "steer without message" 2 "needs the message text" "$rc" "$out"
 out="$(crew_steer task-steer1-ddd1 "stop adding files and fix the test")" && rc=0 || rc=$?
 check "steer reports success" 0 "STEERED task-steer1-ddd1" "$rc" "$out"
 check "steer used turn/steer" 0 "^turn/steer" "$rc" "$(cat "$TMP/q/rpc.log")"
-check "steer sends expectedTurnId" 0 "expectedTurnId.*turn-live-1" "$rc" "$(cat "$TMP/q/rpc.log")"
+check "steer sends expectedTurnId" 0 '"expectedTurnId":"turn-live-1"' "$rc" "$(cat "$TMP/q/rpc.log")"
+# The turn id must go out CLEAN. A short `read` glues later meta fields onto it,
+# which the server rejects as an expected-turn mismatch.
+check_absent "steered turn id carries no glued-on field" \
+  "$(grep '^turn/steer' "$TMP/q/rpc.log")" '"expectedTurnId":"turn-live-1\t'
 check "steer sends the message" 0 "stop adding files and fix the test" "$rc" "$(cat "$TMP/q/rpc.log")"
 check_absent "steer never interrupts" "$(cat "$TMP/q/rpc.log")" "turn/interrupt"
 check_absent "steer never queues instead" "$(cat "$TMP/q/rpc.log")" "thread/queue/add"
@@ -691,6 +750,7 @@ fake_broker() { # $1 = job id -> writes sidecar, echoes the pid
   local job="$1" dir pid
   dir="$(mktemp -d "$TMP/q/fakebroker-XXXXXX")"
   sleep 300 >/dev/null 2>&1 & pid=$!
+  STUB_PIDS="$STUB_PIDS $pid"
   : > "$dir/broker.sock"; echo "$pid" > "$dir/broker.pid"; : > "$dir/broker.log"
   printf 'unix:%s/broker.sock\t%s\t%s\t%s\n' "$dir" "$pid" "$dir" "$PWD" \
     > "$TMP/q/arc/$job.broker"
@@ -707,7 +767,7 @@ bp1="$(fake_broker task-reap1-aaa1)"
 out="$(crew_reap)" && rc=0 || rc=$?
 check "reap runs" 0 "REAPED" "$rc" "$out"
 if kill -0 "$bp1" 2>/dev/null; then
-  echo "FAIL: terminal job's broker survived reap"; fail=$((fail + 1)); kill -9 "$bp1" 2>/dev/null
+  echo "FAIL: terminal job's broker survived reap"; fail=$((fail + 1)); kill -9 "$bp1" 2>/dev/null || true
 else
   echo "PASS: terminal job's broker is reaped"; pass=$((pass + 1))
 fi
@@ -732,7 +792,7 @@ fi
 # Case 54: status says running but the worker is DEAD -> reap anyway.
 # This is the session-death path; without it every crashed job leaks a broker.
 sleep 300 >/dev/null 2>&1 & dead_worker=$!
-kill -9 "$dead_worker" 2>/dev/null; wait "$dead_worker" 2>/dev/null || true
+kill -9 "$dead_worker" 2>/dev/null || true; wait "$dead_worker" 2>/dev/null || true
 python3 - "$QJOBS/task-reap3-ccc3.json" "$dead_worker" <<'PYEOF'
 import json, sys
 json.dump({"id": "task-reap3-ccc3", "status": "running", "threadId": "thread-R3",
@@ -742,12 +802,12 @@ PYEOF
 bp3="$(fake_broker task-reap3-ccc3)"
 crew_reap >/dev/null 2>&1 || true
 if kill -0 "$bp3" 2>/dev/null; then
-  echo "FAIL: orphaned broker of a silently dead job survived"; fail=$((fail + 1)); kill -9 "$bp3" 2>/dev/null
+  echo "FAIL: orphaned broker of a silently dead job survived"; fail=$((fail + 1)); kill -9 "$bp3" 2>/dev/null || true
 else
   echo "PASS: silently dead job's broker is reaped"; pass=$((pass + 1))
 fi
 check_absent "orphan reap leaves no sidecar" "$(ls "$TMP/q/arc")" "task-reap3-ccc3.broker"
-kill -9 "$bp2" 2>/dev/null; kill -9 "$live_worker" 2>/dev/null
+kill -9 "$bp2" 2>/dev/null || true; kill -9 "$live_worker" 2>/dev/null || true
 
 # Case 55: steer/queue route to the job's recorded broker
 qjob task-route1-ddd1 running thread-RT
@@ -774,6 +834,127 @@ done
 check_contains "SKILL.md calls redirect destructive" "$SKILL_FILE" "destructive"
 check_contains "README documents the patch" "$HERE/../README.md" "crew-codex patch --apply"
 
+# --- metadata encoding: empty columns must not shift later fields -----------
+# A review job pins no model or effort, so those columns are empty. Under a tab
+# separator bash collapses the run and every later field shifts left, landing
+# the turn id in the wrong variable. This is the shape that shipped broken.
+cat > "$QJOBS/review-empty1-aaa1.json" <<EOF
+{"id":"review-empty1-aaa1","status":"running","threadId":"thread-EMPTY","createdAt":"2026-02-05T00:00:00.000Z","turnId":"turn-empty-1","pid":424242,"request":{"cwd":"$PWD","write":false}}
+EOF
+: > "$TMP/q/rpc.log"
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_TEST_RPC_LOG="$TMP/q/rpc.log" bash "$CREW" steer review-empty1-aaa1 "unpinned job" 2>&1)" && rc=0 || rc=$?
+check "steer works with empty model/effort columns" 0 "STEERED review-empty1-aaa1" "$rc" "$out"
+check "empty columns do not shift the turn id" 0 '"expectedTurnId":"turn-empty-1"' "$rc" "$(cat "$TMP/q/rpc.log")"
+
+# --- reap must not act on an unreadable snapshot ----------------------------
+# The companion rewrites job files in place. A half-written file must read as
+# UNREADABLE, not as a dead job, or the sweep kills a live job's broker.
+qjob task-unread1-bbb1 running thread-UR
+bpu="$(fake_broker task-unread1-bbb1)"
+printf '{"id":"task-unread1-bbb1","status":"run' > "$QJOBS/task-unread1-bbb1.json"
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$bpu" 2>/dev/null; then
+  echo "PASS: unreadable snapshot does not reap a live broker"; pass=$((pass + 1))
+else
+  echo "FAIL: a half-written job file got its broker reaped"; fail=$((fail + 1))
+fi
+check_contains "unreadable snapshot keeps its sidecar" "$TMP/q/arc/task-unread1-bbb1.broker" "broker.sock"
+
+# ...but it must not skip forever: a file left invalid by a crashed rewrite
+# would otherwise hold its broker for the life of the machine. Ageing is by
+# wall clock, so back-date the marker rather than sweeping in a loop, which is
+# also what stops a burst of concurrent sweeps from racing through it.
+printf '%s' "$(( $(date +%s) - 9999 ))" > "$TMP/q/arc/task-unread1-bbb1.broker.unreadable"
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$bpu" 2>/dev/null; then
+  echo "FAIL: permanently unreadable record held its broker forever"; fail=$((fail + 1)); kill -9 "$bpu" 2>/dev/null || true
+else
+  echo "PASS: permanently unreadable record eventually releases its broker"; pass=$((pass + 1))
+fi
+check_absent "aged-out record leaves no sidecar" "$(ls "$TMP/q/arc")" "task-unread1-bbb1.broker"
+kill -9 "$bpu" 2>/dev/null || true; rm -f "$TMP/q/arc/task-unread1-bbb1.broker" "$QJOBS/task-unread1-bbb1.json"
+
+# --- a failed cancel must not destroy a live job's broker -------------------
+qjob task-cxfail1-ccc1 running thread-CX
+bpc="$(fake_broker task-cxfail1-ccc1)"
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_TEST_CANCEL_FAIL="wrong cwd" bash "$CREW" cancel task-cxfail1-ccc1 2>&1)" && rc=0 || rc=$?
+check "failed cancel reports the failure" 1 "cancel failed" "$rc" "$out"
+if kill -0 "$bpc" 2>/dev/null; then
+  echo "PASS: failed cancel leaves the live broker alone"; pass=$((pass + 1))
+else
+  echo "FAIL: failed cancel destroyed a live job's broker"; fail=$((fail + 1))
+fi
+check_contains "failed cancel keeps the sidecar" "$TMP/q/arc/task-cxfail1-ccc1.broker" "broker.sock"
+kill -9 "$bpc" 2>/dev/null || true
+
+# --- a successful cancel still retires the broker ---------------------------
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  bash "$CREW" cancel task-cxfail1-ccc1 2>&1)" && rc=0 || rc=$?
+check_absent "successful cancel removes the sidecar" "$(ls "$TMP/q/arc")" "task-cxfail1-ccc1.broker"
+
+# --- redirect: broker routing, publication and refusal ----------------------
+# The old job's cancel must go to the broker that job runs on, the successor
+# must get its own recorded broker, and a broker that cannot be started must
+# abort BEFORE the old turn is destroyed.
+redir_jobs="$TMP/redir/data/state/lab-1/jobs"
+write_job "$redir_jobs" task-rr1-aaa1 running thread-RR 2026-09-01T00:00:00.000Z gpt-5.6-terra xhigh true
+mkdir -p "$TMP/redir/arc"
+printf 'unix:/tmp/old-broker.sock\t888888\t/tmp/old-broker-dir\t%s\n' "$PWD" > "$TMP/redir/arc/task-rr1-aaa1.broker"
+log="$TMP/redir/argv_rr"; : > "$log"
+out="$(CLAUDE_CONFIG_DIR="$TMP/redir" CLAUDE_PLUGIN_DATA="$TMP/redir/data" CREW_CODEX_ARCHIVE_DIR="$TMP/redir/arc" \
+  CREW_TEST_ARGV_LOG="$log" bash "$CREW" redirect task-rr1-aaa1 "switch approach" 2>&1)" && rc=0 || rc=$?
+check "redirect routes the cancel to the old job's broker" 0 \
+  "^cancel task-rr1-aaa1 @endpoint=unix:/tmp/old-broker.sock" "$rc" "$(cat "$log")"
+check "redirect relaunches on a NEW broker" 0 \
+  "resume-last.*@endpoint=unix:$TMP/crewb-" "$rc" "$(grep resume-last "$log")"
+check_absent "redirect drops the old job's sidecar" "$(ls "$TMP/redir/arc")" "task-rr1-aaa1.broker"
+check_contains "redirect publishes the successor's broker" "$TMP/redir/arc/task-new1-aaa1.broker" "crewb-"
+
+# allocation failure must not destroy the old turn
+write_job "$redir_jobs" task-rr2-bbb2 running thread-RR2 2026-09-02T00:00:00.000Z gpt-5.6-terra xhigh true
+log="$TMP/redir/argv_rr2"; : > "$log"
+out="$(CLAUDE_CONFIG_DIR="$TMP/redir" CLAUDE_PLUGIN_DATA="$TMP/redir/data" CREW_CODEX_ARCHIVE_DIR="$TMP/redir/arc" \
+  CREW_CODEX_BROKER_TMPDIR="$TMP/no-such-dir-for-brokers" \
+  CREW_TEST_ARGV_LOG="$log" bash "$CREW" redirect task-rr2-bbb2 "should refuse" 2>&1)" && rc=0 || rc=$?
+check "redirect refuses when it cannot start a broker" 1 "leaving task-rr2-bbb2 running" "$rc" "$out"
+check_absent "refused redirect never cancelled the old job" "$(cat "$log")" "cancel task-rr2-bbb2"
+
+# A burst of sweeps inside the grace period must NOT age a record out: that was
+# the concurrency hole in counting sweeps instead of seconds.
+qjob task-burst1-ddd1 running thread-BURST
+bpb="$(fake_broker task-burst1-ddd1)"
+printf '{"id":"task-burst1-ddd1","status":"run' > "$QJOBS/task-burst1-ddd1.json"
+crew_reap >/dev/null 2>&1 || true
+crew_reap >/dev/null 2>&1 || true
+crew_reap >/dev/null 2>&1 || true
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$bpb" 2>/dev/null; then
+  echo "PASS: a burst of sweeps cannot age out a record early"; pass=$((pass + 1))
+else
+  echo "FAIL: rapid sweeps reaped a live broker inside the grace period"; fail=$((fail + 1))
+fi
+kill -9 "$bpb" 2>/dev/null || true
+rm -f "$TMP/q/arc/task-burst1-ddd1.broker" "$TMP/q/arc/task-burst1-ddd1.broker.unreadable" "$QJOBS/task-burst1-ddd1.json"
+
+# Identity check: a sidecar naming a pid that has been recycled must not be
+# signalled. A live process with a mismatched start time stands in for the
+# recycled pid.
+qjob task-recycle1-eee1 completed thread-REC
+sleep 300 >/dev/null 2>&1 & innocent=$!
+STUB_PIDS="$STUB_PIDS $innocent"
+printf 'unix:/tmp/gone.sock\t%s\t/tmp/gone-dir\t%s\t1\n' "$innocent" "$PWD" \
+  > "$TMP/q/arc/task-recycle1-eee1.broker"
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$innocent" 2>/dev/null; then
+  echo "PASS: a recycled pid is not signalled"; pass=$((pass + 1))
+else
+  echo "FAIL: cleanup killed an unrelated process holding a recycled pid"; fail=$((fail + 1))
+fi
+kill -9 "$innocent" 2>/dev/null || true
+
+summary_reached=1
 echo
 echo "$pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
