@@ -365,7 +365,10 @@ if [[ "${1:-}" == "steer" ]]; then
     exit 2
   fi
 
-  IFS=$'\t' read -r jfound jstatus jthread jcwd _m _e _w _n jturn <<<"$(crew_job_meta "$JOB_ID")"
+  # Name EVERY field and keep a trailing catch-all: `read` hands the unconsumed
+  # remainder, tab separators included, to its last variable, so a short list
+  # silently glues later fields onto it.
+  IFS=$'\t' read -r jfound jstatus jthread jcwd _m _e _w _n jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
 
   if [[ "$jfound" != "FOUND" ]]; then
     echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
@@ -398,7 +401,7 @@ if [[ "${1:-}" == "steer" ]]; then
     echo "crew-codex: steering failed: $steered" >&2
     if grep -qiE "busy|experimentalApi" <<<"$steered"; then
       echo "crew-codex: that is the unpatched codex plugin refusing to steer — run: crew-codex patch --apply" >&2
-    elif grep -qiE "no active turn|ExpectedTurnMismatch|not steerable" <<<"$steered"; then
+    elif grep -qiE "no active turn|expected active turn|ExpectedTurnMismatch|not steerable" <<<"$steered"; then
       echo "crew-codex: the turn ended or moved on; use crew-codex queue to leave a message for the next one" >&2
     fi
     exit 1
@@ -429,7 +432,7 @@ if [[ "${1:-}" == "queue" ]]; then
     exit 2
   fi
 
-  IFS=$'\t' read -r jfound jstatus jthread jcwd _jmodel _jeffort _jwrite _jnewest <<<"$(crew_job_meta "$JOB_ID")"
+  IFS=$'\t' read -r jfound jstatus jthread jcwd _jmodel _jeffort _jwrite _jnewest _jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
 
   if [[ "$jfound" != "FOUND" ]]; then
     echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
@@ -512,7 +515,7 @@ if [[ "${1:-}" == "redirect" ]]; then
 
   # --resume-last resumes the newest task thread for THIS cwd, so the job being
   # redirected has to be that newest job or we would silently steer another one.
-  IFS=$'\t' read -r jfound jstatus jthread jcwd jmodel jeffort jwrite jnewest <<<"$(crew_job_meta "$JOB_ID")"
+  IFS=$'\t' read -r jfound jstatus jthread jcwd jmodel jeffort jwrite jnewest _jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
 
   if [[ "$jfound" != "FOUND" ]]; then
     echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
@@ -626,7 +629,7 @@ print("\t".join([
         # those replies off the thread and append them, or the queued
         # instruction succeeds invisibly.
         if [[ -s "$CREW_ARCHIVE_DIR/$JOB_ID.queued.txt" ]]; then
-          IFS=$'\t' read -r _qf _qs qthread _rest <<<"$(crew_job_meta "$JOB_ID")"
+          IFS=$'\t' read -r _qf _qs qthread _qrest <<<"$(crew_job_meta "$JOB_ID")"
           if [[ -n "$qthread" ]]; then
             # The job reports terminal the moment its FIRST turn ends, which is
             # before the queued turn has run. Wait for the replies we know were

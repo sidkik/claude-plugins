@@ -345,8 +345,12 @@ process.exit(0);
 EOF
 
 write_job() { # dir id status thread createdAt model effort write
-  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"%s","request":{"cwd":"%s","model":"%s","effort":"%s","write":%s}}\n' \
-    "$2" "$3" "$4" "$5" "$PWD" "$6" "$7" "$8" > "$1/$2.json"
+  # A real job record always carries a pid. Fixtures without one hid a field
+  # gluing bug for a whole release: crew_job_meta's last field was empty, bash
+  # stripped the trailing tab, and the corruption only appeared against live
+  # data. Keep every field populated the way production populates it.
+  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"%s","turnId":"turn-%s","pid":424242,"request":{"cwd":"%s","model":"%s","effort":"%s","write":%s}}\n' \
+    "$2" "$3" "$4" "$5" "$2" "$PWD" "$6" "$7" "$8" > "$1/$2.json"
 }
 JOBS="$TMP/redir/data/state/lab-1/jobs"
 write_job "$JOBS" task-old1-bbb1 running thread-A 2026-01-01T00:00:00.000Z gpt-5.6-terra xhigh true
@@ -567,7 +571,7 @@ export class CodexAppServerClient {
 EOF
 QJOBS="$TMP/q/data/state/lab-1/jobs"
 qjob() { # id status thread
-  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"2026-02-01T00:00:00.000Z","request":{"cwd":"%s","model":"gpt-5.6-terra","effort":"xhigh","write":true}}\n' \
+  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"2026-02-01T00:00:00.000Z","pid":424242,"request":{"cwd":"%s","model":"gpt-5.6-terra","effort":"xhigh","write":true}}\n' \
     "$1" "$2" "$3" "$PWD" > "$QJOBS/$1.json"
 }
 qjob task-run1-aaa1 running thread-Q
@@ -659,7 +663,11 @@ check "steer without message" 2 "needs the message text" "$rc" "$out"
 out="$(crew_steer task-steer1-ddd1 "stop adding files and fix the test")" && rc=0 || rc=$?
 check "steer reports success" 0 "STEERED task-steer1-ddd1" "$rc" "$out"
 check "steer used turn/steer" 0 "^turn/steer" "$rc" "$(cat "$TMP/q/rpc.log")"
-check "steer sends expectedTurnId" 0 "expectedTurnId.*turn-live-1" "$rc" "$(cat "$TMP/q/rpc.log")"
+check "steer sends expectedTurnId" 0 '"expectedTurnId":"turn-live-1"' "$rc" "$(cat "$TMP/q/rpc.log")"
+# The turn id must go out CLEAN. A short `read` glues later meta fields onto it,
+# which the server rejects as an expected-turn mismatch.
+check_absent "steered turn id carries no glued-on field" \
+  "$(grep '^turn/steer' "$TMP/q/rpc.log")" '"expectedTurnId":"turn-live-1\t'
 check "steer sends the message" 0 "stop adding files and fix the test" "$rc" "$(cat "$TMP/q/rpc.log")"
 check_absent "steer never interrupts" "$(cat "$TMP/q/rpc.log")" "turn/interrupt"
 check_absent "steer never queues instead" "$(cat "$TMP/q/rpc.log")" "thread/queue/add"
