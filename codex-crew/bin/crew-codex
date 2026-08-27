@@ -101,8 +101,13 @@ crew_reap_brokers() {
     # worker process too, or the leak this whole sidecar exists to prevent just
     # moves to the crash path.
     meta="$(crew_job_meta "$job")"
-    status="$(cut -f2 <<<"$meta")"
-    jobpid="$(cut -f10 <<<"$meta")"
+    IFS=$'\037' read -r mfound status _mthread _mcwd _mmodel _meffort _mwrite _mnewest _mturn jobpid _mrest <<<"$meta"
+    # An unreadable snapshot is the companion rewriting the file in place, not
+    # a dead job. Reaping on it would kill a live job's broker and cut it off
+    # for good, so leave it for the next sweep.
+    if [[ "$mfound" == "UNREADABLE" ]]; then
+      continue
+    fi
     if [[ "$status" == "running" || "$status" == "queued" ]]; then
       if [[ "$jobpid" =~ ^[0-9]+$ ]] && kill -0 "$jobpid" 2>/dev/null; then
         continue
@@ -182,24 +187,34 @@ crew_cwd_hint() {
   return 0
 }
 
-# One read of a job's state file, as TSV:
-#   FOUND|MISSING, status, threadId, cwd, model, effort, write, newest-or-id
-# "newest" reports whether this is the most recent task job for its cwd, which
-# is what --resume-last would pick up.
+# One read of a job's state file, as 0x1f-separated fields:
+#   FOUND|MISSING|UNREADABLE, status, threadId, cwd, model, effort, write,
+#   newest-or-id, turnId, pid
+#
+# NOT tab-separated. Tab is IFS whitespace, so bash collapses runs of it and an
+# empty column silently shifts every later field left: a review job has no
+# model or effort, which used to land the turn id in the wrong variable. 0x1f
+# is not IFS whitespace, so empty fields survive.
+#
+# UNREADABLE means the job file exists but did not parse, which happens while
+# the companion rewrites it in place. It is deliberately distinct from MISSING
+# so the reaper never mistakes a transient read for a dead job.
 crew_job_meta() {
   node -e '
     const fs = require("fs"), path = require("path");
     const [dataDir, jobId] = process.argv.slice(1);
     const stateRoot = path.join(dataDir, "state");
     const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
+    const SEP = "\u001f";
     let dirs = [];
+    let sawUnreadable = false;
     try { dirs = fs.readdirSync(stateRoot); } catch { }
     for (const d of dirs) {
       const jobsDir = path.join(stateRoot, d, "jobs");
       const file = path.join(jobsDir, `${jobId}.json`);
       if (!fs.existsSync(file)) continue;
       const job = read(file);
-      if (!job) continue;
+      if (!job) { sawUnreadable = true; continue; }
       const cwd = (job.request && job.request.cwd) || job.workspaceRoot || "";
       let newest = jobId, newestAt = "";
       for (const f of fs.readdirSync(jobsDir)) {
@@ -214,11 +229,11 @@ crew_job_meta() {
         "FOUND", job.status || "?", job.threadId || "", cwd,
         req.model || "", req.effort || "", req.write ? "true" : "false",
         newest === jobId ? "newest" : newest, job.turnId || "", String(job.pid || "")
-      ].join("\t"));
+      ].join(SEP));
       process.exit(0);
     }
-    process.stdout.write("MISSING\t\t\t\t\t\t\t\t\t");
-  ' "$CLAUDE_PLUGIN_DATA" "$1" 2>/dev/null || printf 'MISSING\t\t\t\t\t\t\t\t\t'
+    process.stdout.write((sawUnreadable ? "UNREADABLE" : "MISSING") + SEP.repeat(9));
+  ' "$CLAUDE_PLUGIN_DATA" "$1" 2>/dev/null || printf 'UNREADABLE\037\037\037\037\037\037\037\037\037'
 }
 
 # A redirect cancels the old job and resumes its Codex thread under a NEW job
@@ -368,7 +383,7 @@ if [[ "${1:-}" == "steer" ]]; then
   # Name EVERY field and keep a trailing catch-all: `read` hands the unconsumed
   # remainder, tab separators included, to its last variable, so a short list
   # silently glues later fields onto it.
-  IFS=$'\t' read -r jfound jstatus jthread jcwd _m _e _w _n jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
+  IFS=$'\037' read -r jfound jstatus jthread jcwd _m _e _w _n jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
 
   if [[ "$jfound" != "FOUND" ]]; then
     echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
@@ -432,7 +447,7 @@ if [[ "${1:-}" == "queue" ]]; then
     exit 2
   fi
 
-  IFS=$'\t' read -r jfound jstatus jthread jcwd _jmodel _jeffort _jwrite _jnewest _jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
+  IFS=$'\037' read -r jfound jstatus jthread jcwd _jmodel _jeffort _jwrite _jnewest _jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
 
   if [[ "$jfound" != "FOUND" ]]; then
     echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
@@ -515,7 +530,7 @@ if [[ "${1:-}" == "redirect" ]]; then
 
   # --resume-last resumes the newest task thread for THIS cwd, so the job being
   # redirected has to be that newest job or we would silently steer another one.
-  IFS=$'\t' read -r jfound jstatus jthread jcwd jmodel jeffort jwrite jnewest _jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
+  IFS=$'\037' read -r jfound jstatus jthread jcwd jmodel jeffort jwrite jnewest _jturn _jpid _rest <<<"$(crew_job_meta "$JOB_ID")"
 
   if [[ "$jfound" != "FOUND" ]]; then
     echo "crew-codex: job $JOB_ID not found in codex state (pruned, session-cleaned, or wrong id)$(crew_cwd_hint "$JOB_ID")" >&2
@@ -530,11 +545,38 @@ if [[ "${1:-}" == "redirect" ]]; then
     exit 2
   fi
 
+  # Route the interrupt through the broker the OLD job actually runs on, or it
+  # lands on the wrong server and the turn is killed by process teardown alone.
+  old_ep="$(crew_job_endpoint "$JOB_ID")"
   if [[ "$jstatus" == "running" || "$jstatus" == "queued" ]]; then
-    cancel_out="$(node "$COMPANION" cancel "$JOB_ID" 2>&1)" || true
+    crc=0
+    cancel_out="$(CODEX_COMPANION_APP_SERVER_ENDPOINT="${old_ep:-${CODEX_COMPANION_APP_SERVER_ENDPOINT:-}}" \
+      node "$COMPANION" cancel "$JOB_ID" 2>&1)" || crc=$?
+    if [[ $crc -ne 0 ]]; then
+      echo "crew-codex: cancelling $JOB_ID failed, so the old turn may still be running; refusing to start a second one on the same thread" >&2
+      echo "$cancel_out" >&2
+      exit 1
+    fi
     echo "crew-codex: interrupted $JOB_ID (was $jstatus)"
   else
     echo "crew-codex: $JOB_ID was already $jstatus; resuming its thread"
+  fi
+
+  # The old job is finished, so retire its broker and give the successor its
+  # own. Without this the resumed job falls back to a private app-server and is
+  # unreachable, which is the whole failure this release exists to fix.
+  old_side="$(crew_sidecar "$JOB_ID")"
+  if [[ -f "$old_side" ]]; then
+    IFS=$'\t' read -r _oe obpid obdir _ <"$old_side"
+    crew_kill_broker "$obpid" "$obdir"
+    rm -f "$old_side" 2>/dev/null || true
+  fi
+  unset CODEX_COMPANION_APP_SERVER_ENDPOINT
+  RED_PID="" RED_DIR="" RED_EP=""
+  if [[ -z "${CREW_CODEX_NO_JOB_BROKER:-}" ]] && red_info="$(crew_spawn_job_broker "$PWD")"; then
+    IFS=$'\t' read -r RED_EP RED_PID RED_DIR <<<"$red_info"
+    export CODEX_COMPANION_APP_SERVER_ENDPOINT="$RED_EP"
+    trap 'if [[ -n "${RED_PID:-}" ]]; then crew_kill_broker "$RED_PID" "$RED_DIR"; fi' EXIT INT TERM
   fi
 
   relaunch=(task --background --resume-last)
@@ -554,6 +596,18 @@ if [[ "${1:-}" == "redirect" ]]; then
   fi
 
   NEW_ID="$(grep -oE '\b(task|review)-[a-z0-9]+-[a-z0-9]+\b' <<<"$relaunch_out" | head -1 || true)"
+  if [[ -n "$RED_PID" ]]; then
+    if [[ -n "$NEW_ID" ]]; then
+      mkdir -p "$CREW_ARCHIVE_DIR"
+      printf '%s\t%s\t%s\t%s\n' "$RED_EP" "$RED_PID" "$RED_DIR" "$PWD" >"$(crew_sidecar "$NEW_ID")"
+      RED_PID=""
+      trap - EXIT INT TERM
+    else
+      crew_kill_broker "$RED_PID" "$RED_DIR"
+      RED_PID=""
+      trap - EXIT INT TERM
+    fi
+  fi
   echo "REDIRECTED $JOB_ID -> ${NEW_ID:-<unknown>} | thread ${jthread:-<pending>} | await the NEW id"
   exit 0
 fi
@@ -629,7 +683,7 @@ print("\t".join([
         # those replies off the thread and append them, or the queued
         # instruction succeeds invisibly.
         if [[ -s "$CREW_ARCHIVE_DIR/$JOB_ID.queued.txt" ]]; then
-          IFS=$'\t' read -r _qf _qs qthread _qrest <<<"$(crew_job_meta "$JOB_ID")"
+          IFS=$'\037' read -r _qf _qs qthread _qrest <<<"$(crew_job_meta "$JOB_ID")"
           if [[ -n "$qthread" ]]; then
             # The job reports terminal the moment its FIRST turn ends, which is
             # before the queued turn has run. Wait for the replies we know were
@@ -742,6 +796,11 @@ case "${1:-}" in
       if broker_info="$(crew_spawn_job_broker "$PWD")"; then
         IFS=$'\t' read -r CREW_SPAWNED_ENDPOINT CREW_SPAWNED_PID CREW_SPAWNED_DIR <<<"$broker_info"
         export CODEX_COMPANION_APP_SERVER_ENDPOINT="$CREW_SPAWNED_ENDPOINT"
+        # Until the sidecar names it, this broker is unreferenced: nothing could
+        # ever find it again, and the /tmp sweep spares it because its process
+        # is alive. If we are killed in that window it would leak, so arm a trap
+        # that kills it and disarm only once ownership is published.
+        trap 'if [[ -n "${CREW_SPAWNED_PID:-}" ]]; then crew_kill_broker "$CREW_SPAWNED_PID" "$CREW_SPAWNED_DIR"; fi; rm -f "${TMP_OUT:-}" "${TMP_ERR:-}" 2>/dev/null || true' EXIT INT TERM
       fi
     fi
     ;;
@@ -800,13 +859,29 @@ if [[ -n "$CREW_SPAWNED_PID" ]]; then
     mkdir -p "$CREW_ARCHIVE_DIR"
     printf '%s\t%s\t%s\t%s\n' "$CREW_SPAWNED_ENDPOINT" "$CREW_SPAWNED_PID" "$CREW_SPAWNED_DIR" "$PWD" \
       >"$(crew_sidecar "$launched_id")"
+    # Ownership is published, so the trap must stop treating it as a leak.
+    CREW_SPAWNED_PID=""
+    trap 'rm -f "$TMP_OUT" "$TMP_ERR"' EXIT
+    # A foreground launch has already finished by the time it returns, so its
+    # broker has nothing left to serve and goes now rather than at the next
+    # sweep.
+    if [[ " $* " != *" --background "* ]]; then
+      side="$(crew_sidecar "$launched_id")"
+      IFS=$'\t' read -r _fe fbpid fbdir _ <"$side"
+      crew_kill_broker "$fbpid" "$fbdir"
+      rm -f "$side" 2>/dev/null || true
+    fi
   else
     crew_kill_broker "$CREW_SPAWNED_PID" "$CREW_SPAWNED_DIR"
+    CREW_SPAWNED_PID=""
+    trap 'rm -f "$TMP_OUT" "$TMP_ERR"' EXIT
   fi
 fi
 
-# A cancelled job is finished, so its broker goes with it.
-if [[ "${1:-}" == "cancel" ]]; then
+# A cancelled job is finished, so its broker goes with it. Only on success:
+# a cancel that failed (wrong cwd, transient RPC error) leaves the worker
+# running, and tearing its broker down would disconnect a live job for good.
+if [[ "${1:-}" == "cancel" && $rc -eq 0 ]]; then
   for arg in "$@"; do
     if [[ "$arg" =~ ^(task|review|adversarial-review)-[a-z0-9]+-[a-z0-9]+$ ]]; then
       side="$(crew_sidecar "$arg")"

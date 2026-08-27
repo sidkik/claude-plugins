@@ -10,6 +10,12 @@ trap 'rm -rf "$TMP"' EXIT
 
 pass=0
 fail=0
+summary_reached=0
+
+# set -e can kill this script mid-run (a cleanup kill on an already-dead pid
+# used to do exactly that). A truncated run still prints PASS lines, so without
+# this it can be mistaken for a green suite.
+trap 'if [[ "$summary_reached" -ne 1 ]]; then echo; echo "SUITE ABORTED before the summary - treat as FAILURE"; fi' EXIT
 
 check() {
   local name="$1" expected_exit="$2" grep_for="$3" actual_exit="$4" output="$5"
@@ -520,6 +526,10 @@ mkdir -p "$TMP/q/plugins" "$TMP/q/install/scripts/lib" "$TMP/q/data/state/lab-1/
 echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/q/install\"}]}}" > "$TMP/q/plugins/installed_plugins.json"
 cat > "$TMP/q/install/scripts/codex-companion.mjs" <<'EOF'
 const [cmd, jobId] = process.argv.slice(2);
+if (cmd === "cancel" && process.env.CREW_TEST_CANCEL_FAIL) {
+  console.error("cancel failed: " + process.env.CREW_TEST_CANCEL_FAIL);
+  process.exit(1);
+}
 if (cmd === "result") { console.log("FIRST-TURN-RESULT"); process.exit(0); }
 console.log(JSON.stringify({ job: { id: jobId, status: "completed", elapsed: "4s", logFile: "-", pid: null, progressPreview: ["done"] } }));
 EOF
@@ -715,7 +725,7 @@ bp1="$(fake_broker task-reap1-aaa1)"
 out="$(crew_reap)" && rc=0 || rc=$?
 check "reap runs" 0 "REAPED" "$rc" "$out"
 if kill -0 "$bp1" 2>/dev/null; then
-  echo "FAIL: terminal job's broker survived reap"; fail=$((fail + 1)); kill -9 "$bp1" 2>/dev/null
+  echo "FAIL: terminal job's broker survived reap"; fail=$((fail + 1)); kill -9 "$bp1" 2>/dev/null || true
 else
   echo "PASS: terminal job's broker is reaped"; pass=$((pass + 1))
 fi
@@ -740,7 +750,7 @@ fi
 # Case 54: status says running but the worker is DEAD -> reap anyway.
 # This is the session-death path; without it every crashed job leaks a broker.
 sleep 300 >/dev/null 2>&1 & dead_worker=$!
-kill -9 "$dead_worker" 2>/dev/null; wait "$dead_worker" 2>/dev/null || true
+kill -9 "$dead_worker" 2>/dev/null || true; wait "$dead_worker" 2>/dev/null || true
 python3 - "$QJOBS/task-reap3-ccc3.json" "$dead_worker" <<'PYEOF'
 import json, sys
 json.dump({"id": "task-reap3-ccc3", "status": "running", "threadId": "thread-R3",
@@ -750,12 +760,12 @@ PYEOF
 bp3="$(fake_broker task-reap3-ccc3)"
 crew_reap >/dev/null 2>&1 || true
 if kill -0 "$bp3" 2>/dev/null; then
-  echo "FAIL: orphaned broker of a silently dead job survived"; fail=$((fail + 1)); kill -9 "$bp3" 2>/dev/null
+  echo "FAIL: orphaned broker of a silently dead job survived"; fail=$((fail + 1)); kill -9 "$bp3" 2>/dev/null || true
 else
   echo "PASS: silently dead job's broker is reaped"; pass=$((pass + 1))
 fi
 check_absent "orphan reap leaves no sidecar" "$(ls "$TMP/q/arc")" "task-reap3-ccc3.broker"
-kill -9 "$bp2" 2>/dev/null; kill -9 "$live_worker" 2>/dev/null
+kill -9 "$bp2" 2>/dev/null || true; kill -9 "$live_worker" 2>/dev/null || true
 
 # Case 55: steer/queue route to the job's recorded broker
 qjob task-route1-ddd1 running thread-RT
@@ -782,6 +792,54 @@ done
 check_contains "SKILL.md calls redirect destructive" "$SKILL_FILE" "destructive"
 check_contains "README documents the patch" "$HERE/../README.md" "crew-codex patch --apply"
 
+# --- metadata encoding: empty columns must not shift later fields -----------
+# A review job pins no model or effort, so those columns are empty. Under a tab
+# separator bash collapses the run and every later field shifts left, landing
+# the turn id in the wrong variable. This is the shape that shipped broken.
+cat > "$QJOBS/review-empty1-aaa1.json" <<EOF
+{"id":"review-empty1-aaa1","status":"running","threadId":"thread-EMPTY","createdAt":"2026-02-05T00:00:00.000Z","turnId":"turn-empty-1","pid":424242,"request":{"cwd":"$PWD","write":false}}
+EOF
+: > "$TMP/q/rpc.log"
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_TEST_RPC_LOG="$TMP/q/rpc.log" bash "$CREW" steer review-empty1-aaa1 "unpinned job" 2>&1)" && rc=0 || rc=$?
+check "steer works with empty model/effort columns" 0 "STEERED review-empty1-aaa1" "$rc" "$out"
+check "empty columns do not shift the turn id" 0 '"expectedTurnId":"turn-empty-1"' "$rc" "$(cat "$TMP/q/rpc.log")"
+
+# --- reap must not act on an unreadable snapshot ----------------------------
+# The companion rewrites job files in place. A half-written file must read as
+# UNREADABLE, not as a dead job, or the sweep kills a live job's broker.
+qjob task-unread1-bbb1 running thread-UR
+bpu="$(fake_broker task-unread1-bbb1)"
+printf '{"id":"task-unread1-bbb1","status":"run' > "$QJOBS/task-unread1-bbb1.json"
+crew_reap >/dev/null 2>&1 || true
+if kill -0 "$bpu" 2>/dev/null; then
+  echo "PASS: unreadable snapshot does not reap a live broker"; pass=$((pass + 1))
+else
+  echo "FAIL: a half-written job file got its broker reaped"; fail=$((fail + 1))
+fi
+check_contains "unreadable snapshot keeps its sidecar" "$TMP/q/arc/task-unread1-bbb1.broker" "broker.sock"
+kill -9 "$bpu" 2>/dev/null || true; rm -f "$TMP/q/arc/task-unread1-bbb1.broker" "$QJOBS/task-unread1-bbb1.json"
+
+# --- a failed cancel must not destroy a live job's broker -------------------
+qjob task-cxfail1-ccc1 running thread-CX
+bpc="$(fake_broker task-cxfail1-ccc1)"
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  CREW_TEST_CANCEL_FAIL="wrong cwd" bash "$CREW" cancel task-cxfail1-ccc1 2>&1)" && rc=0 || rc=$?
+check "failed cancel reports the failure" 1 "cancel failed" "$rc" "$out"
+if kill -0 "$bpc" 2>/dev/null; then
+  echo "PASS: failed cancel leaves the live broker alone"; pass=$((pass + 1))
+else
+  echo "FAIL: failed cancel destroyed a live job's broker"; fail=$((fail + 1))
+fi
+check_contains "failed cancel keeps the sidecar" "$TMP/q/arc/task-cxfail1-ccc1.broker" "broker.sock"
+kill -9 "$bpc" 2>/dev/null || true
+
+# --- a successful cancel still retires the broker ---------------------------
+out="$(CLAUDE_CONFIG_DIR="$TMP/q" CLAUDE_PLUGIN_DATA="$TMP/q/data" CREW_CODEX_ARCHIVE_DIR="$TMP/q/arc" \
+  bash "$CREW" cancel task-cxfail1-ccc1 2>&1)" && rc=0 || rc=$?
+check_absent "successful cancel removes the sidecar" "$(ls "$TMP/q/arc")" "task-cxfail1-ccc1.broker"
+
+summary_reached=1
 echo
 echo "$pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
