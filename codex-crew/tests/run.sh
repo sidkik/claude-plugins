@@ -27,10 +27,13 @@ cleanup_suite() {
   for pf in "$TMP"/crewb-*/broker.pid; do
     [[ -f "$pf" ]] || continue
     p="$(cat "$pf" 2>/dev/null || true)"
-    [[ "$p" =~ ^[0-9]+$ ]] && kill -9 "$p" 2>/dev/null
+    # `kill` on an already-dead pid returns non-zero, and under set -e that
+    # aborts this function before the tree is removed. Every signal here is
+    # best-effort by definition.
+    [[ "$p" =~ ^[0-9]+$ ]] && kill -9 "$p" 2>/dev/null || true
   done
-  for p in $STUB_PIDS; do
-    kill -9 "$p" 2>/dev/null
+  for p in $STUB_PIDS $(cat "$TMP/stub_pids" 2>/dev/null || true); do
+    kill -9 "$p" 2>/dev/null || true
   done
   rm -rf "$TMP"
   exit "$status"
@@ -750,7 +753,10 @@ fake_broker() { # $1 = job id -> writes sidecar, echoes the pid
   local job="$1" dir pid
   dir="$(mktemp -d "$TMP/q/fakebroker-XXXXXX")"
   sleep 300 >/dev/null 2>&1 & pid=$!
-  STUB_PIDS="$STUB_PIDS $pid"
+  disown "$pid" 2>/dev/null || true
+  # fake_broker is called through command substitution, so a variable set here
+  # dies with the subshell. The pid file is the only channel back to cleanup.
+  echo "$pid" >> "$TMP/stub_pids"
   : > "$dir/broker.sock"; echo "$pid" > "$dir/broker.pid"; : > "$dir/broker.log"
   printf 'unix:%s/broker.sock\t%s\t%s\t%s\n' "$dir" "$pid" "$dir" "$PWD" \
     > "$TMP/q/arc/$job.broker"
@@ -775,6 +781,7 @@ check_absent "reaped broker leaves no sidecar" "$(ls "$TMP/q/arc")" "task-reap1-
 
 # Case 53: a RUNNING job with a live worker keeps its broker
 sleep 300 >/dev/null 2>&1 & live_worker=$!
+disown "$live_worker" 2>/dev/null || true
 python3 - "$QJOBS/task-reap2-bbb2.json" "$live_worker" <<'PYEOF'
 import json, sys
 json.dump({"id": "task-reap2-bbb2", "status": "running", "threadId": "thread-R2",
@@ -943,6 +950,7 @@ rm -f "$TMP/q/arc/task-burst1-ddd1.broker" "$TMP/q/arc/task-burst1-ddd1.broker.u
 # recycled pid.
 qjob task-recycle1-eee1 completed thread-REC
 sleep 300 >/dev/null 2>&1 & innocent=$!
+disown "$innocent" 2>/dev/null || true
 STUB_PIDS="$STUB_PIDS $innocent"
 printf 'unix:/tmp/gone.sock\t%s\t/tmp/gone-dir\t%s\t1\n' "$innocent" "$PWD" \
   > "$TMP/q/arc/task-recycle1-eee1.broker"
