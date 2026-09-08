@@ -6,8 +6,9 @@ user-invocable: false
 
 # Crew Runtime
 
-Use this skill only inside `codex-crew` agents (`codex-implementer-sol`,
-`codex-implementer-terra`, `codex-implementer-luna`, `codex-reviewer`).
+Use this skill only inside `codex-crew` agents (`codex-implementer-astra`,
+`codex-implementer-sol`, `codex-implementer-terra`, `codex-implementer-luna`,
+`codex-reviewer`).
 
 Directory and ownership rules (these bind every command below):
 
@@ -119,7 +120,9 @@ Execution rules:
   cost only one short status line per ~9 minutes.
 - Each agent's model/effort/write pins are defaults; only an explicit
   model or effort named in the request overrides them. `spark` maps to
-  `--model gpt-5.3-codex-spark`.
+  `--model gpt-5.3-codex-spark`; `astra` maps to `--model gpt-6-astra
+  --effort medium` (Astra's registry default), and an effort named in the
+  request still wins.
 - `cancel`, `redirect` and cross-job triage belong to the main thread
   (`/codex:status`, `/codex:cancel`); a crew agent only awaits the one job it
   launched, or the successor a redirect hands it via exit 4.
@@ -155,9 +158,14 @@ Execution rules:
   report that verbatim — the orchestrator decides whether to re-dispatch on
   another tier. Do NOT add your own retry loop on top.
 
-GPT-5.6 family ladder (per OpenAI's own model registry): **sol** = flagship
-frontier coding tier, **terra** = balanced everyday mid tier, **luna** =
-fast/affordable low tier. Other known models (Codex CLI 0.144.0): gpt-5.5,
-gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark. All listed models accept up to
-`xhigh`; the companion runtime rejects the registry's higher `max`/`ultra`
-efforts — `xhigh` is the ceiling through this plugin.
+Model ladder (per OpenAI's own model registry, Codex CLI 0.153.4):
+**gpt-6-astra** = frontier flagship, one generation above the 5.6 ladder,
+registry default effort `medium`, keeps notes across context windows, rejects
+`none`/`minimal`, asks rather than guesses when input could change the result;
+**sol** = top of the GPT-5.6 ladder, which the registry now describes as the
+everyday agentic workhorse; **terra** = balanced mid tier; **luna** =
+fast/affordable low tier. Also listed: gpt-5.5 (previous generation) and
+gpt-5.3-codex-spark (ultra-fast, not in the API). GPT-5.4 Mini was retired on
+2026-08-31 in favour of Luna. All listed models accept up to `xhigh`; the
+companion runtime (codex plugin 1.0.6) still rejects the registry's higher
+`max`/`ultra` efforts, so `xhigh` is the ceiling through this plugin.

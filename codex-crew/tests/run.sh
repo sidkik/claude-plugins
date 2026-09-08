@@ -962,6 +962,33 @@ else
 fi
 kill -9 "$innocent" 2>/dev/null || true
 
+# --- lane pins: each agent launches with its own model and effort ------------
+# The Astra lane defaults to medium (its registry default and the cost/quality
+# sweet spot); the GPT-5.6 lanes stay at xhigh. A drifted pin silently changes
+# what every dispatch costs, so each launch line is asserted verbatim.
+check_contains "astra lane pins gpt-6-astra at medium" "$AGENT_DIR/codex-implementer-astra.md" \
+  'crew-codex task --background --model gpt-6-astra --effort medium --write'
+check_contains "sol lane pins gpt-5.6-sol at xhigh" "$AGENT_DIR/codex-implementer-sol.md" \
+  'crew-codex task --background --model gpt-5.6-sol --effort xhigh --write'
+check_contains "terra lane pins gpt-5.6-terra at xhigh" "$AGENT_DIR/codex-implementer-terra.md" \
+  'crew-codex task --background --model gpt-5.6-terra --effort xhigh --write'
+check_contains "luna lane pins gpt-5.6-luna at xhigh" "$AGENT_DIR/codex-implementer-luna.md" \
+  'crew-codex task --background --model gpt-5.6-luna --effort xhigh --write'
+check_contains "reviewer stays read-only on gpt-5.6-sol at xhigh" "$AGENT_DIR/codex-reviewer.md" \
+  'crew-codex task --background --model gpt-5.6-sol --effort xhigh "<task text>"'
+check_contains "astra lane tells the forwarder what to do with a clarifying question" \
+  "$AGENT_DIR/codex-implementer-astra.md" 'Do not answer it yourself'
+for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do
+  check_contains "$(basename "$f") maps the astra alias" "$f" '`astra` maps to `--model gpt-6-astra'
+done
+# GPT-5.4 Mini was retired on 2026-08-31; no agent may still offer it.
+for f in "$AGENT_DIR"/*.md; do
+  check_absent "$(basename "$f") no longer offers retired gpt-5.4-mini" "$(cat "$f")" 'gpt-5.4-mini'
+done
+check_contains "SKILL.md lists the astra lane" "$SKILL_FILE" 'codex-implementer-astra'
+check_contains "README documents the astra lane" "$HERE/../README.md" 'codex-implementer-astra'
+check_contains "README explains the medium default" "$HERE/../README.md" 'Why Astra runs at medium'
+
 summary_reached=1
 echo
 echo "$pass passed, $fail failed"

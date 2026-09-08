@@ -7,7 +7,7 @@
     {
       "name": "codex-crew",
       "source": "./codex-crew",
-      "description": "Purpose-built Codex delegate agents (implementer/reviewer/fast) with pinned models, riding the official codex plugin's companion runtime"
+      "description": "Tiered Codex delegate agents (implementer astra/sol/terra/luna, reviewer) with pinned models and per-tier selection criteria, riding the official codex plugin's companion runtime"
     }
   ]
 }

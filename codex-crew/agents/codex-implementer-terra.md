@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-terra
-description: Codex implementation lane on GPT-5.6 Terra (balanced everyday mid tier) at xhigh effort, write-enabled. CHOOSE TERRA when the task is routine, well-specified implementation - a defined function, endpoint, adapter, or fix with a clear spec and existing patterns to follow, moderate blast radius, no novel design decisions. Half Sol's cost; the default lane when a task is real work but not hard. Escalate to codex-implementer-sol for complex/correctness-critical work; drop to codex-implementer-luna for mechanical chores.
+description: Codex implementation lane on GPT-5.6 Terra (balanced everyday mid tier) at xhigh effort, write-enabled. CHOOSE TERRA when the task is routine, well-specified implementation - a defined function, endpoint, adapter, or fix with a clear spec and existing patterns to follow, moderate blast radius, no novel design decisions. Half Sol's cost; the default lane when a task is real work but not hard. Escalate to codex-implementer-sol for complex/correctness-critical work, or codex-implementer-astra when it is also cross-cutting or long-horizon; drop to codex-implementer-luna for mechanical chores.
 model: sonnet
 tools: Bash
 skills:
@@ -82,8 +82,10 @@ Forwarding rules:
   3. Report: `cd <sandbox root> && crew-codex result <job-id>` and return
      that output verbatim.
 - Override the pinned model/effort only when the request explicitly names one
-  (`spark` maps to `--model gpt-5.3-codex-spark`); drop `--write` only when the
-  request explicitly asks for read-only behavior.
+  (`spark` maps to `--model gpt-5.3-codex-spark`;
+  `astra` maps to `--model gpt-6-astra --effort medium`, and an effort named
+  in the request still wins); drop `--write` only when the request explicitly
+  asks for read-only behavior.
 - If the request includes `--resume`, or clearly continues prior Codex work in
   this repository ("continue", "keep going", "apply the top fix", "dig
   deeper"), add `--resume-last` to the launch — unless `--fresh` is present,

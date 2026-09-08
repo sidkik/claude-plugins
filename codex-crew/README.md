@@ -8,19 +8,44 @@ instead of reimplementing it.
 
 ## Agents
 
-Implementation is tiered across the GPT-5.6 ladder — the orchestrator picks
-the tier per task; each agent's description carries the selection criteria:
+Implementation is tiered across the GPT-6 / GPT-5.6 ladder — the orchestrator
+picks the tier per task; each agent's description carries the selection
+criteria:
 
 | Agent | Model | Effort | Posture | Choose when |
 |---|---|---|---|---|
-| `codex-implementer-sol` | gpt-5.6-sol (flagship) | xhigh | write | Novel/intricate logic, cross-cutting multi-file changes, concurrency/money-path correctness, gnarly debugging — anything where mid-tier output would need rework |
+| `codex-implementer-astra` | gpt-6-astra (frontier flagship) | medium | write | The hardest work: evidence scattered across many files or subsystems, multi-hour jobs that outlive a context window, debugging Sol already needed a second round on, logic spanning retries/ownership/persisted state |
+| `codex-implementer-sol` | gpt-5.6-sol (top of the 5.6 ladder) | xhigh | write | Novel/intricate logic, cross-cutting multi-file changes, concurrency/money-path correctness, gnarly debugging — anything where mid-tier output would need rework |
 | `codex-implementer-terra` | gpt-5.6-terra (balanced) | xhigh | write | Routine, well-specified implementation with clear spec and existing patterns; the default when a task is real work but not hard |
 | `codex-implementer-luna` | gpt-5.6-luna (affordable) | xhigh | write | Mechanical, repetitive, parallelizable chores with an exact recipe; fan out freely |
 | `codex-reviewer` | gpt-5.6-sol | xhigh | read-only | Diff/branch reviews, adversarial reviews, independent diagnosis |
 
-Rough cost ratio per token: Sol ≈ 2× Terra ≈ 5× Luna. Pins are defaults — a
-dispatch brief that explicitly names a model or effort overrides them
-(`spark` → `gpt-5.3-codex-spark`, `mini` → `gpt-5.4-mini`).
+List price per million tokens (input / output, September 2026): Astra $10 / $50,
+Sol $4 / $20, Terra $2 / $12, Luna $0.20 / $1.20 — so per token Astra ≈ 2.5× Sol
+≈ 5× Terra ≈ 50× Luna. Per task the gap is smaller: Astra at medium spends far
+fewer tokens than Sol at high, and one published same-task comparison measured
+$25.67 in 51 min against $31.79 in 75 min. Pins are defaults — a dispatch brief
+that explicitly names a model or effort overrides them (`spark` →
+`gpt-5.3-codex-spark`; `astra` → `gpt-6-astra` at medium unless the brief also
+names an effort). GPT-5.4 Mini was retired on 2026-08-31, so its `mini` alias is
+gone; Luna is its replacement.
+
+**Why Astra runs at medium.** Medium is Astra's default in OpenAI's model
+registry and the effort OpenAI's own reasoning guide calls the default
+configuration for most workloads. It is also where the cost/quality curve
+bends: in the comparison above, medium caught a startup bug that high missed.
+Name `high` in the brief for work that crosses retries, ownership and persisted
+state, and `xhigh` for a hard architectural call or a debugging loop that has
+resisted medium. Astra rejects `none` and `minimal`, and the companion runtime
+still caps effort at `xhigh`, so the registry's `max` and `ultra` levels are
+unreachable through this plugin.
+
+**Astra briefs must be self-contained.** Astra asks rather than guesses when
+more input could change the result, and a detached job has nobody to answer.
+State decisions and assumptions up front; if the result comes back as a
+question, answer it and re-dispatch with `--resume`. Astra also keeps notes
+across context windows instead of compressing them into a summary, which is
+what makes it the lane for jobs that run for hours.
 
 ## Requirements
 
