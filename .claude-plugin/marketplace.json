@@ -8,6 +8,11 @@
       "name": "codex-crew",
       "source": "./codex-crew",
       "description": "Tiered Codex delegate agents (implementer astra/sol/terra/luna, reviewer) with pinned models and per-tier selection criteria, riding the official codex plugin's companion runtime"
+    },
+    {
+      "name": "grok-crew",
+      "source": "./grok-crew",
+      "description": "Claude-to-Grok inject contract. Name the channel before proposing steer. Claude launched Grok jobs have no inject command; grok -p and Grok native subagent steer are other channels."
     }
   ]
 }

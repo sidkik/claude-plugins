@@ -6,6 +6,11 @@ official `codex@openai-codex` plugin's companion runtime (background jobs,
 `/codex:status` / `/codex:result` / `/codex:cancel`, session-end cleanup)
 instead of reimplementing it.
 
+This plugin is Codex-only. Claude → Grok inject is
+[grok-crew](../grok-crew/) — a different channel; Grok's native
+`send_subagent_message` does not move a finding from Claude into a Grok
+job Claude launched.
+
 ## Agents
 
 Implementation is tiered across the GPT-6 / GPT-5.6 ladder — the orchestrator

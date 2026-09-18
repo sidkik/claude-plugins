@@ -1,0 +1,8 @@
+{
+  "name": "grok-crew",
+  "version": "0.0.1",
+  "description": "Claude-to-Grok inject contract. Name the channel before proposing steer. No inject command for Claude-launched Grok jobs.",
+  "author": {
+    "name": "Sidkik"
+  }
+}

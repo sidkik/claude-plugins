@@ -8,7 +8,8 @@ user-invocable: false
 
 Use this skill only inside `codex-crew` agents (`codex-implementer-astra`,
 `codex-implementer-sol`, `codex-implementer-terra`, `codex-implementer-luna`,
-`codex-reviewer`).
+`codex-reviewer`). Claude → Grok inject is
+[grok-crew-runtime](../../../grok-crew/skills/grok-crew-runtime/SKILL.md).
 
 Directory and ownership rules (these bind every command below):
 
