@@ -1,0 +1,8 @@
+{
+  "name": "sdlc-status",
+  "version": "0.1.0",
+  "description": "Per-session SDLC phase, attributed evidence and next-action display",
+  "author": {
+    "name": "Sidkik"
+  }
+}

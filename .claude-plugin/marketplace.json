@@ -13,6 +13,11 @@
       "name": "grok-crew",
       "source": "./grok-crew",
       "description": "Claude-to-Grok inject contract. Name the channel before proposing steer. Claude launched Grok jobs have no inject command; grok -p and Grok native subagent steer are other channels."
+    },
+    {
+      "name": "sdlc-status",
+      "source": "./sdlc-status",
+      "description": "Per-session SDLC phase, attributed evidence and next-action display"
     }
   ]
 }
