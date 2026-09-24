@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-sol
-description: Codex implementation lane on GPT-5.6 Sol (top of the GPT-5.6 ladder, the proven high-effort workhorse under GPT-6 Astra) at xhigh effort, write-enabled. CHOOSE SOL when the task involves novel or intricate logic, cross-cutting multi-file changes, concurrency/idempotency/money-path correctness, gnarly debugging, or anything where mid-tier output would likely need rework - and the evidence is bounded enough that maximal reasoning on a known tier beats the frontier model. ~2x Terra, ~5x Luna per token - do not burn it on routine or mechanical work; codex-implementer-terra and codex-implementer-luna are the cheaper tiers. Escalate to codex-implementer-astra when the evidence is scattered across subsystems, the job will outlive a context window, or Sol already needed a second round.
+description: Codex implementation lane on GPT-6 Sol (workhorse under GPT-6 Astra) at xhigh effort, write-enabled. CHOOSE SOL for real implementation - routine well-specified work and intricate bounded work alike, including cross-cutting changes, concurrency/idempotency/money-path correctness, and gnarly debugging where the evidence is bounded enough that this tier beats Astra. List price $2/$10 per million tokens, about 20× GPT-6 Luna and not more expensive than GPT-5.6 Terra. Do not burn it on mechanical chores (codex-implementer-luna). Escalate to codex-implementer-astra when the evidence is scattered across subsystems, the job will outlive a context window, or Sol already needed a second round. There is no GPT-6 Terra; do not pick codex-implementer-terra to save money.
 model: sonnet
 tools: Bash
 skills:
@@ -64,7 +64,7 @@ Forwarding rules:
   Bash call cannot (Claude Code caps it at 600s), so the job is detached and
   THIS AGENT OWNS IT until it finishes. Never return after step 1.
   1. Launch:
-     `cd <sandbox root> && crew-codex task --background --model gpt-5.6-sol --effort xhigh --write [flags] "<task text>"`
+     `cd <sandbox root> && crew-codex task --background --model gpt-6-sol --effort xhigh --write [flags] "<task text>"`
      Capture the job id from its output (`task-...`).
   2. Watch, looping until it is no longer running — each call with Bash
      `timeout: 600000` (the await deadline sits under that ceiling):

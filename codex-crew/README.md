@@ -13,27 +13,27 @@ job Claude launched.
 
 ## Agents
 
-Implementation is tiered across the GPT-6 / GPT-5.6 ladder — the orchestrator
-picks the tier per task; each agent's description carries the selection
-criteria:
+Implementation is tiered across the GPT-6 family, plus GPT-5.6 Terra because
+OpenAI did not ship a GPT-6 Terra. The orchestrator picks the tier per task;
+each agent's description carries the selection criteria:
 
 | Agent | Model | Effort | Posture | Choose when |
 |---|---|---|---|---|
 | `codex-implementer-astra` | gpt-6-astra (frontier flagship) | medium | write | The hardest work: evidence scattered across many files or subsystems, multi-hour jobs that outlive a context window, debugging Sol already needed a second round on, logic spanning retries/ownership/persisted state |
-| `codex-implementer-sol` | gpt-5.6-sol (top of the 5.6 ladder) | xhigh | write | Novel/intricate logic, cross-cutting multi-file changes, concurrency/money-path correctness, gnarly debugging — anything where mid-tier output would need rework |
-| `codex-implementer-terra` | gpt-5.6-terra (balanced) | xhigh | write | Routine, well-specified implementation with clear spec and existing patterns; the default when a task is real work but not hard |
-| `codex-implementer-luna` | gpt-5.6-luna (affordable) | xhigh | write | Mechanical, repetitive, parallelizable chores with an exact recipe; fan out freely |
-| `codex-reviewer` | gpt-5.6-sol | xhigh | read-only | Diff/branch reviews, adversarial reviews, independent diagnosis |
+| `codex-implementer-sol` | gpt-6-sol (workhorse) | xhigh | write | Default for real implementation, routine or intricate, when the evidence is bounded |
+| `codex-implementer-terra` | gpt-5.6-terra (no GPT-6 successor) | xhigh | write | Only when the brief names Terra. Not cheaper than GPT-6 Sol |
+| `codex-implementer-luna` | gpt-6-luna (affordable) | xhigh | write | Mechanical, repetitive, parallelizable chores with an exact recipe; fan out freely |
+| `codex-reviewer` | gpt-6-sol | xhigh | read-only | Diff/branch reviews, adversarial reviews, independent diagnosis |
 
-List price per million tokens (input / output, September 2026): Astra $10 / $50,
-Sol $4 / $20, Terra $2 / $12, Luna $0.20 / $1.20 — so per token Astra ≈ 2.5× Sol
-≈ 5× Terra ≈ 50× Luna. Per task the gap is smaller: Astra at medium spends far
-fewer tokens than Sol at high, and one published same-task comparison measured
-$25.67 in 51 min against $31.79 in 75 min. Pins are defaults — a dispatch brief
-that explicitly names a model or effort overrides them (`spark` →
-`gpt-5.3-codex-spark`; `astra` → `gpt-6-astra` at medium unless the brief also
-names an effort). GPT-5.4 Mini was retired on 2026-08-31, so its `mini` alias is
-gone; Luna is its replacement.
+List price per million tokens (input / output): Astra $10 / $50, GPT-6 Sol
+$2 / $10, GPT-5.6 Terra $2 / $12, GPT-6 Luna $0.10 / $0.50. Per token Astra is
+5× Sol and 100× Luna. Terra is not a savings tier against GPT-6 Sol. Pins are
+defaults — a dispatch brief that explicitly names a model or effort overrides
+them (`spark` → `gpt-5.3-codex-spark`; `astra` → `gpt-6-astra` at medium unless
+the brief also names an effort). GPT-5.4 Mini was retired on 2026-08-31, so
+its `mini` alias is gone; Luna is its replacement. Codex CLI 0.156.1 still
+lists `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`; this plugin pins Sol
+and Luna to the GPT-6 ids.
 
 **Why Astra runs at medium.** Medium is Astra's default in OpenAI's model
 registry and the effort OpenAI's own reasoning guide calls the default
@@ -92,7 +92,7 @@ between Bash calls. A dispatch therefore looks like this, one shell call per
 line, launch and await never sharing a call:
 
 ```
-cd <sandbox root> && crew-codex task --background --model gpt-5.6-terra --effort xhigh --write "<task text>"
+cd <sandbox root> && crew-codex task --background --model gpt-6-sol --effort xhigh --write "<task text>"
 cd <sandbox root> && crew-codex await <job-id> --for 540      # repeat while exit 10
 cd <sandbox root> && crew-codex result <job-id>
 ```

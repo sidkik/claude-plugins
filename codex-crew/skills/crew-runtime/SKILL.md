@@ -159,14 +159,15 @@ Execution rules:
   report that verbatim — the orchestrator decides whether to re-dispatch on
   another tier. Do NOT add your own retry loop on top.
 
-Model ladder (per OpenAI's own model registry, Codex CLI 0.153.4):
-**gpt-6-astra** = frontier flagship, one generation above the 5.6 ladder,
+Model ladder (Codex CLI 0.156.1): **gpt-6-astra** = frontier flagship,
 registry default effort `medium`, keeps notes across context windows, rejects
 `none`/`minimal`, asks rather than guesses when input could change the result;
-**sol** = top of the GPT-5.6 ladder, which the registry now describes as the
-everyday agentic workhorse; **terra** = balanced mid tier; **luna** =
-fast/affordable low tier. Also listed: gpt-5.5 (previous generation) and
-gpt-5.3-codex-spark (ultra-fast, not in the API). GPT-5.4 Mini was retired on
-2026-08-31 in favour of Luna. All listed models accept up to `xhigh`; the
-companion runtime (codex plugin 1.0.6) still rejects the registry's higher
-`max`/`ultra` efforts, so `xhigh` is the ceiling through this plugin.
+**gpt-6-sol** = workhorse under Astra and the default implementer pin;
+**gpt-6-luna** = fast/affordable low tier; **gpt-5.6-terra** = still listed,
+but there is no GPT-6 Terra and it is not cheaper than GPT-6 Sol, so choose
+it only when the brief names Terra. Also listed: gpt-5.6-sol, gpt-5.6-luna,
+gpt-5.5, and gpt-5.3-codex-spark (ultra-fast, not in the API). GPT-5.4 Mini
+was retired on 2026-08-31 in favour of Luna. These models accept up to
+`xhigh` (Luna's ceiling is `max`; Astra and Sol also list `ultra`). The
+companion runtime still rejects `max`/`ultra`, so `xhigh` is the ceiling
+through this plugin.

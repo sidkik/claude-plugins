@@ -964,18 +964,18 @@ kill -9 "$innocent" 2>/dev/null || true
 
 # --- lane pins: each agent launches with its own model and effort ------------
 # The Astra lane defaults to medium (its registry default and the cost/quality
-# sweet spot); the GPT-5.6 lanes stay at xhigh. A drifted pin silently changes
+# sweet spot); Sol and Luna are GPT-6 at xhigh, Terra stays gpt-5.6-terra at xhigh. A drifted pin silently changes
 # what every dispatch costs, so each launch line is asserted verbatim.
 check_contains "astra lane pins gpt-6-astra at medium" "$AGENT_DIR/codex-implementer-astra.md" \
   'crew-codex task --background --model gpt-6-astra --effort medium --write'
-check_contains "sol lane pins gpt-5.6-sol at xhigh" "$AGENT_DIR/codex-implementer-sol.md" \
-  'crew-codex task --background --model gpt-5.6-sol --effort xhigh --write'
+check_contains "sol lane pins gpt-6-sol at xhigh" "$AGENT_DIR/codex-implementer-sol.md" \
+  'crew-codex task --background --model gpt-6-sol --effort xhigh --write'
 check_contains "terra lane pins gpt-5.6-terra at xhigh" "$AGENT_DIR/codex-implementer-terra.md" \
   'crew-codex task --background --model gpt-5.6-terra --effort xhigh --write'
-check_contains "luna lane pins gpt-5.6-luna at xhigh" "$AGENT_DIR/codex-implementer-luna.md" \
-  'crew-codex task --background --model gpt-5.6-luna --effort xhigh --write'
-check_contains "reviewer stays read-only on gpt-5.6-sol at xhigh" "$AGENT_DIR/codex-reviewer.md" \
-  'crew-codex task --background --model gpt-5.6-sol --effort xhigh "<task text>"'
+check_contains "luna lane pins gpt-6-luna at xhigh" "$AGENT_DIR/codex-implementer-luna.md" \
+  'crew-codex task --background --model gpt-6-luna --effort xhigh --write'
+check_contains "reviewer stays read-only on gpt-6-sol at xhigh" "$AGENT_DIR/codex-reviewer.md" \
+  'crew-codex task --background --model gpt-6-sol --effort xhigh "<task text>"'
 check_contains "astra lane tells the forwarder what to do with a clarifying question" \
   "$AGENT_DIR/codex-implementer-astra.md" 'Do not answer it yourself'
 for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do

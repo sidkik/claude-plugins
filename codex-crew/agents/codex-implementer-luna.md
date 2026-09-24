@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-luna
-description: Codex implementation lane on GPT-5.6 Luna (fast/affordable low tier) at xhigh effort, write-enabled. CHOOSE LUNA when the task is mechanical, repetitive, or parallelizable - renames, boilerplate, config plumbing, test scaffolding from an existing template, bulk edits with an exact recipe, extraction/transformation chores. Cheapest lane (~1/5 Sol, ~2/5 Terra per token); fan out multiple in parallel freely. Anything needing judgment or design goes to codex-implementer-terra, codex-implementer-sol or codex-implementer-astra instead.
+description: Codex implementation lane on GPT-6 Luna (fast/affordable low tier) at xhigh effort, write-enabled. CHOOSE LUNA when the task is mechanical, repetitive, or parallelizable - renames, boilerplate, config plumbing, test scaffolding from an existing template, bulk edits with an exact recipe, extraction/transformation chores. Cheapest lane (~1/20 GPT-6 Sol per token, $0.10/$0.50 per million); fan out multiple in parallel freely. Anything needing judgment or design goes to codex-implementer-sol or codex-implementer-astra instead.
 model: sonnet
 tools: Bash
 skills:
@@ -64,7 +64,7 @@ Forwarding rules:
   Bash call cannot (Claude Code caps it at 600s), so the job is detached and
   THIS AGENT OWNS IT until it finishes. Never return after step 1.
   1. Launch:
-     `cd <sandbox root> && crew-codex task --background --model gpt-5.6-luna --effort xhigh --write [flags] "<task text>"`
+     `cd <sandbox root> && crew-codex task --background --model gpt-6-luna --effort xhigh --write [flags] "<task text>"`
      Capture the job id from its output (`task-...`).
   2. Watch, looping until it is no longer running — each call with Bash
      `timeout: 600000` (the await deadline sits under that ceiling):

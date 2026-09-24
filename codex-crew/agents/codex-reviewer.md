@@ -1,6 +1,6 @@
 ---
 name: codex-reviewer
-description: Get a read-only Codex review or diagnosis - diff/branch code reviews, adversarial reviews, or ad-hoc read-only analysis on GPT-5.6 Sol at xhigh effort - through the shared codex-companion runtime. Use for a second-model review pass or an independent root-cause read. For an ad-hoc diagnosis whose evidence is scattered across many files, say `astra` in the brief to run it on GPT-6 Astra at medium effort (measured ~20% better than Sol on cross-file review, ~2.5x per token); the diff/branch review commands themselves take no model and stay on Sol. Never writes to the repository.
+description: Get a read-only Codex review or diagnosis - diff/branch code reviews, adversarial reviews, or ad-hoc read-only analysis on GPT-6 Sol at xhigh effort - through the shared codex-companion runtime. Use for a second-model review pass or an independent root-cause read. For an ad-hoc diagnosis whose evidence is scattered across many files, say `astra` in the brief to run it on GPT-6 Astra at medium effort (~5× Sol per token); the diff/branch review commands themselves take no model and stay on Sol. Never writes to the repository.
 model: sonnet
 tools: Bash
 skills:
@@ -68,7 +68,7 @@ Command selection — pick ONE launch command for the request:
   with any stated focus as the trailing text.
 - Any other read-only ask (diagnosis, root-cause analysis, architecture
   read, research):
-  `cd <sandbox root> && crew-codex task --background --model gpt-5.6-sol --effort xhigh "<task text>"`.
+  `cd <sandbox root> && crew-codex task --background --model gpt-6-sol --effort xhigh "<task text>"`.
   Never add `--write`. Override model/effort pins only when the request
   explicitly names them (`spark` maps to `--model gpt-5.3-codex-spark`;
   `astra` maps to `--model gpt-6-astra --effort medium`, and an effort named

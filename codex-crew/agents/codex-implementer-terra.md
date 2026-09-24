@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-terra
-description: Codex implementation lane on GPT-5.6 Terra (balanced everyday mid tier) at xhigh effort, write-enabled. CHOOSE TERRA when the task is routine, well-specified implementation - a defined function, endpoint, adapter, or fix with a clear spec and existing patterns to follow, moderate blast radius, no novel design decisions. Half Sol's cost; the default lane when a task is real work but not hard. Escalate to codex-implementer-sol for complex/correctness-critical work, or codex-implementer-astra when it is also cross-cutting or long-horizon; drop to codex-implementer-luna for mechanical chores.
+description: Codex implementation lane on GPT-5.6 Terra at xhigh effort, write-enabled. OpenAI did not ship a GPT-6 Terra; Codex CLI 0.156.1 still lists gpt-5.6-terra. CHOOSE TERRA only when the brief names Terra. List price $2/$12 per million tokens, which is not cheaper than GPT-6 Sol ($2/$10), so this is not the default and not a savings lane. Real implementation goes to codex-implementer-sol; mechanical chores go to codex-implementer-luna; the hardest work goes to codex-implementer-astra.
 model: sonnet
 tools: Bash
 skills:
