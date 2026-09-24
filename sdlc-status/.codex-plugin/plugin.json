@@ -1,0 +1,18 @@
+{
+  "name": "sdlc-status",
+  "version": "0.1.0",
+  "description": "Per-session SDLC phase, attributed evidence and next-action display",
+  "author": {
+    "name": "Sidkik"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "SDLC Status",
+    "shortDescription": "See reported SDLC progress and evidence.",
+    "longDescription": "Local session projection with Claude and Grok renderers and a Codex text fallback.",
+    "developerName": "Sidkik",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Show this session\u2019s SDLC status and evidence."
+  }
+}
