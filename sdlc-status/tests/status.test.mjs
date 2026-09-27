@@ -619,3 +619,22 @@ test("requested handoff can disposition repair readiness N/A without concealing 
   assert.match(detail,/VE-BUG2 unknown/);
   assert.match(detail,/RS-BUG1 na/);
 }));
+
+test("every route exposes missing orchestrator load at Intake before any delegation", () => setup(root => {
+  for(const route of ["triage","feature","delivery","research"]) {
+    const s=stageSample(root,route);passAll(s);
+    delete s.progress.results["SK-orchestrator-load"];
+    assert.deepEqual(s.progress.activities,[]);
+    assert.equal(write(root,"claude",route,s).status,0);
+    const render=()=>invoke(root,["claude"],JSON.stringify({session_id:route})).stdout;
+    assert.match(render(),/Intake\[\?\]/);
+    assert.match(render(),/SK-orchestrator-load/);
+    s.progress.claimedComplete=["IN"];
+    assert.equal(write(root,"claude",route,s).status,0);
+    assert.match(render(),/Intake\[!\]/);
+    mark(s,"SK-orchestrator-load");
+    assert.equal(write(root,"claude",route,s).status,0);
+    assert.match(render(),/Intake\[ok\]/);
+    assert.doesNotMatch(render(),/VIOLATION/);
+  }
+}));
