@@ -1,0 +1,654 @@
+{
+  "id": "sidkik-sdlc",
+  "version": 1,
+  "source": {
+    "repository": "sidkik/planning",
+    "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+    "section": "required-stage-completion",
+    "commit": "c4484ddc583baa091455028ce7657837b8890d04",
+    "sha256": "d78545540e3fb6d89e21da7cf5e1d4a94213cda1d66a886f368a521ececd7dfa"
+  },
+  "routes": {
+    "triage": {
+      "stages": [
+        {
+          "id": "IN",
+          "label": "Intake",
+          "criteria": [
+            {
+              "id": "SK-orchestrator-load",
+              "label": "orchestrator loaded"
+            },
+            {
+              "id": "SK-triage-load",
+              "label": "triage loaded"
+            },
+            {
+              "id": "SK-sdlc-process-load",
+              "label": "sdlc-process loaded"
+            },
+            {
+              "id": "IN-1",
+              "label": "owner, outcome, scope, history and source revisions"
+            },
+            {
+              "id": "IN-2",
+              "label": "route and required skills established"
+            },
+            {
+              "id": "IN-3",
+              "label": "authority, ownership and next action"
+            },
+            {
+              "id": "SK-sdlc-process-apply",
+              "label": "sdlc-process applied"
+            }
+          ]
+        },
+        {
+          "id": "VE",
+          "label": "Verify",
+          "criteria": [
+            {
+              "id": "SK-local-development-load",
+              "label": "local-development loaded",
+              "conditional": true
+            },
+            {
+              "id": "VE-1",
+              "label": "behavior versus expectation and current fixes inspected"
+            },
+            {
+              "id": "VE-2",
+              "label": "material claims evidenced; occurrence and reproduction separated"
+            },
+            {
+              "id": "VE-3",
+              "label": "verified prerequisites and checked helper returns"
+            },
+            {
+              "id": "SK-triage-apply",
+              "label": "triage applied"
+            },
+            {
+              "id": "SK-orchestrator-apply",
+              "label": "orchestrator applied"
+            },
+            {
+              "id": "SK-local-development-apply",
+              "label": "local-development applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-research-load",
+              "label": "research loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-research-apply",
+              "label": "research applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-diagnosing-bugs-load",
+              "label": "diagnosing-bugs loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-diagnosing-bugs-apply",
+              "label": "diagnosing-bugs applied",
+              "conditional": true
+            }
+          ]
+        },
+        {
+          "id": "RF",
+          "label": "Refine",
+          "criteria": [
+            {
+              "id": "RF-1",
+              "label": "unknowns dispositioned",
+              "conditional": true
+            },
+            {
+              "id": "RF-2",
+              "label": "scoped human choices and architecture decision",
+              "conditional": true
+            },
+            {
+              "id": "RF-3",
+              "label": "acceptance examples and established vocabulary",
+              "conditional": true
+            },
+            {
+              "id": "SK-grilling-load",
+              "label": "grilling loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-grilling-apply",
+              "label": "grilling applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-domain-modeling-load",
+              "label": "domain-modeling loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-domain-modeling-apply",
+              "label": "domain-modeling applied",
+              "conditional": true
+            }
+          ]
+        },
+        {
+          "id": "BR",
+          "label": "Brief",
+          "criteria": [
+            {
+              "id": "SK-work-artifacts-load",
+              "label": "work-artifacts loaded",
+              "conditional": true
+            },
+            {
+              "id": "BR-1",
+              "label": "scope, criterion IDs, behavior and verification seams",
+              "conditional": true
+            },
+            {
+              "id": "BR-2",
+              "label": "context, consumers, ownership and dependencies",
+              "conditional": true
+            },
+            {
+              "id": "SK-work-artifacts-apply",
+              "label": "work-artifacts applied",
+              "conditional": true
+            }
+          ]
+        },
+        {
+          "id": "RV",
+          "label": "Review",
+          "criteria": [
+            {
+              "id": "SK-sdlc-policy-review-load",
+              "label": "sdlc-policy-review loaded"
+            },
+            {
+              "id": "RV-1",
+              "label": "independent review and policy findings resolved",
+              "independent": true
+            },
+            {
+              "id": "RV-2",
+              "label": "disposition and applicable human decisions recorded"
+            },
+            {
+              "id": "SK-sdlc-policy-review-apply",
+              "label": "sdlc-policy-review applied",
+              "independent": true
+            }
+          ]
+        },
+        {
+          "id": "CL",
+          "label": "Closeout",
+          "criteria": [
+            {
+              "id": "CL-1",
+              "label": "GitHub and related work accurately dispositioned"
+            },
+            {
+              "id": "CL-2",
+              "label": "workspace cleanup and applicable handoff"
+            }
+          ]
+        }
+      ]
+    },
+    "feature": {
+      "stages": [
+        {
+          "id": "IN",
+          "label": "Intake",
+          "criteria": [
+            {
+              "id": "SK-sdlc-process-load",
+              "label": "sdlc-process loaded"
+            },
+            {
+              "id": "IN-1",
+              "label": "owner, outcome, scope, history and source revisions"
+            },
+            {
+              "id": "IN-2",
+              "label": "route and required skills established"
+            },
+            {
+              "id": "IN-3",
+              "label": "authority, ownership and next action"
+            },
+            {
+              "id": "SK-sdlc-process-apply",
+              "label": "sdlc-process applied"
+            }
+          ]
+        },
+        {
+          "id": "VE",
+          "label": "Verify",
+          "criteria": [
+            {
+              "id": "SK-local-development-load",
+              "label": "local-development loaded",
+              "conditional": true
+            },
+            {
+              "id": "VE-1",
+              "label": "behavior versus expectation and current fixes inspected"
+            },
+            {
+              "id": "VE-2",
+              "label": "material claims evidenced; occurrence and reproduction separated"
+            },
+            {
+              "id": "VE-3",
+              "label": "verified prerequisites and checked helper returns"
+            },
+            {
+              "id": "SK-local-development-apply",
+              "label": "local-development applied",
+              "conditional": true
+            }
+          ]
+        },
+        {
+          "id": "RF",
+          "label": "Refine",
+          "criteria": [
+            {
+              "id": "SK-wayfinder-load",
+              "label": "wayfinder loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-domain-modeling-load",
+              "label": "domain-modeling loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-grilling-load",
+              "label": "grilling loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-grill-with-docs-load",
+              "label": "grill-with-docs loaded",
+              "conditional": true
+            },
+            {
+              "id": "RF-1",
+              "label": "unknowns dispositioned"
+            },
+            {
+              "id": "RF-2",
+              "label": "scoped human choices and architecture decision"
+            },
+            {
+              "id": "RF-3",
+              "label": "acceptance examples and established vocabulary"
+            },
+            {
+              "id": "SK-grill-with-docs-apply",
+              "label": "grill-with-docs applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-grilling-apply",
+              "label": "grilling applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-domain-modeling-apply",
+              "label": "domain-modeling applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-wayfinder-apply",
+              "label": "wayfinder applied",
+              "conditional": true
+            }
+          ]
+        },
+        {
+          "id": "BR",
+          "label": "Brief",
+          "criteria": [
+            {
+              "id": "SK-to-tickets-load",
+              "label": "to-tickets loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-work-artifacts-load",
+              "label": "work-artifacts loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-to-spec-load",
+              "label": "to-spec loaded"
+            },
+            {
+              "id": "BR-1",
+              "label": "scope, criterion IDs, behavior and verification seams"
+            },
+            {
+              "id": "BR-2",
+              "label": "context, consumers, ownership and dependencies"
+            },
+            {
+              "id": "SK-to-spec-apply",
+              "label": "to-spec applied"
+            },
+            {
+              "id": "SK-work-artifacts-apply",
+              "label": "work-artifacts applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-to-tickets-apply",
+              "label": "to-tickets applied",
+              "conditional": true
+            }
+          ]
+        },
+        {
+          "id": "RV",
+          "label": "Review",
+          "criteria": [
+            {
+              "id": "SK-sdlc-policy-review-load",
+              "label": "sdlc-policy-review loaded"
+            },
+            {
+              "id": "RV-1",
+              "label": "independent review and policy findings resolved",
+              "independent": true
+            },
+            {
+              "id": "RV-2",
+              "label": "disposition and applicable human decisions recorded"
+            },
+            {
+              "id": "SK-sdlc-policy-review-apply",
+              "label": "sdlc-policy-review applied",
+              "independent": true
+            },
+            {
+              "id": "SK-orchestrator-load",
+              "label": "orchestrator loaded"
+            },
+            {
+              "id": "SK-orchestrator-apply",
+              "label": "orchestrator applied"
+            }
+          ]
+        }
+      ]
+    },
+    "delivery": {
+      "stages": [
+        {
+          "id": "IN",
+          "label": "Intake",
+          "criteria": [
+            {
+              "id": "SK-implement-load",
+              "label": "implement loaded"
+            },
+            {
+              "id": "SK-sdlc-process-load",
+              "label": "sdlc-process loaded"
+            },
+            {
+              "id": "IN-1",
+              "label": "owner, outcome, scope, history and source revisions"
+            },
+            {
+              "id": "IN-2",
+              "label": "route and required skills established"
+            },
+            {
+              "id": "IN-3",
+              "label": "authority, ownership and next action"
+            },
+            {
+              "id": "SK-sdlc-process-apply",
+              "label": "sdlc-process applied"
+            }
+          ]
+        },
+        {
+          "id": "RS",
+          "label": "Ready",
+          "criteria": [
+            {
+              "id": "SK-sdlc-policy-review-load",
+              "label": "sdlc-policy-review loaded"
+            },
+            {
+              "id": "RS-1",
+              "label": "readiness controls evidenced"
+            },
+            {
+              "id": "RS-2",
+              "label": "order, blockers, authority and resources permit start"
+            },
+            {
+              "id": "RS-3",
+              "label": "checkpoint covers exact start action",
+              "independent": true
+            },
+            {
+              "id": "SK-sdlc-policy-review-apply",
+              "label": "sdlc-policy-review applied",
+              "independent": true
+            }
+          ]
+        },
+        {
+          "id": "DE",
+          "label": "Deliver",
+          "criteria": [
+            {
+              "id": "SK-local-development-load",
+              "label": "local-development loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-work-artifacts-load",
+              "label": "work-artifacts loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-code-review-load",
+              "label": "code-review loaded"
+            },
+            {
+              "id": "SK-orchestrator-load",
+              "label": "orchestrator loaded"
+            },
+            {
+              "id": "SK-tdd-load",
+              "label": "tdd loaded"
+            },
+            {
+              "id": "DE-1",
+              "label": "implementation, verification, build and applicable QA"
+            },
+            {
+              "id": "DE-2",
+              "label": "independent Standards and Spec findings resolved",
+              "independent": true
+            },
+            {
+              "id": "DE-3",
+              "label": "integrated main validated and deployable"
+            },
+            {
+              "id": "SK-implement-apply",
+              "label": "implement applied"
+            },
+            {
+              "id": "SK-tdd-apply",
+              "label": "tdd applied"
+            },
+            {
+              "id": "SK-orchestrator-apply",
+              "label": "orchestrator applied"
+            },
+            {
+              "id": "SK-code-review-apply",
+              "label": "code-review applied",
+              "independent": true
+            },
+            {
+              "id": "SK-work-artifacts-apply",
+              "label": "work-artifacts applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-local-development-apply",
+              "label": "local-development applied",
+              "conditional": true
+            }
+          ]
+        },
+        {
+          "id": "CL",
+          "label": "Closeout",
+          "criteria": [
+            {
+              "id": "CL-1",
+              "label": "GitHub and related work accurately dispositioned"
+            },
+            {
+              "id": "CL-2",
+              "label": "workspace cleanup and applicable handoff"
+            }
+          ]
+        }
+      ]
+    },
+    "research": {
+      "stages": [
+        {
+          "id": "IN",
+          "label": "Intake",
+          "criteria": [
+            {
+              "id": "SK-research-load",
+              "label": "research loaded"
+            },
+            {
+              "id": "SK-sdlc-process-load",
+              "label": "sdlc-process loaded"
+            },
+            {
+              "id": "IN-1",
+              "label": "owner, outcome, scope, history and source revisions"
+            },
+            {
+              "id": "IN-2",
+              "label": "route and required skills established"
+            },
+            {
+              "id": "IN-3",
+              "label": "authority, ownership and next action"
+            },
+            {
+              "id": "SK-sdlc-process-apply",
+              "label": "sdlc-process applied"
+            }
+          ]
+        },
+        {
+          "id": "VE",
+          "label": "Verify",
+          "criteria": [
+            {
+              "id": "SK-local-development-load",
+              "label": "local-development loaded",
+              "conditional": true
+            },
+            {
+              "id": "SK-work-artifacts-load",
+              "label": "work-artifacts loaded",
+              "conditional": true
+            },
+            {
+              "id": "VE-1",
+              "label": "behavior versus expectation and current fixes inspected"
+            },
+            {
+              "id": "VE-2",
+              "label": "material claims evidenced; occurrence and reproduction separated"
+            },
+            {
+              "id": "VE-3",
+              "label": "verified prerequisites and checked helper returns"
+            },
+            {
+              "id": "SK-research-apply",
+              "label": "research applied"
+            },
+            {
+              "id": "SK-work-artifacts-apply",
+              "label": "work-artifacts applied",
+              "conditional": true
+            },
+            {
+              "id": "SK-local-development-apply",
+              "label": "local-development applied",
+              "conditional": true
+            }
+          ]
+        },
+        {
+          "id": "RV",
+          "label": "Review",
+          "criteria": [
+            {
+              "id": "SK-sdlc-policy-review-load",
+              "label": "sdlc-policy-review loaded"
+            },
+            {
+              "id": "RV-1",
+              "label": "independent review and policy findings resolved",
+              "independent": true
+            },
+            {
+              "id": "RV-2",
+              "label": "disposition and applicable human decisions recorded"
+            },
+            {
+              "id": "SK-sdlc-policy-review-apply",
+              "label": "sdlc-policy-review applied",
+              "independent": true
+            },
+            {
+              "id": "SK-orchestrator-load",
+              "label": "orchestrator loaded"
+            },
+            {
+              "id": "SK-orchestrator-apply",
+              "label": "orchestrator applied"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, writeFile, unlink } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { template, validateProgress, project, templates, retainRequirements } from "./stages.mjs";
 const LIMIT = 65536;
 const clients = ["claude", "grok", "codex"];
 const clean = (value) =>
@@ -15,7 +16,8 @@ const clean = (value) =>
     .trim();
 const text = (value) =>
   typeof value === "string" && value.trim().length > 0 && value.length <= 2000;
-function validate(s) {
+function validate(s, writing = false) {
+  if (s?.progress !== undefined) validateProgress(s.progress, writing);
   if (
     !s ||
     !text(s.work) ||
@@ -72,7 +74,7 @@ function options(args) {
   for (let i = 0; i < args.length; i += 2) {
     const k = args[i];
     if (
-      !["--session", "--client", "--width", "--max-age", "--color"].includes(k) ||
+      !["--session", "--client", "--width", "--max-age", "--color", "--route", "--source-revision", "--evidence-revision"].includes(k) ||
       !args[i + 1] ||
       opts[k] !== undefined
     )
@@ -176,19 +178,70 @@ function compact(s, age, stale, width, colored, single) {
     paint([[`${work} | `, undefined, true], [s.phase, "cyan", true], [` | ${stale ? "STALE" : "reported"} ${Math.floor(age / 1000)}s`, "detail"]], width, colored),
     paint([["Next: ", undefined, true], [s.next]], width, colored),
     paint([["Checks (reported, unverified): ", undefined, true], [`${counts.failed} failed`, counts.failed ? "red" : undefined], [` / ${counts.pending} pending / ${counts.unknown} unknown`, counts.pending || counts.unknown ? "amber" : undefined], [` / ${counts.passed} passed`, counts.passed ? "green" : undefined], [s.checks.length ? (important ? ` | ${clip(important.name, 28)}` : "") : " (none recorded)"]], width, colored),
-    paint([["Skills (agent): ", undefined, true], [`${skill.applied} applied / ${skill.loaded} loaded / ${skill.pending} pending`, skill.pending ? "amber" : undefined], [" | inspect for evidence", "detail"]], width, colored),
+    paint([["Skills (agent): ", undefined, true], [`${skill.applied} applied / ${skill.loaded} loaded / ${skill.pending} pending`, skill.pending ? "amber" : undefined], [" | legacy/untracked; template then inspect", "detail"]], width, colored),
   ];
+}
+function stageLines(s, projection, width, colored, single) {
+  const tone = status => status === "!" ? "red" : status === "ok" ? "green" : ["?", "E"].includes(status) ? "amber" : "detail";
+  const first = projection.blocking;
+  const violation = projection.stages.some(x => x.status === "!");
+  const alert = projection.invalid ? projection.reason : violation ? "! VIOLATION" : s.human.status === "needed" ? "YOU NEEDED" : first ? "? PENDING" : "REPORTED";
+  const detail = first ? `${first.id}: ${first.label} (${first.status})` : s.human.detail;
+  if (single) {
+    // At narrow widths retain an attention symbol, active stage, reported
+    // assurance and inspection path. Longer rows add the next action.
+    const issue = s.work.match(/\/([^/]+)\/issues\/(\d+)$/).slice(1).join("#");
+    const activeName = projection.stages.find(x => x.id === projection.active).label;
+    const attention = projection.invalid || violation ? "!" : s.human.status !== "none" ? "YOU" : first ? "?" : "+";
+    const activity = width >= 60 ? ` ${activeName} ${issue}` : width >= 24 ? ` ${projection.active}` : attention === "YOU" ? "" : projection.active;
+    const prefix = `${attention}${activity} reported`;
+    const room = width - prefix.length - " inspect".length;
+    const middle = room > 10 ? ` next:${clip(s.next, room - 6)}` : "";
+    return [paint([[prefix, projection.invalid || violation ? "red" : first || s.human.status !== "none" ? "amber" : "cyan", true], [middle], [" inspect", "detail"]], width, colored)];
+  }
+  const names = width >= 80;
+  const chain = projection.stages.flatMap((x, i) => [[`${i ? " > " : ""}${names ? x.label : x.id}[${x.status}]`, tone(x.status), true]]);
+  const chainText = projection.stages.map(x => `${names ? x.label : x.id}[${x.status}]`).join(" > ");
+  // Include 'inspect' before truncation even at the smallest supported width.
+  const chainRow = chainText.length <= width ? paint(chain, width, colored) : paint([["inspect | ", "detail"], ...chain], width, colored);
+  return [
+    paint([[projection.invalid ? "!" : violation ? "!" : first ? "?" : "+", projection.invalid || violation ? "red" : "amber", true], [" reported | ", "detail"], [s.work.match(/\/([^/]+)\/issues\/(\d+)$/).slice(1).join("#"), "cyan"], [" | " + alert, projection.invalid || violation ? "red" : "amber", true]], width, colored),
+    chainRow,
+    paint([[detail, violation ? "red" : "amber"]], width, colored),
+    paint([["Next: ", undefined, true], [s.next]], width, colored),
+    paint([[s.human.status === "none" ? "Human: none" : `Human ${s.human.status}: ${s.human.detail}`, s.human.status === "none" ? "detail" : "amber"], [" | inspect", "detail"]], width, colored),
+  ];
+}
+function inspectStages(s, projection) {
+  console.log(ascii(`SDLC ${projection.reason}; reported assertions, not independently authenticated`));
+  console.log(ascii(`Template: ${s.progress?.template || "none"}; source ${JSON.stringify(templates.source)}`));
+  if (!projection.tracked) return;
+  console.log(ascii(`Route: ${s.progress.route}; active: ${s.progress.active}; evidence revision: ${s.progress.evidenceRevision}; phase (informational): ${s.phase}`));
+  for (const stage of projection.stages) {
+    console.log(`${stage.id}[${stage.status}] ${stage.label}`);
+    for (const c of stage.rows) {
+      console.log(ascii(`  ${c.id} ${c.status}${c.violation ? " VIOLATION" : ""}: ${c.label}; ${c.assurance}; ${c.reason}`));
+      console.log(ascii(`    actor=${c.actor || "unknown"} revision=${c.revision || "unknown"} evidence=${c.reference || "none"}; conditional=${!!c.conditional}; independent-required=${!!c.independent}`));
+      if (c.source) console.log(ascii(`    declared source=${c.source} revision=${c.sourceRevision}`));
+      if (c.assessment) console.log(ascii(`    assessment=${JSON.stringify(c.assessment)}`));
+      if (c.authority) console.log(ascii(`    exception authority=${JSON.stringify(c.authority)}`));
+    }
+  }
 }
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   const opts = options(args);
+  if (command === "template") {
+    console.log(JSON.stringify(template(opts["--route"]), null, 2));
+    return;
+  }
   if (command === "new-session") {
     console.log(randomUUID());
     return;
   }
   if (!["write", "inspect", "text", ...clients].includes(command))
     throw Error(
-      "usage: status.mjs write|inspect|text|claude|grok|codex|new-session [--client CLIENT] [--session ID] [--width N] [--max-age SECONDS] [--color auto|always|never]",
+      "usage: status.mjs template --route ROUTE OR write|inspect|text|claude|grok|codex|new-session [--client CLIENT] [--session ID] [--width N] [--max-age SECONDS] [--color auto|always|never]",
     );
   let payload;
   if (command === "write" || command === "claude" || command === "grok")
@@ -210,9 +263,16 @@ async function main() {
   );
   const file = location(id);
   if (command === "write") {
-    validate(payload);
+    let previous;
+    try {
+      const prior = await readFile(file);
+      if (prior.length > LIMIT) throw Error("previous state too large");
+      previous = JSON.parse(prior);
+    } catch (error) { if (error.code !== "ENOENT") throw error; }
+    retainRequirements(payload, previous);
+    validate(payload, true);
     const state = {
-      version: 1,
+      version: payload.progress ? 2 : 1,
       ...id,
       updated_at: new Date().toISOString(),
       work: payload.work,
@@ -221,6 +281,7 @@ async function main() {
       checks: payload.checks,
       next: payload.next,
       human: payload.human,
+      ...(payload.progress ? {progress: payload.progress} : {}),
     };
     const serialized = JSON.stringify(state) + "\n";
     if (Buffer.byteLength(serialized) > LIMIT) throw Error("state too large");
@@ -244,7 +305,7 @@ async function main() {
   if (raw.length > LIMIT) throw Error("state too large");
   const s = JSON.parse(raw);
   validate(s);
-  if (s.version !== 1 || s.client !== id.client || s.session !== id.session)
+  if (![1, 2].includes(s.version) || s.client !== id.client || s.session !== id.session)
     throw Error("wrong session or state version");
   const age = Date.now() - Date.parse(s.updated_at);
   if (!Number.isFinite(age) || age < -5000)
@@ -255,7 +316,9 @@ async function main() {
   const width = displayWidth(opts);
   const colored = useColor(command, opts);
   const rendered = lines(s, Math.max(0, age), age > maxAge * 1000);
+  const projection = project(s, { stale: age > maxAge * 1000, sourceRevision: opts["--source-revision"], evidenceRevision: opts["--evidence-revision"] });
   if (command === "inspect") {
+    inspectStages(s, projection);
     console.log(rendered.map(ascii).join("\n"));
     console.log("Evidence references (not independently validated):");
     for (const x of s.skills)
@@ -266,7 +329,9 @@ async function main() {
           `${x.source}:${x.actor} / ${x.name} / ${x.result}: ${x.reference || "none"}`,
         ),
       );
-  } else console.log(compact(s, Math.max(0, age), age > maxAge * 1000, width, colored, command === "grok").join("\n"));
+  } else if (projection.tracked) console.log(stageLines(s, projection, width, colored, command === "grok").join("\n"));
+  else if (s.progress) console.log(paint([["SDLC UNKNOWN", "red", true], [" | reported | " + projection.reason + " | inspect"]], width, colored));
+  else console.log(compact(s, Math.max(0, age), age > maxAge * 1000, width, colored, command === "grok").join("\n"));
 }
 main().catch((error) => {
   let width = 140;
@@ -277,5 +342,5 @@ main().catch((error) => {
     colored = process.argv[2] !== "inspect" && useColor(process.argv[2], opts);
   } catch { /* Invalid options still produce a plain, bounded UNKNOWN. */ }
   console.log(paint([["SDLC UNKNOWN", "red", true], [" | " + (error.code === "ENOENT" ? "no projection for this session" : error.message)]], width, colored));
-  if (process.argv[2] === "write") process.exitCode = 1;
+  if (["write", "template"].includes(process.argv[2])) process.exitCode = 1;
 });
