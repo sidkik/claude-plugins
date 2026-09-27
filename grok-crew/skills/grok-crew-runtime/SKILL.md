@@ -1,90 +1,69 @@
 ---
 name: grok-crew-runtime
-description: Claude-to-Grok inject contract. Load when proposing Grok Crew, steering a Grok job launched from Claude, wrapping grok -p as a crew, or treating Grok native subagent steer as the Claude-to-Grok solution. Name the channel, then name interrupt vs steer vs queue, before proposing a delivery.
+description: Delegate review, investigation or implementation from Claude Code or Codex to the Grok CLI; launch bounded work, collect results, resume a known session or stop owned work.
 ---
 
-# Grok Crew Runtime
+# Delegate to Grok
 
-There is no `crew-grok` command and no implementer lanes. This skill is
-the channel map and the delivery map. Use it instead of analogizing from
-Codex Crew or from Grok's own child-subagent tools.
+When the user asks to send work to Grok, perform that delegation using the host's
+shell tool. Reuse existing scope and authorization; the user need not install a
+bridge, construct a prompt or repeat permission already given. This skill works
+from Claude Code and Codex. It uses the installed `grok` CLI directly; an official
+Claude bridge is optional. It is not a new workflow engine or a `crew-grok` binary.
 
-## Install (give them these commands)
+## Launch and return
 
-When they need Grok from Claude Code, give this sequence. Do not skip
-the official Grok plugin; `grok-crew` is the channel map, not the
-launcher.
+1. Read the governing repository instructions and applicable orchestration skills.
+   Establish the bounded task, owning checkout, permitted paths/actions and return
+   criteria. For review, pin the base and candidate. For implementation, use an
+   isolated checkout when concurrent edits would collide. Carry the actual skill
+   paths and instruction precedence into the brief. Completion: Grok can act from
+   that self-contained brief without guessing the parent's conversation.
+2. Check `grok --version` and `grok --help` with a short timeout. Use the existing
+   authenticated CLI; if readiness is unknown, `timeout 30s grok models` is a soft
+   probe, not proof a model turn will succeed. Select a model only when requested
+   or required by the governing instructions. If the binary, authentication or
+   permission capability is unavailable, report that specific gap and preserve the
+   brief. Do not launch installation or change global settings as a substitute.
+3. Write the brief to a prompt file in the host session's existing scratch area.
+   Include outcome, sources, allowed edits, skill reads, tests and required report
+   (findings or changed paths, evidence, unresolved blockers). Keep durable work in
+   its owning repository/issue; scratch prompts and logs need no repository commit.
+   Set a new UUID for a new conversation, an absolute checkout and separate stdout
+   and stderr paths. Use the [launch recipes](../../README.md#launch-recipes),
+   choosing read-only review or explicitly authorized implementation permissions.
+   Completion: a real Grok process has been launched with a recorded session ID,
+   host job handle, scope, timeout and output paths; a command proposal is not a run.
+4. Supervise through the host's running-command handle, yielding promptly so the
+   parent can continue independent work and respond to the user. Poll boundedly;
+   inspect output or actual file changes when diagnosing a stall. The wall-clock
+   timeout bounds the run; exit 124 means timeout, not completion. A denied tool or
+   auth error is a concrete blocker, not permission to bypass controls. Scope any
+   correction to existing authority before resuming. Completion: process exit,
+   status and actual final output are collected, or interruption/blocker is explicit.
+5. Read stdout and stderr and inspect the reported artifacts. Exit zero alone is
+   not success. Independently verify material findings, diffs and applicable tests
+   under the repository's review contract. Report the consolidated result to the
+   user with the Grok session ID and remaining gaps. Do not claim a model's own
+   success report proves completion.
 
-```text
-# 1. Grok CLI, once
-curl -fsSL https://x.ai/cli/install.sh | bash
-grok          # interactive login, then exit
-# or: grok login
+## Continue or change direction
 
-# 2. Official Grok ↔ Claude Code bridge (launch / review / stop)
-/plugin marketplace add xai-org/grok-build-plugin-cc
-/plugin install grok-build@xai-grok-build
-/reload-plugins
-/grok-build:check
+Use `--resume UUID` with a new prompt file after the previous process exits. Keep
+its checkout and permission scope explicit. `--session-id UUID` creates a new
+conversation; it does not resume one. Avoid `--continue` for delegated work because
+it selects by directory rather than the job identity. Resume restores conversation;
+it does not restore code unless separately requested through Grok's restore tools.
 
-# 3. This contract (channel + interrupt/steer/queue)
-/plugin marketplace add sidkik/claude-plugins
-/plugin install grok-crew@sidkik-plugins
-```
+A direct headless run has no in-flight message-injection command provided by this
+skill. Choose one of these actual operations:
 
-Local checkout instead of GitHub for step 3:
+- **Queue:** retain a follow-up, wait for exit, then resume that UUID.
+- **Interrupt:** stop only the owned host job/process group, verify it stopped and
+  inspect partial side effects; then resume with the corrected brief if appropriate.
+- **Steer:** requires a separately verified runtime capability. Grok TUI input and
+  Grok's native child-agent messaging do not address this Claude/Codex-launched job.
 
-```text
-/plugin marketplace add /projects/sidkik/ep/claude-plugins
-/plugin install grok-crew@sidkik-plugins
-```
-
-Ready for step 2 means Node is available, `grok` is on PATH, and
-`grok models` succeeds. Step 2 is `grok -p` plus PID/log job control:
-**interrupt** and **queue** only, no **steer**.
-
-## Interrupt, steer, queue
-
-These three are not interchangeable. Use these meanings, not Grok's
-labels (Grok calls Ctrl+Enter "interject" / "send now"; that is
-**interrupt**).
-
-| Delivery | When the new text is read | Original request |
-|---|---|---|
-| **Interrupt** | Now. This turn's in-flight work stops. Session stays up. | Abandoned mid-flight |
-| **Steer** | After current tool/churn finishes, before the model continues the original request | Same request; course-corrects |
-| **Queue** | After the original request is fully done | Finished first; this is a later request |
-
-Steer is the middle: not "stop and take this," not "wait until the whole
-job is over."
-
-## Name the channel
-
-Before proposing any of those three for "a Grok agent", name which
-channel you are on.
-
-| Channel | Parent | Running work | Interrupt | Steer | Queue |
-|---|---|---|---|---|---|
-| **Claude → Grok job** | Claude Code (or any courier) | a `grok` process | kill the PID, or ACP `session/cancel` | none | wait until exit then `grok -r`; or a second ACP `session/prompt` while busy |
-| **Grok → Grok child** | this Grok session | `spawn_subagent` | `send_subagent_message` `interject` (wait only); no full turn-cancel analog here | `send_subagent_message` `steer` (flag off by default) | `send_subagent_message` `queue` |
-| **Human → this TUI** | you | this turn | Ctrl+Enter (Grok: "send now") | Enter, only if `ui.follow_up_behavior = "steer"` | Enter (default) |
-
-A finding that arrives while Claude's Grok job is still in its turn
-cannot be **steered**. Report that. The TUI composer and
-`send_subagent_message` do not reach that process.
-
-## Claude → Grok job
-
-The official Claude bridge (`grok-build@xai-grok-build`) is `grok -p`,
-PID + logs, launch and stop. No app-server broker. `grok -p` is one
-prompt, one stdout stream, then exit.
-
-A second `session/prompt` on a busy `grok agent stdio` session is
-**queue**. Grok puts it on `_x.ai/queue` while the first
-`runningPromptId` runs to `end_turn`; the second prompt starts only
-after that. Observed 2026-09-18: STOP sent at 3 files; all 8 files were
-still written; then STOP ran. That is not steer.
-
-Codex **steer** is `crew-codex steer` on a held Codex app-server. That
-command is Codex-only; see
-[crew-runtime](../../../codex-crew/skills/crew-runtime/SKILL.md).
+Do not start two prompts against the same session concurrently or kill unrelated
+Grok leaders/sessions. If the host cannot establish that owned work stopped, report
+that uncertainty before launching a replacement that might duplicate its effects.
