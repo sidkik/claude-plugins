@@ -78,7 +78,7 @@ this plugin uses color, bold and layout rather than per-row font-size escapes.
 
 ## Required stages and evidence
 
-Version 0.2.0 adds a criterion-derived stage chain. The agent initializes it from
+Version 0.2.1 retains the criterion-derived stage chain and adds explicit bug reproduction criteria. The agent initializes it from
 `template --route triage|feature|delivery|research`; you can start with an ordinary
 request such as “triage #456.” The skill owns checklist updates, not the human.
 Templates in `templates/routes.json` pin the canonical planning source by path,
@@ -107,6 +107,32 @@ skills remain visible until supported or explicitly dispositioned N/A. All
 triage includes coordinated policy review; orchestrator load is therefore an
 intake obligation. Feature refinement chooses its applicable grill/wayfinder
 path and records why other conditional skills are inapplicable.
+
+For a current defect being reproduced for repair, Verify includes `VE-BUG1`
+(accepted expectation), `VE-BUG2` (relevant-path failure on the reported symptom,
+not setup/mock configuration or an unrelated failure), and `VE-BUG3` (retained exact test/source,
+command, tested revision and expected/actual results). Their passes mean
+reproduction complete. `RS-BUG1`, at triage disposition or delivery Ready/start,
+applies when actually proposing ready/start and requires bounded repair authority
+and applicable readiness/start controls. For disposition-only triage or a requested
+stop/handoff, record N/A with that reason; do not require more diagnosis or
+readiness work before preserving the current state and handing off.
+Red alone does not mean ready or fixed. Existing review requirements still apply.
+
+Once reproduction is complete and no diagnostic gap remains, conditional
+`diagnosing-bugs` load/application can be N/A when diagnosis was not needed.
+Preserve actual load/application evidence when diagnosis was needed and performed. An unknown
+conditional skill requires an applicability decision, not automatic invocation.
+Further minimization and ranked hypotheses are not prerequisites to routine
+repair. Investigate a named remaining gap instead. Non-bug, already-fixed and
+specifically approved alternative-verification dispositions record their concrete
+N/A basis for inapplicable reproduction criteria; ordinary verification and
+policy obligations remain. The renderer checks reported evidence fields, not
+whether the referenced test actually reproduced the symptom.
+
+The criterion template is now `sidkik-sdlc@2`. Old templates lose green until
+reinitialized; carry forward only applicable current evidence. This same-route
+upgrade needs no new review checkpoint.
 
 Generate an exhaustive starting payload, then have the accountable agent fill
 in its real work data and evidence:
@@ -182,7 +208,7 @@ The human must still compare assertions to evidence where assurance matters.
 
 ## Behavioral trials
 
-Use the canonical [fresh-session prompts](https://github.com/sidkik/planning/blob/c4484ddc583baa091455028ce7657837b8890d04/tests/fixtures/sdlc-stage-prompts.md)
+Use the canonical [fresh-session prompts](https://github.com/sidkik/planning/blob/f52a7c82baaa6c2727bb6b006322b69c531be278/tests/fixtures/sdlc-stage-prompts.md)
 without leaking evaluator expectations into the new session. The planning test
 suite owns those prompts and their separate expected outcomes. Plugin CLI tests
 exercise actual rendering/validation with isolated temporary state; they are not

@@ -541,3 +541,81 @@ test("same-route template upgrade preserves declarations without an extra review
   upgraded.progress.template="sidkik-sdlc@unsupported";
   assert.equal(write(root,"claude","one",upgraded).status,1);
 }));
+
+test("reproduced routine bug completes Verify with justified diagnosis N/A, without declaring repair ready", () => setup(root => {
+  const s=stageSample(root); passAll(s); s.progress.active="VE";
+  for (const id of ["SK-diagnosing-bugs-load", "SK-diagnosing-bugs-apply"]) {
+    s.progress.results[id]={status:"na",reason:"VE-BUG1–3 passed; diagnosis not needed, no unresolved diagnostic gap"};
+  }
+  s.progress.results["RS-BUG1"]={status:"unknown"};
+  s.progress.claimedComplete=["VE"];
+  assert.equal(write(root,"claude","one",s).status,0);
+  assert.match(stageRender(root),/Verify\[ok\]/);
+  assert.doesNotMatch(stageRender(root),/VIOLATION|Review\[ok\]/);
+  const detail=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
+  assert.match(detail,/SK-diagnosing-bugs-apply na/);
+  assert.match(detail,/RS-BUG1 unknown/);
+  // Claiming readiness/disposition remains held until its separate authority
+  // and applicable readiness controls have evidence.
+  s.progress.claimedComplete.push("RV");
+  assert.equal(write(root,"claude","one",s).status,0);
+  assert.match(stageRender(root),/Review\[!\]/);
+  assert.match(stageRender(root),/RS-BUG1/);
+}));
+
+test("bug reproduction cannot complete with omitted, unsupported or mismatched criterion evidence", () => setup(root => {
+  for(const id of ["VE-BUG1","VE-BUG2","VE-BUG3"]) {
+    for(const omission of ["result","reference","revision"]) {
+      const s=stageSample(root); passAll(s);s.progress.active="VE";s.progress.claimedComplete=["VE"];
+      if(omission==="result") delete s.progress.results[id];
+      else if(omission==="reference") delete s.progress.results[id].reference;
+      else s.progress.results[id].revision="different-candidate";
+      assert.equal(write(root,"claude","one",s).status,0);
+      assert.match(stageRender(root),/Verify\[!\]/);
+      assert.ok(stageRender(root).includes(id));
+    }
+  }
+}));
+
+test("reported unrelated red remains failed while conditional diagnosis requires an applicability reason", () => setup(root => {
+  const s=stageSample(root);passAll(s);s.progress.active="VE";
+  // This fixture supplies the assessment; the renderer cannot determine the
+  // cause of a test failure by reading a reference or free-text description.
+  mark(s,"VE-BUG2","failed");
+  s.progress.results["VE-BUG2"].reason="Only setup failed; reported symptom has not been reproduced";
+  assert.equal(write(root,"claude","one",s).status,0);
+  assert.match(stageRender(root),/Verify\[!\]/);
+  assert.match(stageRender(root),/VE-BUG2/);
+  mark(s,"VE-BUG2");
+  s.progress.results["SK-diagnosing-bugs-apply"]={status:"unknown"};
+  assert.equal(write(root,"claude","one",s).status,0);
+  assert.match(stageRender(root),/Verify\[\?\]/);
+  s.progress.results["SK-diagnosing-bugs-apply"]={status:"na"};
+  assert.equal(write(root,"claude","one",s).status,1);
+  s.progress.results["SK-diagnosing-bugs-apply"].reason="Reproduction complete; diagnosis not needed, no diagnostic gap remains";
+  assert.equal(write(root,"claude","one",s).status,0);
+  assert.match(stageRender(root),/Verify\[ok\]/);
+}));
+
+test("already-fixed disposition can exclude reproduction with a reason and delivery retains repair readiness", () => setup(root => {
+  const s=stageSample(root);passAll(s);s.progress.active="RV";
+  for(const id of ["VE-BUG1","VE-BUG2","VE-BUG3","RS-BUG1"])
+    s.progress.results[id]={status:"na",reason:"Integrated fix verified; closeout disposition, no new repair"};
+  assert.equal(write(root,"claude","one",s).status,0);
+  assert.match(stageRender(root),/Verify\[ok\]/);
+  assert.match(stageRender(root),/Review\[ok\]/);
+  const delivery=stageSample(root,"delivery");
+  assert.deepEqual(delivery.progress.results["RS-BUG1"],{status:"unknown"});
+}));
+
+test("requested handoff can disposition repair readiness N/A without concealing unfinished reproduction", () => setup(root => {
+  const s=stageSample(root);passAll(s);s.progress.active="VE";
+  s.progress.results["VE-BUG2"]={status:"unknown"};
+  s.progress.results["RS-BUG1"]={status:"na",reason:"User requested stop/handoff; no ready/start proposal"};
+  s.next="Preserve current evidence and unresolved reproduction in handoff";
+  assert.equal(write(root,"claude","one",s).status,0);
+  assert.match(stageRender(root),/Verify\[\?\]/);
+  const detail=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
+  assert.match(detail,/VE-BUG2 unknown/);
+  assert.match(detail,/RS-BUG1 na/);
+}));

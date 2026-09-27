@@ -1,12 +1,12 @@
 {
   "id": "sidkik-sdlc",
-  "version": 1,
+  "version": 2,
   "source": {
     "repository": "sidkik/planning",
     "path": "docs/work/agent-orchestration/process/orchestration.process.md",
     "section": "required-stage-completion",
-    "commit": "c4484ddc583baa091455028ce7657837b8890d04",
-    "sha256": "d78545540e3fb6d89e21da7cf5e1d4a94213cda1d66a886f368a521ececd7dfa"
+    "commit": "f52a7c82baaa6c2727bb6b006322b69c531be278",
+    "sha256": "1750d71fb013eabc481c626e2cc4a0e4016faff72527bd65b3994c56e363f665"
   },
   "routes": {
     "triage": {
@@ -65,6 +65,21 @@
             {
               "id": "VE-3",
               "label": "verified prerequisites and checked helper returns"
+            },
+            {
+              "id": "VE-BUG1",
+              "label": "accepted expectation for the reported defect",
+              "conditional": true
+            },
+            {
+              "id": "VE-BUG2",
+              "label": "reported symptom reproduced on relevant path; no setup or unrelated failure",
+              "conditional": true
+            },
+            {
+              "id": "VE-BUG3",
+              "label": "retained exact test/source, command, tested revision and expected/actual",
+              "conditional": true
             },
             {
               "id": "SK-triage-apply",
@@ -189,6 +204,11 @@
               "id": "SK-sdlc-policy-review-apply",
               "label": "sdlc-policy-review applied",
               "independent": true
+            },
+            {
+              "id": "RS-BUG1",
+              "label": "bounded authorized restoration and applicable readiness/start controls",
+              "conditional": true
             }
           ]
         },
@@ -455,6 +475,11 @@
               "id": "SK-sdlc-policy-review-apply",
               "label": "sdlc-policy-review applied",
               "independent": true
+            },
+            {
+              "id": "RS-BUG1",
+              "label": "bounded authorized restoration and applicable readiness/start controls",
+              "conditional": true
             }
           ]
         },
