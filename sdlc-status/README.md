@@ -20,7 +20,7 @@ Merge this field into your selected settings file, without replacing other keys:
 {"statusLine":{"type":"command","command":"node \"/absolute/path/to/sdlc-status/scripts/status.mjs\" claude","refreshInterval":30}}
 ```
 
-The command consumes Claude's documented `session_id` from JSON stdin. It prints five bounded lines. Use `--width 100` to narrow them. Obtain the current ID from Claude's session information or the current transcript filename; confirm it belongs to this session before writing. Never infer it from the working directory.
+The command consumes Claude's documented `session_id` from JSON stdin. It prints five bounded lines, with human decisions, failures and stale state first. Use `--width 100` to narrow them. Obtain the current ID from Claude's session information or the current transcript filename; confirm it belongs to this session before writing. Never infer it from the working directory.
 
 [Claude status-line contract](https://code.claude.com/docs/en/statusline) and [plugin packaging](https://code.claude.com/docs/en/plugins-reference). The main status line is separately configured, not automatically installed by the plugin manifest.
 
@@ -57,6 +57,32 @@ node "/absolute/path/to/sdlc-status/scripts/status.mjs" text --client codex --se
 
 The agent may present that text at substantive changes; this is a manual/text fallback, not persistent native integration. A Codex manifest is supplied for compatible plugin loaders, but no Codex marketplace is registered or user configuration modified. [Codex status-line configuration](https://learn.chatgpt.com/docs/config-file/config-reference).
 
+## Readability and color
+
+Claude and Grok use ANSI color and bold by default, including when the CLI pipes
+status output. Amber marks human decisions and unresolved checks; red marks
+failures and stale/unknown state; cyan marks phase. Green qualifies only reported
+pass counts, never overall compliance. Labels convey the same meaning in plain text.
+
+Use `--color auto|always|never`. Auto respects `NO_COLOR` (including an empty
+value) and `TERM=dumb`; explicit `always` overrides them. Codex/text remain plain
+by default; `inspect` is always plain and retains full names, attribution and
+references. Use it when the compact footer truncates details.
+
+```text
+YOU NEEDED | Category/state recommendation and retry time window are unanswered
+core#456 | Triage - verification done, writing triage record | reported 6s
+Next: Write draft triage record in planning; put open questions to Chad
+Checks (reported, unverified): 0 failed / 1 pending / 1 unknown / 0 passed
+Skills (agent): 0 applied / 3 loaded / 2 pending | inspect for evidence
+```
+
+`--width` sets a 20–500 column limit; otherwise `COLUMNS` is bounded to that
+range, defaulting to 140. Grok keeps one row with attention, issue, phase and next
+before optional summaries. Claude keeps five rows. Both color and plain modes
+truncate visible text, not ANSI bytes. Terminal font size applies to the terminal;
+this plugin uses color, bold and layout rather than per-row font-size escapes.
+
 ## Write and inspect
 
 Use the real session ID or arranged token in `SESSION_ID`. Pass strings as JSON, not shell-interpolated commands:
@@ -77,7 +103,7 @@ node "/absolute/path/to/sdlc-status/scripts/status.mjs" inspect --client claude 
 
 `skills[].standing`: `loaded`, `applied`, `pending`; applied requires `reference` identifying the performed work. `checks[].result`: `passed`, `failed`, `pending`, `unknown`; passed/failed require `reference`. Each check has `source` (`agent` or `reviewer`) and `actor`. References should identify the reviewed/tested revision and result, preferably its GitHub receipt. They are inspectable text, never executed or independently authenticated. `human.status`: `none`, `needed`, `unknown`, with `detail` in every case. The schema intentionally has no approval or universal compliance field.
 
-The writer assigns schema version 1, client/session and timestamp; callers cannot forge freshness through an input timestamp. Each valid update atomically replaces one projection. Invalid writes preserve the previous state. Defaults: `$HOME/.local/state/sidkik-sdlc-status`, stale after 900 seconds (`--max-age` overrides per renderer). `SDLC_STATUS_DIR` can select a private local state directory shared by writer and renderer; it is not a repository artifact. IDs are hashed with the CLI namespace. Empty/malformed/wrong-session/future data displays UNKNOWN. Stale state retains its last reported facts under STALE. A narrow single row may omit detail: use `inspect` for the complete account. The display uses plain ASCII and strips terminal controls, including hyperlink escapes.
+The writer assigns schema version 1, client/session and timestamp; callers cannot forge freshness through an input timestamp. Each valid update atomically replaces one projection. Invalid writes preserve the previous state. Defaults: `$HOME/.local/state/sidkik-sdlc-status`, stale after 900 seconds (`--max-age` overrides per renderer). `SDLC_STATUS_DIR` can select a private local state directory shared by writer and renderer; it is not a repository artifact. IDs are hashed with the CLI namespace. Empty/malformed/wrong-session/future data displays UNKNOWN. Stale state retains its last reported facts under STALE. A narrow single row may omit detail: use `inspect` for the complete account. The text is ASCII; supplied terminal controls, including hyperlink escapes, are stripped before renderer-owned color is added.
 
 This is isolation against accidental cross-session access, not a security boundary against another process running as the same user. Concurrent writers for the same session are last-writer-wins; the accountable session owns updates and consolidates helper results. No history is retained. Remove that session's projection or the private state directory when it is no longer needed.
 

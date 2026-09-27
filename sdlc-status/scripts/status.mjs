@@ -72,7 +72,7 @@ function options(args) {
   for (let i = 0; i < args.length; i += 2) {
     const k = args[i];
     if (
-      !["--session", "--client", "--width", "--max-age"].includes(k) ||
+      !["--session", "--client", "--width", "--max-age", "--color"].includes(k) ||
       !args[i + 1] ||
       opts[k] !== undefined
     )
@@ -121,6 +121,64 @@ const clip = (value, width) => {
   const s = ascii(value);
   return s.length > width ? s.slice(0, width - 3) + "..." : s;
 };
+// Styling is applied only to already sanitized, visibly bounded ASCII segments.
+const palette = { red: "31", amber: "33", cyan: "36", green: "32", detail: "2" };
+function useColor(command, opts) {
+  const mode = opts["--color"] || "auto";
+  if (!["auto", "always", "never"].includes(mode)) throw Error("color must be auto, always or never");
+  if (mode !== "auto") return mode === "always";
+  return process.env.NO_COLOR === undefined && process.env.TERM !== "dumb" && ["claude", "grok"].includes(command);
+}
+function displayWidth(opts) {
+  if (opts["--width"] !== undefined) {
+    const n = Number(opts["--width"]);
+    if (!Number.isInteger(n) || n < 20 || n > 500) throw Error("width must be 20..500");
+    return n;
+  }
+  const n = Number(process.env.COLUMNS);
+  return Number.isInteger(n) && n > 0 ? Math.max(20, Math.min(n, 500)) : 140;
+}
+function paint(parts, width, colored) {
+  let remaining = width;
+  return parts.map(([value, tone, bold]) => {
+    if (!remaining) return "";
+    const valueText = (String(value).startsWith(" ") ? " " : "") + ascii(value) + (String(value).endsWith(" ") ? " " : "");
+    const shown = valueText.length > remaining
+      ? valueText.slice(0, Math.max(0, remaining - 3)) + ".".repeat(Math.min(3, remaining))
+      : valueText;
+    remaining -= shown.length;
+    const style = [bold ? "1" : "", palette[tone] || ""].filter(Boolean).join(";");
+    return colored && style && shown ? `\x1b[${style}m${shown}\x1b[0m` : shown;
+  }).join("");
+}
+function compact(s, age, stale, width, colored, single) {
+  const counts = Object.fromEntries(["failed", "unknown", "pending", "passed"].map(k => [k, s.checks.filter(x => x.result === k).length]));
+  const skill = Object.fromEntries(["loaded", "applied", "pending"].map(k => [k, s.skills.filter(x => x.standing === k).length]));
+  const important = ["failed", "unknown", "pending"].flatMap(k => s.checks.filter(x => x.result === k))[0];
+  const issue = s.work.match(/\/([^/]+)\/issues\/(\d+)$/);
+  const work = `${issue[1]}#${issue[2]}`;
+  const flags = [stale ? "STALE" : "", counts.failed ? `FAILED ${counts.failed}` : "", s.human.status === "needed" ? "YOU NEEDED" : s.human.status === "unknown" ? "HUMAN UNKNOWN" : ""].filter(Boolean);
+  const attention = flags.join(" | ") || "YOU: none";
+  const tone = stale || counts.failed ? "red" : s.human.status !== "none" || counts.pending || counts.unknown ? "amber" : undefined;
+  const detail = s.human.status !== "none" ? s.human.detail : important ? `${important.name} ${important.result}` : s.human.detail;
+  if (single) {
+    // Allocate phase and next action before optional counts, even at 80 columns.
+    const prefix = `${flags.join("/") || "REPORTED"} | ${work} | `;
+    const room = Math.max(4, Math.floor((width - ascii(prefix).length - 10) / 2));
+    return [paint([
+      [prefix, tone, true], [clip(s.phase, Math.min(room, 20)), "cyan", true],
+      [" | next:", undefined, true], [clip(s.next, room)],
+      [` | checks:${counts.failed}F/${counts.pending + counts.unknown}? refs-unverified skills:${skill.applied}/${s.skills.length} applied`, "detail"],
+    ], width, colored)];
+  }
+  return [
+    paint([[attention, tone, true], [` | ${detail}`, tone]], width, colored),
+    paint([[`${work} | `, undefined, true], [s.phase, "cyan", true], [` | ${stale ? "STALE" : "reported"} ${Math.floor(age / 1000)}s`, "detail"]], width, colored),
+    paint([["Next: ", undefined, true], [s.next]], width, colored),
+    paint([["Checks (reported, unverified): ", undefined, true], [`${counts.failed} failed`, counts.failed ? "red" : undefined], [` / ${counts.pending} pending / ${counts.unknown} unknown`, counts.pending || counts.unknown ? "amber" : undefined], [` / ${counts.passed} passed`, counts.passed ? "green" : undefined], [s.checks.length ? (important ? ` | ${clip(important.name, 28)}` : "") : " (none recorded)"]], width, colored),
+    paint([["Skills (agent): ", undefined, true], [`${skill.applied} applied / ${skill.loaded} loaded / ${skill.pending} pending`, skill.pending ? "amber" : undefined], [" | inspect for evidence", "detail"]], width, colored),
+  ];
+}
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   const opts = options(args);
@@ -130,7 +188,7 @@ async function main() {
   }
   if (!["write", "inspect", "text", ...clients].includes(command))
     throw Error(
-      "usage: status.mjs write|inspect|text|claude|grok|codex|new-session [--client CLIENT] [--session ID] [--width N] [--max-age SECONDS]",
+      "usage: status.mjs write|inspect|text|claude|grok|codex|new-session [--client CLIENT] [--session ID] [--width N] [--max-age SECONDS] [--color auto|always|never]",
     );
   let payload;
   if (command === "write" || command === "claude" || command === "grok")
@@ -194,9 +252,8 @@ async function main() {
   const maxAge = Number(opts["--max-age"] || 900);
   if (!Number.isFinite(maxAge) || maxAge < 1 || maxAge > 86400)
     throw Error("max-age must be 1..86400 seconds");
-  const width = Number(opts["--width"] || process.env.COLUMNS || 140);
-  if (!Number.isInteger(width) || width < 20 || width > 500)
-    throw Error("width must be 20..500");
+  const width = displayWidth(opts);
+  const colored = useColor(command, opts);
   const rendered = lines(s, Math.max(0, age), age > maxAge * 1000);
   if (command === "inspect") {
     console.log(rendered.map(ascii).join("\n"));
@@ -209,37 +266,16 @@ async function main() {
           `${x.source}:${x.actor} / ${x.name} / ${x.result}: ${x.reference || "none"}`,
         ),
       );
-  } else if (command === "grok") {
-    // Safety state comes first so narrow rows cannot hide stale/decision-needed flags.
-    const alert = age > maxAge * 1000 ? "STALE" : "REPORTED";
-    const issue = s.work.match(/\/([^/]+\/[^/]+)\/issues\/(\d+)$/);
-    const failed = s.checks.filter((x) => x.result === "failed").length;
-    const unresolved = s.checks.filter((x) =>
-      ["pending", "unknown"].includes(x.result),
-    ).length;
-    const applied = s.skills.filter((x) => x.standing === "applied").length;
-    const heading = `SDLC ${alert} ${Math.floor(age / 1000)}s H:${s.human.status} | ${issue[1]}#${issue[2]}`;
-    const summary = `checks:${failed}F/${unresolved}? refs-unverified skills:${applied}/${s.skills.length} applied`;
-    const room = Math.max(
-      4,
-      Math.floor((width - heading.length - summary.length - 22) / 2),
-    );
-    console.log(
-      clip(
-        `${heading} | ${clip(s.phase, Math.max(4, Math.min(room, 20)))} | next:${clip(s.next, Math.max(4, room))} | ${summary}`,
-        width,
-      ),
-    );
-  } else console.log(rendered.map((x) => clip(x, width)).join("\n"));
+  } else console.log(compact(s, Math.max(0, age), age > maxAge * 1000, width, colored, command === "grok").join("\n"));
 }
 main().catch((error) => {
-  console.log(
-    "SDLC UNKNOWN | " +
-      ascii(
-        error.code === "ENOENT"
-          ? "no projection for this session"
-          : error.message,
-      ),
-  );
+  let width = 140;
+  let colored = false;
+  try {
+    const opts = options(process.argv.slice(3));
+    width = displayWidth(opts);
+    colored = process.argv[2] !== "inspect" && useColor(process.argv[2], opts);
+  } catch { /* Invalid options still produce a plain, bounded UNKNOWN. */ }
+  console.log(paint([["SDLC UNKNOWN", "red", true], [" | " + (error.code === "ENOENT" ? "no projection for this session" : error.message)]], width, colored));
   if (process.argv[2] === "write") process.exitCode = 1;
 });
