@@ -78,7 +78,8 @@ this plugin uses color, bold and layout rather than per-row font-size escapes.
 
 ## Required stages and evidence
 
-Version 0.2.1 retains the criterion-derived stage chain and adds explicit bug reproduction criteria. The agent initializes it from
+Version 0.2.2 requires orchestrator load at Intake on every route and retains
+the explicit bug reproduction criteria. The agent initializes it from
 `template --route triage|feature|delivery|research`; you can start with an ordinary
 request such as “triage #456.” The skill owns checklist updates, not the human.
 Templates in `templates/routes.json` pin the canonical planning source by path,
@@ -88,7 +89,7 @@ commit and SHA-256. Their required IDs cannot be replaced with a caller's list.
 ? reported | core#456 | ? PENDING
 Intake[?] > Verify[.] > Refine[.] > Brief[.] > Review[.] > Closeout[.]
 SK-orchestrator-load: orchestrator loaded (unknown)
-Next: Read orchestrator before planning evidence delegation
+Next: Load orchestrator before selecting the route
 Human: none | inspect
 ```
 
@@ -103,9 +104,11 @@ even an independent assessment is a reported reference, not a verified identity.
 Stages abbreviate Intake, Verify, Refine, Brief, Review, Ready/start, Deliver and
 Closeout. The route governs which appear. Load requirements occur before their
 governed activity, application requirements need actual outputs. Conditional
-skills remain visible until supported or explicitly dispositioned N/A. All
-triage includes coordinated policy review; orchestrator load is therefore an
-intake obligation. Feature refinement chooses its applicable grill/wayfinder
+skills remain visible until supported or explicitly dispositioned N/A. Every route places orchestrator load at Intake, following the governing
+`sdlc-process` entry before route selection or the next action. Missing skill
+availability stays an explicit unknown capability gap; only dependent work
+pauses. Loading the skill does not require spawning agents, and application
+remains at the stage where governed work actually occurs. Feature refinement chooses its applicable grill/wayfinder
 path and records why other conditional skills are inapplicable.
 
 For a current defect being reproduced for repair, Verify includes `VE-BUG1`
@@ -130,7 +133,7 @@ N/A basis for inapplicable reproduction criteria; ordinary verification and
 policy obligations remain. The renderer checks reported evidence fields, not
 whether the referenced test actually reproduced the symptom.
 
-The criterion template is now `sidkik-sdlc@2`. Old templates lose green until
+The criterion template is now `sidkik-sdlc@3`. Old templates lose green until
 reinitialized; carry forward only applicable current evidence. This same-route
 upgrade needs no new review checkpoint.
 
@@ -208,7 +211,7 @@ The human must still compare assertions to evidence where assurance matters.
 
 ## Behavioral trials
 
-Use the canonical [fresh-session prompts](https://github.com/sidkik/planning/blob/f52a7c82baaa6c2727bb6b006322b69c531be278/tests/fixtures/sdlc-stage-prompts.md)
+Use the canonical [fresh-session prompts](https://github.com/sidkik/planning/blob/18b7aca81996f0ce2bd7445bb80c49bce0d2f9f3/tests/fixtures/sdlc-stage-prompts.md)
 without leaking evaluator expectations into the new session. The planning test
 suite owns those prompts and their separate expected outcomes. Plugin CLI tests
 exercise actual rendering/validation with isolated temporary state; they are not

@@ -1,12 +1,12 @@
 {
   "id": "sidkik-sdlc",
-  "version": 2,
+  "version": 3,
   "source": {
     "repository": "sidkik/planning",
     "path": "docs/work/agent-orchestration/process/orchestration.process.md",
     "section": "required-stage-completion",
-    "commit": "f52a7c82baaa6c2727bb6b006322b69c531be278",
-    "sha256": "1750d71fb013eabc481c626e2cc4a0e4016faff72527bd65b3994c56e363f665"
+    "commit": "18b7aca81996f0ce2bd7445bb80c49bce0d2f9f3",
+    "sha256": "205a8338fdd3ff6e51fb96869a9f16919da53a882c9cdd0254a5d37e7c4d6e40"
   },
   "routes": {
     "triage": {
@@ -235,6 +235,10 @@
           "label": "Intake",
           "criteria": [
             {
+              "id": "SK-orchestrator-load",
+              "label": "orchestrator loaded"
+            },
+            {
               "id": "SK-sdlc-process-load",
               "label": "sdlc-process loaded"
             },
@@ -407,10 +411,6 @@
               "independent": true
             },
             {
-              "id": "SK-orchestrator-load",
-              "label": "orchestrator loaded"
-            },
-            {
               "id": "SK-orchestrator-apply",
               "label": "orchestrator applied"
             }
@@ -424,6 +424,10 @@
           "id": "IN",
           "label": "Intake",
           "criteria": [
+            {
+              "id": "SK-orchestrator-load",
+              "label": "orchestrator loaded"
+            },
             {
               "id": "SK-implement-load",
               "label": "implement loaded"
@@ -502,10 +506,6 @@
               "label": "code-review loaded"
             },
             {
-              "id": "SK-orchestrator-load",
-              "label": "orchestrator loaded"
-            },
-            {
               "id": "SK-tdd-load",
               "label": "tdd loaded"
             },
@@ -573,6 +573,10 @@
           "id": "IN",
           "label": "Intake",
           "criteria": [
+            {
+              "id": "SK-orchestrator-load",
+              "label": "orchestrator loaded"
+            },
             {
               "id": "SK-research-load",
               "label": "research loaded"
@@ -662,10 +666,6 @@
               "id": "SK-sdlc-policy-review-apply",
               "label": "sdlc-policy-review applied",
               "independent": true
-            },
-            {
-              "id": "SK-orchestrator-load",
-              "label": "orchestrator loaded"
             },
             {
               "id": "SK-orchestrator-apply",
