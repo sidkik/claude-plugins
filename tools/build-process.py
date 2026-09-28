@@ -119,6 +119,14 @@ description: Independently assess a named SDLC advancement against its sources a
 
 Read [the source adapter](../SOURCE-ADAPTER.md), then [the actual reviewer brief](../bundle/.claude/agents/sdlc-policy-reviewer.md) and its linked skills in full. Return scoped findings to the accountable session. Keep this assignment read-only unless expressly authorized; do not reassess your own output or delegate this assessment again.
 '''
+    runtime = {name: (ROOT / 'tools/setup' / name).read_bytes()
+               for name in ('agent-setup.mjs', 'setup.mjs', 'status.mjs')}
+    for name, data in runtime.items():
+        result['scripts/setup/' + name] = data
+    result['skills/sdlc-setup/SKILL.md'] = (ROOT / 'tools/setup/SKILL.md').read_bytes()
+    result['scripts/setup/source-manifest.json'] = (json.dumps({
+        'source': 'tools/setup', 'files': {name: digest(data) for name, data in runtime.items()}
+    }, indent=2) + '\n').encode()
     validate_links(result)
     return result
 
@@ -158,7 +166,7 @@ def validate_links(result):
 
 
 def write_or_check(result, destination, check):
-    managed = ('bundle', 'skills', 'claude-skills', 'agents')
+    managed = ('bundle', 'skills', 'claude-skills', 'agents', 'scripts/setup')
     actual = {str(p.relative_to(destination)) for folder in managed for p in (destination / folder).rglob('*') if p.is_file()}
     extra = actual - set(result)
     differences = sorted(extra | {name for name, data in result.items() if not (destination / name).is_file() or (destination / name).read_bytes() != data})

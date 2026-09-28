@@ -1,19 +1,23 @@
 # SDLC Process
 
-`0.1.0` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.1.1` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a SessionStart instruction. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
 Claude also discovers user-invoked Pocock wrappers under `claude-skills/`,
 preserving their invocation restrictions. Codex exposes common model-invocable
 wrappers; its SDLC entry reads the user-only Pocock sources directly. The hook
-activates mandatory entry only beneath repositories explicitly opted in through
-setup; it does not prove an agent followed its instructions.
+initiates agent-owned setup even on a fresh machine without a managed repository
+marker. It reports status and directs the agent to the packaged `sdlc-setup`
+skill. Required configuration changes are performed by the agent, not the hook.
 
-Install and update through the repository's [portable setup](../docs/setup.md).
-Companions are `sdlc-status`, `codex-crew`, `grok-crew` and the official Claude
-Codex companion for Claude-to-Codex execution. Authenticated host CLIs remain
-prerequisites; no credentials or machine paths are distributed here.
+Install this plugin and reload the client. If the agent does not start setup,
+tell it **“Finish SDLC setup.”** The hook displays this fallback; automatic
+compliance with its instructions is not guaranteed. The agent handles companions,
+prerequisites, footer and scoped repository integration using the runtime inside
+this plugin. See [portable setup](../docs/setup.md). Human authentication remains
+local; no credentials or machine paths are distributed here. Codex requires its
+native hook trust review; the bootstrap skill also works without a running hook.
 
 [Source adapter](SOURCE-ADAPTER.md) explains working-repository ownership and
 conflicting revisions. Required sources resolve locally under `bundle/`; the
@@ -47,5 +51,5 @@ fresh-home, repeat-install, update and relocation tests before claiming portabil
 The generator fails on unresolved required local links, hardcoded original-machine
 paths and output drift. It retains full selected skill directories including
 Pocock's supporting reference files. Broader optional flows mentioned by ask-matt
-remain explicitly outside the selected bundle. Current tests verify packaging and
-hook output; behavioral acceptance still requires actual host execution.
+remain explicitly outside the selected bundle. Tests cover installed-only bootstrap, runtime repair and packaging. Actual host
+behavior is separately verified before release.

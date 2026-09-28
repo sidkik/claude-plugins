@@ -1,107 +1,73 @@
 # Portable setup on WSL
 
-Install the same released process and agent tooling into each WSL instance. Each
-instance authenticates independently. Setup copies release plugins and its own
-runtime; it does not copy credentials, conversation transcripts or another
-machine's configuration directory.
+Install **sdlc-process** using your agent CLI's plugin interface. Reload its plugins
+or start a new session once installation finishes, then describe your work normally.
+The hook directs the agent to handle remaining setup, verification and repairs.
+If it does not start automatically, tell it **“Finish SDLC setup.”** Some hosts
+may disregard startup instructions; the visible hook message provides this
+fallback. No repository clone or manual setup script is required.
 
-## Install
+For Claude, the plugin is `sdlc-process@sidkik-plugins` in the
+`sidkik/claude-plugins` marketplace. Its SessionStart hook reports setup status to
+you and supplies the agent with actionable diagnostics and the installed
+`sdlc-setup` skill. The hook only reads state. The agent performs authorized
+changes and verifies their results.
 
-Use Linux inside WSL, Node.js 18+, Git, GitHub CLI (`gh`), and the selected agent
-CLIs. Claude's required delegation plugins also need Codex, Grok, Bash, Python 3,
-`patch`, GNU `timeout`, `readlink` and `tail`. Install these prerequisites through
-their normal supported installers. Setup reports missing executables; it does
-not run an OS package manager or install arbitrary CLI binaries.
+Codex discovers the same bootstrap skill; its native hook review/trust prompt
+must be accepted by the human before hooks can run. A skill remains available
+without hook trust. Grok uses the installed bootstrap skill when the host does not
+run the hook. The agent chooses the actual host explicitly; inherited environment
+variables from another CLI do not establish host identity.
 
-Authenticate on this instance with `gh auth login`, `claude auth login`,
-`codex login` and `grok login` as applicable. Then clone the private plugin
-repository using your GitHub access:
+## What the agent handles
 
-```sh
-git clone https://github.com/sidkik/claude-plugins.git
-cd claude-plugins
-node tools/setup/setup.mjs install --clients claude,codex,grok --repo /path/to/delivery-repository --dry-run
-node tools/setup/setup.mjs install --clients claude,codex,grok --repo /path/to/delivery-repository
-node tools/setup/setup.mjs doctor
-```
+- Installs/enables the named companion plugins through the host's supported CLI.
+  Claude needs process, status, Grok crew, Codex crew and the official Codex
+  companion. Codex needs process, status and Grok crew. Grok needs process/status.
+- Reuses existing marketplace registrations, preserving unrelated plugins.
+- Configures Claude/Grok footers and preserves previous command displays. Codex
+  uses the status plugin's text workflow.
+- Repairs prerequisites through supported installation methods within its existing
+  permissions. Missing Node is reported even before the JavaScript hook can run.
+- Adds or repairs repository entry instructions when that repository is within
+  the user's requested SDLC scope. Installing a plugin does not silently replace
+  unrelated repository policies.
+- Verifies installed resources, source hashes, effective enablement, footer and
+  applicable authentication status; reports precise remaining gaps.
 
-`--clients` defaults to `claude` on first installation. Claude installs/enables
-`sdlc-process`, `sdlc-status`, `grok-crew`, `codex-crew`, and the official
-`codex@openai-codex` dependency. Codex installs the first three through its native
-plugin marketplace. Grok installs process and status through its native plugin
-CLI. Installed/disabled requirements are enabled; unrelated plugins are retained.
-A required plugin disabled by repository-local settings is an explicit conflict;
-setup identifies the repository and plugin and preserves the local setting.
-Native Windows and macOS are outside this setup's qualified target.
+Authentication and native hook trust require the human. The agent identifies the
+specific login or review prompt when needed. Missing a worker's CLI or login holds
+that worker's execution, while independent planning can continue. Structural
+verification cannot certify that an agent actually followed the process.
 
-The stable installation root is deliberately `$HOME/.local/share/sidkik`,
-independent of checkout location and XDG settings. Individual CLI configuration
-locations honor `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `GROK_HOME` where applicable.
-Keep those environment variables consistent between setup, doctor and sessions.
-Paths containing spaces and apostrophes are supported.
+Existing repository-local settings that disable a required plugin remain visible
+conflicts. The agent resolves their actual scope and authority; setup never
+silently changes managed policy. Failed setup is reported with its affected
+capability, not as a successful installation.
 
-`--repo` explicitly opts a repository into the shared process. Setup merges a
-marked entry into the selected clients' instruction files, preserving surrounding
-text. The block contains a home-relative command, not this machine's absolute
-checkout path. It loads the installed bundle as the authority for shared SDLC
-instructions; repository engineering rules still apply. Stale repository-local
-shared snapshots are reported and superseded by that explicit selection, not
-deleted or silently rewritten. Without `--repo`, plugins are available but no
-repository has been opted in. Run install again with `--repo` for each checkout.
-Subdirectory sessions resolve the nearest enabled repository ancestor.
+## Updates
 
-Existing marketplaces named `sidkik-plugins` that point elsewhere are reported as
-conflicts rather than silently redirected. Migrate the named registration using
-the client's native marketplace commands, then rerun setup. This matters when
-moving from a manually installed checkout to this managed installation.
+Ask the agent to update the SDLC plugins. It uses the setup runtime inside the
+installed process plugin, updates through the registered marketplace and verifies
+with the current installed runtime. It will tell you if a client restart/reload
+is required. It does not require the original release checkout.
 
-## Update from the documentation source
+Maintainers change canonical planning documents, review them, regenerate the
+pinned bundle and publish a new plugin version. The setup skill and runtime are
+maintained in `tools/setup` and copied by the same checked generator. Generated
+copies are not an independent source of instructions.
 
-Process maintainers update the canonical planning documents, rebuild the pinned
-`sdlc-process` bundle, test it and publish a bumped plugin version. Consumers
-update from that release:
+## Existing installations
 
-```sh
-git pull --ff-only
-node tools/setup/setup.mjs update
-node tools/setup/setup.mjs doctor
-```
+The prior checkout-based setup remains supported for existing managed installs.
+The new agent path discovers native installations directly and migrates an
+existing repository's marked entry without its old source checkout. Its renderer
+lives separately from the legacy runtime, preserving older entry integrity checks.
+Only the requested repository is migrated; other repositories keep their entry.
 
-Update retains the prior client selection and refreshes managed entry blocks in
-previously enabled repositories. It does not opt in new repositories. An explicit
-`--clients` narrows native client updates. Use `--source /path/to/release-checkout`
-when invoking setup from another location. The installed setup launcher remembers
-the original release checkout; if that checkout moves, supply its new location.
-Restart clients to pick up new plugins and instructions.
+Per-machine configuration remains under `$HOME/.local/share/sidkik`, honoring
+`CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `GROK_HOME` for client settings. The agent
+preserves surrounding configuration and instruction text. Credentials, transcripts
+and private session histories are never distributed with plugins.
 
-A native cache whose contents differ from the release fails verification even if
-its version label matches. Publish a new plugin version and update; changing only
-source bytes without a version is not a reliable release. Setup leaves a pending
-marker on partial failure, so entry and doctor hold dependent work until a
-successful retry. Earlier native plugin operations may already have completed;
-rerunning the same command is the recovery path. Individual native CLI commands
-have a two-minute execution bound; a timeout fails visibly and can be retried
-after resolving connectivity or CLI prompts. This bound applies to setup
-commands, not delegated agent work.
-
-## Footer and verification
-
-Setup configures Claude and Grok status launchers at stable managed paths. Existing
-command footers are composed: stdin is read once and replayed to both renderers.
-Claude's other settings and Grok's other TOML sections remain intact. Complex
-Grok TOML status commands that cannot be parsed safely produce an actionable
-failure, preserving that configuration for manual composition. Existing prior
-footer commands are retained locally in `previous-status.json`. Codex uses the
-status plugin's text workflow; setup does not claim a native Codex footer.
-
-Doctor verifies prerequisites, plugin versions and actual installed payloads,
-managed runtime/content integrity, footer wiring, repository entries, effective
-plugin enablement from each selected repository, and
-Claude/Codex/GitHub authentication status. Grok login is an explicit user step;
-doctor does not read credentials or claim a successful model call. A passing
-structural check does not prove an agent followed the process. Test a fresh
-ordinary work request and confirm orchestrator loading, stage criteria and widget
-updates before relying on that client.
-
-No shell history, auth tokens or session directories belong in the release or in
-a migration archive. On the destination instance, use this installer and log in.
+This path targets Linux inside WSL. Native Windows and macOS are not qualified.
