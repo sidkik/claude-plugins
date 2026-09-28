@@ -638,3 +638,31 @@ test("every route exposes missing orchestrator load at Intake before any delegat
     assert.doesNotMatch(render(),/VIOLATION/);
   }
 }));
+
+test("failed substantive update preserves previous state and verified recovery exposes new fields only in its session", () => setup(root => {
+  const s=stageSample(root);s.next="Await the architecture decision";
+  s.human={status:"needed",detail:"Approve architecture proposal"};
+  assert.equal(write(root,"claude","one",s).status,0);
+  const file=join(root,readdirSync(root)[0]), before=readFileSync(file);
+  s.phase="Decision accepted; investigating";s.next="Investigate the accepted design";
+  s.human={status:"none",detail:"Decision receipt recorded"};
+  mark(s,"IN-3");
+  s.progress.results["UNKNOWN-CRITERION"]={status:"passed"};
+  const rejected=write(root,"claude","one",s);
+  assert.equal(rejected.status,1);
+  assert.match(rejected.stdout,/unknown criterion/);
+  assert.deepEqual(readFileSync(file),before);
+  const inspect=()=>invoke(root,["inspect","--client","claude","--session","one"]);
+  assert.match(inspect().stdout,/Await the architecture decision/);
+  assert.doesNotMatch(inspect().stdout,/Decision accepted; investigating/);
+  delete s.progress.results["UNKNOWN-CRITERION"];
+  assert.equal(write(root,"claude","one",s).status,0);
+  const verified=inspect();assert.equal(verified.status,0);
+  assert.match(verified.stdout,/core\/issues\/456/);
+  assert.match(verified.stdout,/active: IN/);
+  assert.match(verified.stdout,/Decision accepted; investigating/);
+  assert.match(verified.stdout,/IN-3 passed/);
+  assert.match(verified.stdout,/Investigate the accepted design/);
+  assert.match(verified.stdout,/Human: none.*Decision receipt recorded/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","other"]).stdout,/UNKNOWN/);
+}));

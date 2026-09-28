@@ -78,8 +78,9 @@ this plugin uses color, bold and layout rather than per-row font-size escapes.
 
 ## Required stages and evidence
 
-Version 0.2.2 requires orchestrator load at Intake on every route and retains
-the explicit bug reproduction criteria. The agent initializes it from
+Version 0.2.3 requires verified display updates after substantive events and
+before yielding changed state to the user. It retains Intake orchestrator load
+and explicit bug reproduction criteria. The agent initializes it from
 `template --route triage|feature|delivery|research`; you can start with an ordinary
 request such as “triage #456.” The skill owns checklist updates, not the human.
 Templates in `templates/routes.json` pin the canonical planning source by path,
@@ -145,6 +146,21 @@ node /absolute/path/to/sdlc-status/scripts/status.mjs template --route triage
 node /absolute/path/to/sdlc-status/scripts/status.mjs write --client claude --session SESSION_ID < session-payload.json
 node /absolute/path/to/sdlc-status/scripts/status.mjs inspect --client claude --session SESSION_ID
 ```
+
+Update after an accepted human decision, skill load/application, dispatch,
+agent return/review, new or resolved blocker, or a phase/next-action/human-need
+change. Batch events from one response into one write while preserving updates
+required before governed activity. Before yielding to the user, flush substantive
+changes since the last verified update. Unchanged turns need no duplicate write.
+
+Check the writer's exit status, then inspect the same client, session and state
+directory. Compare the actual work identity, phase/active stage, affected criterion
+results, next action and human need. On write failure, inspection failure or
+mismatch, report the display failure before the ordinary reply and correct it
+within existing authority. Invalid writes preserve the previous projection, so an
+old footer is not evidence the new update succeeded. Refreshing only its timestamp
+does not renew evidence. These are agent responsibilities: the renderer cannot
+detect an omitted write or authenticate the reported events.
 
 The JSON's `progress` object has `template`, `route`, `sourceRevision`,
 `evidenceRevision`, `active`, `claimedComplete`, `activities` and `results`.

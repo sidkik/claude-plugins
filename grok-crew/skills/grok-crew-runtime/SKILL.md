@@ -33,14 +33,21 @@ Claude bridge is optional. It is not a new workflow engine or a `crew-grok` bina
    and stderr paths. Use the [launch recipes](../../README.md#launch-recipes),
    choosing read-only review or explicitly authorized implementation permissions.
    Completion: a real Grok process has been launched with a recorded session ID,
-   host job handle, scope, timeout and output paths; a command proposal is not a run.
-4. Supervise through the host's running-command handle, yielding promptly so the
-   parent can continue independent work and respond to the user. Poll boundedly;
-   inspect output or actual file changes when diagnosing a stall. The wall-clock
-   timeout bounds the run; exit 124 means timeout, not completion. A denied tool or
-   auth error is a concrete blocker, not permission to bypass controls. Scope any
-   correction to existing authority before resuming. Completion: process exit,
-   status and actual final output are collected, or interruption/blocker is explicit.
+   host job handle, scope, bounded poll interval, output paths and any justified
+   job deadline with its source; a command proposal is not a run.
+4. Supervise through the host's background/yielding handle with short bounded
+   polls, continuing independent work and user updates. A poll timeout yields
+   control; it does not kill the job. Use a total-runtime kill limit only from an
+   existing explicit task budget or concrete documented resource constraint;
+   preserve it without automatic extension. Follow [exact-session progress
+   inspection](../../README.md#check-progress-in-the-exact-session): compare recent
+   tool calls/results with the pinned task's outstanding milestones. Quiet plain
+   stdout, elapsed time, a PID or fresh reasoning/phase events do not establish a
+   stall or productive progress. Distinguish pending permission, an outstanding
+   tool and repeated errors; investigate the actual gap before intervention.
+   Completion: process exit, status and actual final output are collected, or the
+   precise interruption/blocker and partial work are accounted for. A deadline
+   expiry is interrupted work, never a successful review.
 5. Read stdout and stderr and inspect the reported artifacts. Exit zero alone is
    not success. Independently verify material findings, diffs and applicable tests
    under the repository's review contract. Report the consolidated result to the
@@ -53,7 +60,9 @@ Use `--resume UUID` with a new prompt file after the previous process exits. Kee
 its checkout and permission scope explicit. `--session-id UUID` creates a new
 conversation; it does not resume one. Avoid `--continue` for delegated work because
 it selects by directory rather than the job identity. Resume restores conversation;
-it does not restore code unless separately requested through Grok's restore tools.
+it does not restore code unless separately requested through Grok's restore tools,
+and does not guarantee capture of an interrupted tool result. Inspect actual
+calls/results and partial side effects before repeating work.
 
 A direct headless run has no in-flight message-injection command provided by this
 skill. Choose one of these actual operations:
