@@ -1,0 +1,18 @@
+{
+  "name": "sdlc-process",
+  "version": "0.1.0",
+  "description": "Portable Sidkik SDLC process, Pocock flows and independent review instructions",
+  "author": {
+    "name": "Sidkik"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "SDLC Process",
+    "shortDescription": "Follow the shared Sidkik SDLC.",
+    "longDescription": "Pinned process sources, Pocock flows and independent policy review instructions.",
+    "developerName": "Sidkik",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Follow the SDLC process for this work."
+  }
+}

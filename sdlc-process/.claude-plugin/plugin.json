@@ -1,0 +1,12 @@
+{
+  "name": "sdlc-process",
+  "version": "0.1.0",
+  "description": "Portable Sidkik SDLC process, Pocock flows and independent review instructions",
+  "author": {
+    "name": "Sidkik"
+  },
+  "skills": [
+    "./skills/",
+    "./claude-skills/"
+  ]
+}
