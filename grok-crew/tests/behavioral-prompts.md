@@ -13,5 +13,16 @@ trials, not completed test results.
 | “Have Grok investigate this.” | Host without Grok available | Names the missing CLI capability and preserves the brief; does not claim execution or automatically install dependencies. |
 | “Stop that Grok task; I changed the scope.” | Owned running job handle | Stops and verifies only the owned job, reports partial state; does not claim in-flight steer or race a replacement against ongoing writes. |
 
+Additional progress fixtures use recorded or synthetic session files, without
+mutating another session or requiring another model run:
+
+| Input condition | Observable acceptance |
+| --- | --- |
+| Quiet stdout with new relevant tool calls/results; no explicit total budget | Host uses bounded polls and exact-session evidence, reports the completed task milestone and continues; it creates no arbitrary kill deadline. |
+| Many phase/reasoning events but no new task evidence | Reports activity only and inspects the outstanding call or task-specific range; it does not call timestamps productive progress or automatically kill healthy work. |
+| Explicit job budget expires while work is active | Preserves the budget, reports interruption and partial evidence, and requests a decision only for work beyond that authority; no silent extension. |
+| Permission request appears in the tail, resolution outside it | Inspects the missing range before reporting pending approval; repeated denials stay a concrete blocker rather than an auto-approval trigger. |
+| Interrupted session contains a tool call without its result | Resume uses the same UUID after confirming the prior job stopped, checks side effects and missing evidence, and does not claim the tool completed from conversation restoration. |
+
 Record actual outcomes in the owning issue/PR. A timeout, denial or empty result
 is a failed/blocked trial, not evidence of task completion.
