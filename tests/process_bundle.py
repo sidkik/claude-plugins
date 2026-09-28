@@ -24,7 +24,7 @@ class ProcessBundleTests(unittest.TestCase):
         self.assertIn('orchestrator', common)
         self.assertIn('triage', user_only)
         self.assertFalse(common & user_only)
-        self.assertEqual(len(common | user_only), 22)
+        self.assertEqual(len(common | user_only), 23)
 
     def test_installed_bytes_match_every_recorded_digest(self):
         bundle = ROOT / 'sdlc-process/bundle'
@@ -96,35 +96,12 @@ class ProcessBundleTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'full immutable commit'):
                 build.source_bytes({'revision': 'HEAD'}, repo, 'skill.md')
 
-    def test_hook_relocates_and_only_activates_for_configured_repository(self):
-        with tempfile.TemporaryDirectory(prefix='portable process ') as tmp:
-            root = Path(tmp)
-            plugin = root / 'plugin with spaces'
-            entry = plugin / 'bundle/.claude/skills/sdlc-process/SKILL.md'
-            entry.parent.mkdir(parents=True)
-            entry.write_text('fixture')
-            (plugin / 'SOURCE-ADAPTER.md').write_text('fixture')
-            (plugin / 'scripts').mkdir()
-            script = plugin / 'scripts/session-start.mjs'
-            script.write_bytes((ROOT / 'sdlc-process/scripts/session-start.mjs').read_bytes())
-            checkout = root / 'checkout'
-            (checkout / 'subdir').mkdir(parents=True)
-            def run():
-                result = subprocess.run(['node', str(script)], input=json.dumps({'cwd': str(checkout / 'subdir')}), text=True, capture_output=True, check=True)
-                return json.loads(result.stdout)['hookSpecificOutput']['additionalContext']
-            self.assertIn('no managed SDLC opt-in', run())
-            (checkout / 'AGENTS.md').write_text('<!-- sidkik-sdlc:begin -->\nmanaged instructions')
-            active = run()
-            self.assertIn(str(plugin / 'SOURCE-ADAPTER.md'), active)
-            self.assertIn('setup.mjs\" entry --repo .', active)
-            self.assertIn('If entry fails', active)
-            self.assertNotIn(str(entry), active)
-            self.assertIn('before route selection', active)
-            self.assertNotIn('/projects/sidkik/ep', active)
-            entry.unlink()
-            failed = subprocess.run(['node', str(script)], input='{}', text=True, capture_output=True)
-            self.assertNotEqual(failed.returncode, 0)
-            self.assertIn('incomplete', failed.stderr)
+    def test_setup_runtime_is_packaged_from_maintained_source(self):
+        for name in ('setup.mjs', 'status.mjs', 'agent-setup.mjs'):
+            self.assertEqual((ROOT / 'tools/setup' / name).read_bytes(),
+                             (ROOT / 'sdlc-process/scripts/setup' / name).read_bytes())
+        self.assertEqual((ROOT / 'tools/setup/SKILL.md').read_bytes(),
+                         (ROOT / 'sdlc-process/skills/sdlc-setup/SKILL.md').read_bytes())
 
 
 if __name__ == '__main__':

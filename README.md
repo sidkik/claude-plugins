@@ -2,11 +2,10 @@
 
 Portable SDLC process, status display and agent delegation for Sidkik.
 
-Start with the [machine setup and update guide](docs/setup.md). It installs and
-enables the selected clients’ plugins, configures the status display and opts
-chosen repositories into the shared process while preserving existing settings.
-CLI authentication stays on the machine; credentials and session history are
-not part of this repository.
+Install **sdlc-process**, reload the client, and describe your work. The startup
+hook directs agent-owned setup. If it does not begin automatically, tell the agent
+**“Finish SDLC setup.”** The agent handles companions, verification and repairs. See the
+[WSL setup guide](docs/setup.md) for the behavior and authentication boundaries.
 
 | Plugin | Purpose |
 |---|---|
@@ -21,16 +20,7 @@ for turning maintained source changes into a reviewed, versioned plugin update.
 Project architecture, environment and delivery conventions stay in their owning
 repositories. GitHub remains intake, workflow and system of record.
 
-For individual Claude plugin installation:
-
-```sh
-claude plugin marketplace add sidkik/claude-plugins
-claude plugin install sdlc-process@sidkik-plugins
-claude plugin install sdlc-status@sidkik-plugins
-claude plugin install grok-crew@sidkik-plugins
-claude plugin install codex-crew@sidkik-plugins
-```
-
-Individual installation does not configure the footer or opt a repository into
-the process; use the setup guide for that. `codex-crew` also requires the official
-`codex@openai-codex` companion plugin and authenticated Codex CLI.
+For Claude, install `sdlc-process@sidkik-plugins` from the
+`sidkik/claude-plugins` marketplace. Its startup hook reports missing setup and
+loads an agent-owned repair path from the installed plugin. You do not need to
+clone this repository or run setup commands yourself.

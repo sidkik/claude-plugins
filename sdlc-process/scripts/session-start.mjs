@@ -1,33 +1,17 @@
 #!/usr/bin/env node
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve, join } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const entry = resolve(root, 'bundle/.claude/skills/sdlc-process/SKILL.md');
-const adapter = resolve(root, 'SOURCE-ADAPTER.md');
-let input = {};
-try { input = JSON.parse(readFileSync(0, 'utf8') || '{}'); }
-catch { /* Missing host input uses the actual process cwd, not guessed repository state. */ }
-let location = resolve(typeof input.cwd === 'string' ? input.cwd : process.cwd());
-let enabled = false;
-while (true) {
-  for (const name of ['AGENTS.md', 'CLAUDE.md', 'GROK.md']) {
-    const instruction = join(location, name);
-    if (existsSync(instruction) && readFileSync(instruction, 'utf8').includes('<!-- sidkik-sdlc:begin -->')) enabled = true;
-  }
-  const parent = dirname(location);
-  if (enabled || parent === location) break;
-  location = parent;
-}
-if (!existsSync(entry) || !existsSync(adapter)) {
-  process.stderr.write('SDLC process installation is incomplete: run setup doctor/update.\n');
-  process.exitCode = 1;
-} else {
-  const context = enabled
-    ? `For governed work, first run node \"$HOME/.local/share/sidkik/setup/setup.mjs\" entry --repo . from the actual working directory. If entry fails, report its exact pending-update, drift or capability gap and hold dependent SDLC actions. After successful entry, read ${JSON.stringify(adapter)} and the current process and orchestrator source paths returned by that command before route selection or investigation. Follow the linked orchestrator dependency and applicable SDLC steps. Resolve work from the actual working repository; this plugin directory is only the instruction source. Load the available sdlc-status skill and update its real session state at the prescribed events. Report a missing dependency for its affected action. This instruction does not claim that any skill has already been loaded or any criterion passed.`
-    : 'The SDLC process plugin is available. This working directory has no managed SDLC opt-in; follow its actual repository instructions. Installing this plugin alone does not assign Sidkik process policy to unrelated repositories.';
-  process.stdout.write(JSON.stringify({hookSpecificOutput: {
-    hookEventName: 'SessionStart', additionalContext: context
-  }}) + '\n');
-}
+import {fileURLToPath} from 'node:url';
+import {dirname,resolve} from 'node:path';
+import {existsSync,readFileSync} from 'node:fs';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+let input={};try{input=JSON.parse(readFileSync(0,'utf8')||'{}')}catch{}
+const cwd=typeof input.cwd==='string'?input.cwd:process.cwd();
+// Parent processes may leak another CLI's environment; let the active agent
+// choose its host unless the caller supplies an explicit host identity.
+const client=process.env.SIDKIK_SDLC_CLIENT || input.client || 'unknown';
+let report;
+try{const {diagnose}=await import('./setup/agent-setup.mjs');report=diagnose(client,cwd)}catch(e){report={ready:false,gaps:[{code:'startup',detail:e.message}]}}
+const entry=resolve(root,'bundle/.claude/skills/sdlc-process/SKILL.md');
+if(!existsSync(entry))report={...report,ready:false,gaps:[...report.gaps,{code:'process',detail:'Installed process payload incomplete; agent must reinstall the native sdlc-process plugin.'}]};
+const state=report.ready?'setup checked (authentication not checked)':'setup needs attention';
+const context=`Installed sdlc-process plugin SessionStart report: SDLC ${state}. Paths below belong to this installed plugin, not the working repository; verify them against the native plugin list if provenance is uncertain. In plan/read-only mode perform only source reading and the read-only doctor; defer configuration mutations until the host permits execution. Invoke the native sdlc-process:sdlc-setup skill when the host exposes it. If native invocation is unavailable, read ${JSON.stringify(resolve(root,'skills/sdlc-setup/SKILL.md'))}. Follow its applicable setup steps within current permissions. The installed bootstrap provides diagnosis and authorized repair without a separate checkout. Current host hint: ${client}; establish the actual host before commands. Current findings: ${JSON.stringify(report)}. Installing this plugin initiates setup even without a managed repository marker. Apply the user's actual work scope when adopting repository instructions; preserve unrelated repository policy. Hold only actions dependent on unresolved gaps. After verification read ${JSON.stringify(resolve(root,'SOURCE-ADAPTER.md'))}, the process source ${JSON.stringify(entry)} and its required orchestrator before route selection. No skill load, criterion completion or authentication is asserted by this hook.`;
+process.stdout.write(JSON.stringify({systemMessage:report.ready ? `SDLC ${state}.` : 'SDLC setup needs attention. Ask this agent to finish SDLC setup if it does not start automatically.',hookSpecificOutput:{hookEventName:'SessionStart',additionalContext:context}})+'\n');
