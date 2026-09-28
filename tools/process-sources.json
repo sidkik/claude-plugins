@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "sources": {
+    "planning": {
+      "repository": "https://github.com/sidkik/planning",
+      "revision": "d18d5bd7aa59880c313604a01a5bce8d09071187",
+      "files": [
+        ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
+        ".agents/skills/ask-matt/SKILL.md",
+        ".agents/skills/code-review/SKILL.md",
+        ".agents/skills/codebase-design/DEEPENING.md",
+        ".agents/skills/codebase-design/DESIGN-IT-TWICE.md",
+        ".agents/skills/codebase-design/SKILL.md",
+        ".agents/skills/diagnosing-bugs/SKILL.md",
+        ".agents/skills/domain-modeling/ADR-FORMAT.md",
+        ".agents/skills/domain-modeling/CONTEXT-FORMAT.md",
+        ".agents/skills/domain-modeling/SKILL.md",
+        ".agents/skills/grill-with-docs/SKILL.md",
+        ".agents/skills/grilling/SKILL.md",
+        ".agents/skills/handoff/SKILL.md",
+        ".agents/skills/implement/SKILL.md",
+        ".agents/skills/prototype/LOGIC.md",
+        ".agents/skills/prototype/SKILL.md",
+        ".agents/skills/prototype/UI.md",
+        ".agents/skills/research/SKILL.md",
+        ".agents/skills/tdd/SKILL.md",
+        ".agents/skills/tdd/mocking.md",
+        ".agents/skills/tdd/tests.md",
+        ".agents/skills/to-spec/SKILL.md",
+        ".agents/skills/to-tickets/SKILL.md",
+        ".agents/skills/triage/AGENT-BRIEF.md",
+        ".agents/skills/triage/OUT-OF-SCOPE.md",
+        ".agents/skills/triage/SKILL.md",
+        ".agents/skills/wayfinder/SKILL.md",
+        ".agents/skills/writing-for-agents/SKILL-MECHANICS.md",
+        ".agents/skills/writing-for-agents/SKILL.md",
+        ".claude/agents/sdlc-policy-reviewer.md",
+        ".claude/skills/orchestrator/SKILL.md",
+        ".claude/skills/sdlc-policy-review/SKILL.md",
+        ".claude/skills/sdlc-process/SKILL.md",
+        ".claude/skills/work-artifacts/SKILL.md",
+        "docs/agents/issue-tracker.md",
+        "docs/agents/sdlc/records.md",
+        "docs/work/agent-orchestration/process/orchestration.process.md",
+        "docs/work/agent-orchestration/process/planning-repository.process.md",
+        "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md"
+      ]
+    },
+    "core": {
+      "repository": "https://github.com/sidkik/core",
+      "revision": "a2706a96bf7daf46f272cee65a3a0a2565e40ba0",
+      "files": [
+        ".agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh",
+        ".agents/skills/resolving-merge-conflicts/SKILL.md"
+      ]
+    }
+  },
+  "historical_links": [
+    "docs/work/agent-orchestration/items/core-gh-517-document-organization/source-navigation.research.md",
+    "docs/work/agent-orchestration/items/core-gh-512-process-enablement/process-enablement.spec.md",
+    "docs/work/agent-orchestration/items/core-gh-512-process-enablement/process-enablement.plan.md"
+  ]
+}

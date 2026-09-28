@@ -18,6 +18,11 @@
       "name": "sdlc-status",
       "source": "./sdlc-status",
       "description": "Per-session SDLC phase, attributed evidence and next-action display"
+    },
+    {
+      "name": "sdlc-process",
+      "source": "./sdlc-process",
+      "description": "Portable Sidkik SDLC process, policy, orchestration and pinned Pocock skills."
     }
   ]
 }

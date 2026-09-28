@@ -6,9 +6,11 @@ user-invocable: false
 
 # Crew Runtime
 
-Use this skill only inside `codex-crew` agents (`codex-implementer-astra`,
-`codex-implementer-sol`, `codex-implementer-terra`, `codex-implementer-luna`,
-`codex-reviewer`). Claude → Grok inject is
+The primary session reads this contract to dispatch and supervise `codex-crew`
+agents. The worker execution rules apply inside `codex-implementer-astra`,
+`codex-implementer-sol`, `codex-implementer-terra`, `codex-implementer-luna` and
+`codex-reviewer`; reading it does not make the primary a forwarding worker.
+Claude → Grok inject is
 [grok-crew-runtime](../../../grok-crew/skills/grok-crew-runtime/SKILL.md).
 
 Directory and ownership rules (these bind every command below):
@@ -89,7 +91,7 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
   live turn, then resumes the same Codex thread with the new text. Interrupting
   stops the turn wherever it stands, so a job mid-way through a multi-file edit
   can be left half written. Use it only when a job is genuinely off the rails;
-  for every ordinary course correction use `queue`. Prints
+  for every ordinary course correction use `steer`. Prints
   `REDIRECTED <old> -> <new>`; await the NEW id. Model, effort and write
   posture carry over unless overridden.
 - `crew-codex reap` — retire brokers whose jobs have finished. Runs

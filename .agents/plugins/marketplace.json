@@ -1,0 +1,44 @@
+{
+  "name": "sidkik-plugins",
+  "interface": {
+    "displayName": "Sidkik Plugins"
+  },
+  "plugins": [
+    {
+      "name": "sdlc-process",
+      "source": {
+        "source": "local",
+        "path": "./sdlc-process"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "sdlc-status",
+      "source": {
+        "source": "local",
+        "path": "./sdlc-status"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "grok-crew",
+      "source": {
+        "source": "local",
+        "path": "./grok-crew"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
