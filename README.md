@@ -9,7 +9,7 @@ hook directs agent-owned setup. If it does not begin automatically, tell the age
 
 | Plugin | Purpose |
 |---|---|
-| [sdlc-process](sdlc-process/) | Generated shared SDLC instructions, Pocock flows, orchestrator and independent policy reviewer, with pinned source provenance. |
+| [sdlc-process](sdlc-process/) | Shared SDLC instructions, Pocock flows, policy review and a native Claude main-session observer, with pinned source provenance. |
 | [sdlc-status](sdlc-status/) | Per-session stage completion, evidence standing, blockers, next action and human decisions. |
 | [codex-crew](codex-crew/) | Codex delegate agents for Claude, using the official Codex companion plugin. |
 | [grok-crew](grok-crew/) | Launch, supervise and resume Grok work from Claude or Codex. |

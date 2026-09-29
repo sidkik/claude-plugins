@@ -24,14 +24,30 @@ function routeStages(p) {
   return spec?.stages.map(stage => ({...stage, criteria: [...stage.criteria, ...(p.additions || []).filter(x => x.stage === stage.id)]}));
 }
 export function retainRequirements(payload, previous) {
-  if (!previous?.progress || previous.work !== payload.work) return;
+  if (!previous?.progress || previous.work !== payload.work) {
+    if (payload.progress?.routeHistory?.length) throw Error("route history is writer-owned");
+    return;
+  }
   if (!payload.progress) throw Error("tracked work cannot downgrade to legacy; initialize its current template");
   const p = payload.progress, old = previous.progress;
   if (p.route !== old.route) {
-    const r = p.routeChange;
-    if (!r || !present(r.actor) || !present(r.reference) || r.revision !== p.evidenceRevision || r.assessment?.result !== "passed" || !present(r.assessment.actor) || r.assessment.actor === r.actor || !present(r.assessment.reference) || r.assessment.revision !== p.evidenceRevision) throw Error("route reset requires an applicable independent routeChange assessment");
+    const prior = structuredClone(old);
+    delete prior.routeHistory;
+    delete prior.historyDispositions;
+    p.routeHistory = [...(old.routeHistory || []), prior];
+    p.historyDispositions = structuredClone(old.historyDispositions || {});
     return;
   }
+  if (p.routeHistory !== undefined && JSON.stringify(p.routeHistory) !== JSON.stringify(previous.progress.routeHistory || [])) throw Error("route history is immutable");
+  p.routeHistory = structuredClone(previous.progress.routeHistory || []);
+  if (previous.progress.historyDispositions && p.historyDispositions !== undefined && JSON.stringify(p.historyDispositions) !== JSON.stringify(previous.progress.historyDispositions)) {
+    for (const [key, oldResult] of Object.entries(previous.progress.historyDispositions)) {
+      if (p.historyDispositions[key] && JSON.stringify(p.historyDispositions[key]) !== JSON.stringify(oldResult)) throw Error(`history disposition cannot be replaced: ${key}`);
+    }
+  }
+  p.historyDispositions = {...(previous.progress.historyDispositions || {}), ...(p.historyDispositions || {})};
+  for (const [key, result] of Object.entries(p.historyDispositions))
+    if (!previous.progress.historyDispositions?.[key] && result.revision !== p.evidenceRevision) throw Error(`new history disposition must bind the current evidence revision: ${key}`);
   const supplied = p.additions || [];
   if (!Array.isArray(supplied)) throw Error("invalid additional criteria");
   for (const prior of old.additions || []) {
@@ -50,6 +66,29 @@ export function validateProgress(p, writing = false) {
   if (!present(p.active) || (known && !spec.stages.some(s => s.id === p.active))) throw Error("invalid active stage");
   if (!Array.isArray(p.claimedComplete) || p.claimedComplete.some(x => !present(x) || (known && !spec.stages.some(s => s.id === x)))) throw Error("invalid claimedComplete stages");
   if (!Array.isArray(p.activities) || p.activities.some(x => !["delegation"].includes(x))) throw Error("invalid activities; delegation records attempted dispatch");
+  if (p.routeHistory !== undefined) {
+    if (!Array.isArray(p.routeHistory) || p.routeHistory.length > 20) throw Error("invalid route history");
+    for (const prior of p.routeHistory) {
+      if (!prior || !templates.routes[prior.route] || !present(prior.template) || !present(prior.sourceRevision) || !present(prior.evidenceRevision) || !present(prior.active) || !Array.isArray(prior.claimedComplete) || !Array.isArray(prior.activities) || typeof prior.results !== "object" || !prior.results) throw Error("invalid route history");
+    }
+  }
+  if (p.historyDispositions !== undefined) {
+    if (!p.historyDispositions || typeof p.historyDispositions !== "object" || Array.isArray(p.historyDispositions) || Object.keys(p.historyDispositions).length > 150) throw Error("invalid history dispositions");
+    for (const [key, result] of Object.entries(p.historyDispositions)) {
+      if (!present(key) || !/^[a-z]+@[^:]+:[A-Za-z0-9-]+$/.test(key) || !result || !["passed", "na"].includes(result.status) || !present(result.reason) || !present(result.actor) || !present(result.reference) || !present(result.revision)) throw Error(`invalid history disposition ${key}`);
+      const match = key.match(/^([a-z]+)@([^:]+):([A-Za-z0-9-]+)$/);
+      const prior = p.routeHistory?.find(item => item.route === match?.[1] && item.evidenceRevision === match?.[2]);
+      const stage = prior && routeStages(prior)?.find(candidate => candidate.criteria.some(criterion => criterion.id === match[3]));
+      const criterion = stage?.criteria.find(candidate => candidate.id === match[3]);
+      if (match[3] === "SOURCE") {
+        if (!prior || !result.assessment || result.assessment.result !== "passed" || !present(result.assessment.actor) || result.assessment.actor === result.actor || !present(result.assessment.reference) || result.assessment.revision !== result.revision) throw Error(`historical source change requires current independent assessment: ${key}`);
+        continue;
+      }
+      if (!criterion) throw Error(`history disposition has no matching requirement: ${key}`);
+      if (result.status === "na" && !criterion.conditional) throw Error(`N/A requires a conditional historical criterion: ${key}`);
+      if (criterion.independent && (!result.assessment || result.assessment.result !== "passed" || !present(result.assessment.actor) || result.assessment.actor === result.actor || !present(result.assessment.reference) || result.assessment.revision !== result.revision)) throw Error(`historical criterion requires current independent assessment: ${key}`);
+    }
+  }
   const additions = p.additions || [];
   if (!Array.isArray(additions) || additions.length > 40) throw Error("invalid additional criteria");
   const extraIds = new Set();
@@ -105,5 +144,16 @@ export function project(s, { stale = false, sourceRevision, evidenceRevision } =
   const blocking = stages.flatMap(s => s.rows.map(c => ({ ...c, stage: s.id }))).filter(c => c.violation || (["unknown", "pending", "exception"].includes(c.status) && stages.findIndex(s => s.id === c.stage) <= active));
   // Missing orchestrator must not get buried by generic intake bookkeeping.
   blocking.sort((a, b) => Number(b.violation) - Number(a.violation) || Number(b.id === "SK-orchestrator-load") - Number(a.id === "SK-orchestrator-load"));
-  return { tracked: true, stages, active: p.active, blocking: blocking[0], reason: stale ? "STALE" : changed ? "SOURCE CHANGED" : "reported", invalid };
+  const routeHistory = (p.routeHistory || []).map(prior => {
+    const priorProjection = project({progress: prior}, {stale});
+    const prefix = `${prior.route}@${prior.evidenceRevision}:`;
+    const unresolved = priorProjection.stages.flatMap(stage => stage.rows).filter(row => row.violation && !p.historyDispositions?.[prefix + row.id]);
+    if ((!priorProjection.tracked || priorProjection.invalid) && !p.historyDispositions?.[prefix + "SOURCE"])
+      unresolved.unshift({id:"SOURCE", label:"historical route source/template applicability", status:"unknown", violation:true, reason:priorProjection.reason});
+    const complete = priorProjection.tracked && !priorProjection.invalid && priorProjection.stages.flatMap(stage => stage.rows).every(row => ["passed", "na"].includes(row.status) || !!p.historyDispositions?.[prefix + row.id]);
+    const status = unresolved.length ? "held" : complete ? "complete" : "pending";
+    return {route: prior.route, status, projection: priorProjection, unresolved};
+  });
+  const currentStatus = stages.every(stage => ["ok", "-"].includes(stage.status)) && routeHistory.every(route => route.unresolved.length === 0) ? "complete" : "pending";
+  return { tracked: true, stages, active: p.active, blocking: blocking[0], reason: stale ? "STALE" : changed ? "SOURCE CHANGED" : "reported", invalid, routeHistory, currentStatus };
 }

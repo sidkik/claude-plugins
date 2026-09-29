@@ -78,7 +78,7 @@ this plugin uses color, bold and layout rather than per-row font-size escapes.
 
 ## Required stages and evidence
 
-Version 0.2.3 requires verified display updates after substantive events and
+Version 0.3.0 requires verified display updates after substantive events and
 before yielding changed state to the user. It retains Intake orchestrator load
 and explicit bug reproduction criteria. The agent initializes it from
 `template --route triage|feature|delivery|research`; you can start with an ordinary
@@ -144,8 +144,14 @@ in its real work data and evidence:
 ```sh
 node /absolute/path/to/sdlc-status/scripts/status.mjs template --route triage
 node /absolute/path/to/sdlc-status/scripts/status.mjs write --client claude --session SESSION_ID < session-payload.json
+node /absolute/path/to/sdlc-status/scripts/status.mjs record --client claude --session SESSION_ID < event.json
 node /absolute/path/to/sdlc-status/scripts/status.mjs inspect --client claude --session SESSION_ID
 ```
+
+After initialization, `record` accepts one atomic event with `changed` state
+fields, affected `results`, and optional shared `evidence` and `assessment`.
+It validates and writes the merged state, then returns the same inspection used
+for verification. Shared evidence does not supply independent approval.
 
 Update after an accepted human decision, skill load/application, dispatch,
 agent return/review, new or resolved blocker, or a phase/next-action/human-need
@@ -198,11 +204,20 @@ when omitted from an update for the same work and route/template; omitted
 results become unknown. A changed declaration is rejected. A justified N/A
 requires a declaration marked `conditional: true` and a result reason.
 A same-route template upgrade preserves existing declarations without another
-review checkpoint. Changing route for already tracked work requires `routeChange` with
-actor, reference, current revision and a distinct actor's passing assessment
-(the same assessment shape above). Reuse an existing applicable policy assessment; this is not an extra checkpoint.
-This permits a reviewed reset, not silently
-shrinking the denominator. Tracked work cannot be downgraded to schema 1.
+review checkpoint. Changing the projected route needs no manufactured review:
+display bookkeeping is not execution. The writer preserves an immutable prior
+route snapshot, keeps attempted failures visible, and requires an
+evidenced `historyDispositions` entry before those failures stop holding delivery
+completion. Triage and Delivery completion remain distinct in the compact
+summary. Actual starts and advancement remain governed by the retained route
+criteria and applicable assessment. Tracked work cannot be downgraded to schema 1.
+
+Claude's compact footer also shows the observer state. `seen Ns ago` requires
+matching native runtime evidence for this MAIN session; launch intent without
+that evidence is starting, while setup/version/custom-agent conflict is
+unavailable. Installation, configuration or an agent definition does not
+establish activity. This is an as-of observation, not a heartbeat or policy
+approval.
 
 Set `activities` to include `delegation` before attempting dispatch, add stage
 IDs to `claimedComplete` when claiming completion, and set `active` to the stage

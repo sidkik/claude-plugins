@@ -102,6 +102,20 @@ remained; the architecture violation sat until Q found it himself.
   files, not grepping for smells: read every file in scope completely.
   A review that reads three of nineteen files is a scan wearing a
   review's name.
+- **Keep decisions separate from claims.** Accepted human intent and scope
+  decisions govern the review. An author's brief, implementation choice,
+  checklist, or assertion that a finding is fixed is a claim to test, not
+  proof that the implementation or approach is correct. A write or action
+  fence limits what the reviewer may change; it does not limit supported
+  findings. The reviewer chooses the relevant callers and sibling analogues
+  needed to assess the changed contract, without turning a bounded review
+  into an exhaustive whole-repository audit. Report source-backed defects or
+  contradictions in the spec or approach for disposition by the proper
+  authority; do not silently rewrite accepted human intent.
+- **A bounded re-review stays bounded.** Re-test the claimed correction and
+  affected regression surface at the new revision. This does not create a
+  fresh overall approval or erase findings and evidence from the earlier
+  review.
 - **Adversarial reviews for complex/money areas**: independent skeptics
   briefed to REFUTE — concurrency envelopes, idempotency under retry,
   race windows, orphaned-state paths. *Paid for by:* the orphaned-PENDING

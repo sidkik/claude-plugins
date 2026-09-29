@@ -181,12 +181,16 @@ function compact(s, age, stale, width, colored, single) {
     paint([["Skills (agent): ", undefined, true], [`${skill.applied} applied / ${skill.loaded} loaded / ${skill.pending} pending`, skill.pending ? "amber" : undefined], [" | legacy/untracked; template then inspect", "detail"]], width, colored),
   ];
 }
-function stageLines(s, projection, width, colored, single) {
+function stageLines(s, projection, width, colored, single, observer = "unavailable") {
   const tone = status => status === "!" ? "red" : status === "ok" ? "green" : ["?", "E"].includes(status) ? "amber" : "detail";
   const first = projection.blocking;
   const violation = projection.stages.some(x => x.status === "!");
   const alert = projection.invalid ? projection.reason : violation ? "! VIOLATION" : s.human.status === "needed" ? "YOU NEEDED" : first ? "? PENDING" : "REPORTED";
   const detail = first ? `${first.id}: ${first.label} (${first.status})` : s.human.detail;
+  const routeSummary = [...(projection.routeHistory || []).map(x => `${templates.routes[x.route]?.label || x.route[0].toUpperCase() + x.route.slice(1)} ${x.status}`), `${templates.routes[s.progress.route]?.label || s.progress.route[0].toUpperCase() + s.progress.route.slice(1)} ${projection.currentStatus}`].join(" > ");
+  const observerRow = width < 30
+    ? `Obs:${observer.startsWith("seen") ? "seen" : observer[0].toUpperCase()} | inspect`
+    : `Observer: ${observer} | inspect | ${s.human.status === "none" ? "Human: none" : `Human ${s.human.status}: ${s.human.detail}`}`;
   if (single) {
     // At narrow widths retain an attention symbol, active stage, reported
     // assurance and inspection path. Longer rows add the next action.
@@ -205,11 +209,11 @@ function stageLines(s, projection, width, colored, single) {
   // Include 'inspect' before truncation even at the smallest supported width.
   const chainRow = chainText.length <= width ? paint(chain, width, colored) : paint([["inspect | ", "detail"], ...chain], width, colored);
   return [
-    paint([[projection.invalid ? "!" : violation ? "!" : first ? "?" : "+", projection.invalid || violation ? "red" : "amber", true], [" reported | ", "detail"], [s.work.match(/\/([^/]+)\/issues\/(\d+)$/).slice(1).join("#"), "cyan"], [" | " + alert, projection.invalid || violation ? "red" : "amber", true]], width, colored),
+    paint([[projection.invalid ? "!" : violation ? "!" : first ? "?" : "+", projection.invalid || violation ? "red" : "amber", true], [" reported | ", "detail"], [s.work.match(/\/([^/]+)\/issues\/(\d+)$/).slice(1).join("#"), "cyan"], [" | " + alert, projection.invalid || violation ? "red" : "amber", true], [` | ${routeSummary}`, "detail", true]], width, colored),
     chainRow,
     paint([[detail, violation ? "red" : "amber"]], width, colored),
     paint([["Next: ", undefined, true], [s.next]], width, colored),
-    paint([[s.human.status === "none" ? "Human: none" : `Human ${s.human.status}: ${s.human.detail}`, s.human.status === "none" ? "detail" : "amber"], [" | inspect", "detail"]], width, colored),
+    paint([[observerRow, s.human.status === "none" ? "detail" : "amber"]], width, colored),
   ];
 }
 function inspectStages(s, projection) {
@@ -217,6 +221,13 @@ function inspectStages(s, projection) {
   console.log(ascii(`Template: ${s.progress?.template || "none"}; source ${JSON.stringify(templates.source)}`));
   if (!projection.tracked) return;
   console.log(ascii(`Route: ${s.progress.route}; active: ${s.progress.active}; evidence revision: ${s.progress.evidenceRevision}; phase (informational): ${s.phase}`));
+  for (const prior of projection.routeHistory || []) {
+    console.log(ascii(`Previous route: ${prior.route}; ${prior.status}`));
+    for (const stage of prior.projection.stages)
+      for (const c of stage.rows)
+        if (c.status === "failed" || c.violation || !["passed", "na"].includes(c.status))
+          console.log(ascii(`  ${c.id} ${c.status}: ${c.label}; ${c.reason}`));
+  }
   for (const stage of projection.stages) {
     console.log(`${stage.id}[${stage.status}] ${stage.label}`);
     for (const c of stage.rows) {
@@ -227,6 +238,50 @@ function inspectStages(s, projection) {
       if (c.authority) console.log(ascii(`    exception authority=${JSON.stringify(c.authority)}`));
     }
   }
+}
+function inspectAll(s, projection, age = 0, stale = false) {
+  inspectStages(s, projection);
+  console.log(lines(s, age, stale).map(ascii).join("\n"));
+  console.log("Evidence references (not independently validated):");
+  for (const x of s.skills)
+    if (x.reference) console.log(ascii(`skill ${x.name}: ${x.reference}`));
+  for (const x of s.checks)
+    console.log(ascii(`${x.source}:${x.actor} / ${x.name} / ${x.result}: ${x.reference || "none"}`));
+}
+function observerStatus(payload) {
+  const evidence = payload?.observer;
+  if (evidence?.state === "active" && evidence.evidence === "native-observer-ref" && evidence.assurance === "observed-active-as-of-record" && evidence.sessionId === payload.session_id && text(evidence.observerTaskId) && text(evidence.observedAt)) {
+    const age = Date.now() - Date.parse(evidence.observedAt);
+    if (Number.isFinite(age) && age >= -5000) return `seen ${Math.max(0, Math.floor(age / 1000))}s ago`;
+  }
+  if (evidence?.state === "starting" && evidence.evidence === "launch-request" && (!evidence.sessionId || evidence.sessionId === payload.session_id))
+    return "starting";
+  return "unavailable";
+}
+function mergeRecord(previous, event) {
+  if (!previous?.progress) throw Error("record requires existing tracked state");
+  if (!event || typeof event !== "object" || Array.isArray(event)) throw Error("invalid record event");
+  const allowed = new Set(["changed", "results", "evidence", "assessment"]);
+  if (Object.keys(event).some(key => !allowed.has(key))) throw Error("invalid record event field");
+  const changed = event.changed || {};
+  if (!changed || typeof changed !== "object" || Array.isArray(changed) || Object.keys(changed).some(key => !["phase", "skills", "checks", "next", "human", "progress"].includes(key))) throw Error("invalid changed facts");
+  const payload = structuredClone(previous);
+  delete payload.version; delete payload.client; delete payload.session; delete payload.updated_at;
+  Object.assign(payload, changed);
+  if (changed.progress) payload.progress = {...previous.progress, ...changed.progress};
+  const results = event.results || {};
+  if (!results || typeof results !== "object" || Array.isArray(results)) throw Error("invalid record results");
+  payload.progress.results = {...previous.progress.results};
+  for (const [id, delta] of Object.entries(results)) {
+    if (!delta || typeof delta !== "object" || Array.isArray(delta)) throw Error(`invalid record result ${id}`);
+    const result = {...(previous.progress.results?.[id] || {}), ...delta};
+    if ((event.evidence || Object.keys(delta).some(key => ["status", "actor", "reference", "revision", "reason", "authority"].includes(key))) && !event.assessment && delta.assessment === undefined)
+      delete result.assessment;
+    if (event.evidence) Object.assign(result, event.evidence);
+    if (event.assessment) result.assessment = event.assessment;
+    payload.progress.results[id] = result;
+  }
+  return payload;
 }
 async function main() {
   const [command, ...args] = process.argv.slice(2);
@@ -239,12 +294,12 @@ async function main() {
     console.log(randomUUID());
     return;
   }
-  if (!["write", "inspect", "text", ...clients].includes(command))
+  if (!["write", "record", "inspect", "text", ...clients].includes(command))
     throw Error(
       "usage: status.mjs template --route ROUTE OR write|inspect|text|claude|grok|codex|new-session [--client CLIENT] [--session ID] [--width N] [--max-age SECONDS] [--color auto|always|never]",
     );
   let payload;
-  if (command === "write" || command === "claude" || command === "grok")
+  if (command === "write" || command === "record" || command === "claude" || command === "grok")
     payload = await input();
   const client = clients.includes(command) ? command : opts["--client"];
   const supplied = opts["--session"] || process.env.SDLC_STATUS_SESSION;
@@ -262,13 +317,14 @@ async function main() {
       : supplied,
   );
   const file = location(id);
-  if (command === "write") {
+  if (command === "write" || command === "record") {
     let previous;
     try {
       const prior = await readFile(file);
       if (prior.length > LIMIT) throw Error("previous state too large");
       previous = JSON.parse(prior);
     } catch (error) { if (error.code !== "ENOENT") throw error; }
+    if (command === "record") payload = mergeRecord(previous, payload);
     retainRequirements(payload, previous);
     validate(payload, true);
     const state = {
@@ -296,9 +352,8 @@ async function main() {
     } finally {
       await unlink(temporary).catch(() => {});
     }
-    console.log(
-      "SDLC projection updated; assertions and references are not independently verified.",
-    );
+    if (command === "record") inspectAll(state, project(state));
+    else console.log("SDLC projection updated; assertions and references are not independently verified.");
     return;
   }
   const raw = await readFile(file);
@@ -318,18 +373,11 @@ async function main() {
   const rendered = lines(s, Math.max(0, age), age > maxAge * 1000);
   const projection = project(s, { stale: age > maxAge * 1000, sourceRevision: opts["--source-revision"], evidenceRevision: opts["--evidence-revision"] });
   if (command === "inspect") {
-    inspectStages(s, projection);
-    console.log(rendered.map(ascii).join("\n"));
-    console.log("Evidence references (not independently validated):");
-    for (const x of s.skills)
-      if (x.reference) console.log(ascii(`skill ${x.name}: ${x.reference}`));
-    for (const x of s.checks)
-      console.log(
-        ascii(
-          `${x.source}:${x.actor} / ${x.name} / ${x.result}: ${x.reference || "none"}`,
-        ),
-      );
-  } else if (projection.tracked) console.log(stageLines(s, projection, width, colored, command === "grok").join("\n"));
+    inspectAll(s, projection, Math.max(0, age), age > maxAge * 1000);
+  } else if (projection.tracked) {
+    const shown = stageLines(s, projection, width, colored, command === "grok", observerStatus(payload));
+    console.log(shown.join("\n"));
+  }
   else if (s.progress) console.log(paint([["SDLC UNKNOWN", "red", true], [" | reported | " + projection.reason + " | inspect"]], width, colored));
   else console.log(compact(s, Math.max(0, age), age > maxAge * 1000, width, colored, command === "grok").join("\n"));
 }
@@ -342,5 +390,5 @@ main().catch((error) => {
     colored = process.argv[2] !== "inspect" && useColor(process.argv[2], opts);
   } catch { /* Invalid options still produce a plain, bounded UNKNOWN. */ }
   console.log(paint([["SDLC UNKNOWN", "red", true], [" | " + (error.code === "ENOENT" ? "no projection for this session" : error.message)]], width, colored));
-  if (["write", "template"].includes(process.argv[2])) process.exitCode = 1;
+  if (["write", "record", "template"].includes(process.argv[2])) process.exitCode = 1;
 });

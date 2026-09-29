@@ -1,6 +1,6 @@
 {
   "name": "sdlc-status",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Per-session SDLC phase, attributed evidence and next-action display",
   "author": {
     "name": "Sidkik"

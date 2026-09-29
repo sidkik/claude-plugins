@@ -121,13 +121,15 @@ export function configureClaude(root, dryRun, runtimeFolder = 'setup') {
   const config = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'settings.json');
   const settings = fs.existsSync(config) ? json(config) : {};
   if (!settings || Array.isArray(settings) || typeof settings !== 'object') throw new Error('Claude settings must be a JSON object');
+  if (settings.env !== undefined && (!settings.env || Array.isArray(settings.env) || typeof settings.env !== 'object')) throw new Error('Claude settings.env must be an object');
+  settings.env = {...(settings.env || {}), CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS:'1'};
   const command = `node ${shellQuote(path.join(root,runtimeFolder,'status.mjs'))} claude`;
   if (settings.statusLine?.command !== command) {
     if (settings.statusLine && settings.statusLine.type !== 'command') throw new Error('Unsupported existing Claude statusLine type; retain it and resolve composition explicitly');
     if (!dryRun && !['setup','native-setup'].some(folder => settings.statusLine?.command === `node ${shellQuote(path.join(root,folder,'status.mjs'))} claude`)) { const file = path.join(root,'previous-status.json'); const saved = fs.existsSync(file) ? json(file) : {}; put(file, JSON.stringify({...saved, claude: settings.statusLine || null},null,2)+'\n'); }
     settings.statusLine = { type:'command', command, refreshInterval:30 };
-    if (!dryRun) put(config, JSON.stringify(settings,null,2)+'\n');
   }
+  if (!dryRun) put(config, JSON.stringify(settings,null,2)+'\n');
 }
 export function configureGrok(root, dryRun, runtimeFolder = 'setup') {
   const config = path.join(process.env.GROK_HOME || path.join(os.homedir(),'.grok'), 'config.toml');
