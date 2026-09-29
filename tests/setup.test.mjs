@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {mergeEntry, shellQuote} from '../tools/setup/setup.mjs';
+import {isDirectSdlcStatus, mergeEntry, shellQuote} from '../tools/setup/setup.mjs';
 const script=fileURLToPath(new URL('../tools/setup/setup.mjs',import.meta.url));
 const launcher=fileURLToPath(new URL('../tools/setup/status.mjs',import.meta.url));
 const write=(p,s)=>{fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,s);};
@@ -50,6 +50,22 @@ process.exit(2);
 }
 test('entry preserves unrelated text and replaces exactly once',()=>{const first=mergeEntry('Keep me\n');assert.equal(mergeEntry(first),first);assert.match(first,/Keep me/);assert.throws(()=>mergeEntry('<!-- sidkik-sdlc:begin -->'),/Malformed/)});
 test('shell quote supports apostrophes and command substitutions literally',()=>{assert.equal(spawnSync('/bin/sh',['-c',`printf %s ${shellQuote("a'$(echo BAD) b")}`],{encoding:'utf8'}).stdout,"a'$(echo BAD) b")});
+test('direct SDLC footer recognition is exact and preserves compound custom displays',()=>{
+ const root='/root/.local/share/sidkik';
+ for(const command of [
+  'node "/projects/sidkik/ep/claude-plugins/sdlc-status/scripts/status.mjs" claude',
+  "node '/root/.claude/plugins/cache/sidkik-plugins/sdlc-status/0.3.0/scripts/status.mjs' claude",
+  '/usr/bin/node /root/.local/share/sidkik/native-setup/status.mjs claude',
+ ])assert.equal(isDirectSdlcStatus(command,root),true,command);
+  for(const command of [
+    'node /custom/status.mjs claude',
+    'node "$(custom-root)/sdlc-status/scripts/status.mjs" claude',
+    'node "/x/sdlc-status/scripts/status.mjs"claude',
+    'node /x/sdlc-status/scripts/status.mjs\nprintf custom',
+    'node /root/.claude/plugins/cache/sidkik-plugins/sdlc-status/0.3.0/scripts/status.mjs claude | sed s/x/y/',
+  'printf custom && node /projects/sidkik/ep/claude-plugins/sdlc-status/scripts/status.mjs claude',
+ ])assert.equal(isDirectSdlcStatus(command,root),false,command);
+});
 test('fresh Claude install preserves settings, installs dependencies, activates entry and repeats idempotently',t=>{
  const f=fixture(t);const config=path.join(f.home,'.claude/settings.json');write(config,JSON.stringify({permissions:{allow:['Read']},enabledPlugins:{'other@market':true},statusLine:{type:'command',command:'cat'}}));
  let r=f.run('install','--repo',f.repo);assert.equal(r.status,0,r.stderr);let saved=read(config),entry=read(path.join(f.repo,'CLAUDE.md')),receipt=read(path.join(f.managed,'setup-receipt.json'));
