@@ -119,6 +119,13 @@ description: Independently assess a named SDLC advancement against its sources a
 
 Read [the source adapter](../SOURCE-ADAPTER.md), then [the actual reviewer brief](../bundle/.claude/agents/sdlc-policy-reviewer.md) and its linked skills in full. Return scoped findings to the accountable session. Keep this assignment read-only unless expressly authorized; do not reassess your own output or delegate this assessment again.
 '''
+    observer = ROOT / 'tools/observer'
+    for source, destination in (
+        ('agents/sdlc-observer.md', 'agents/sidkik-sdlc-observer.md'),
+        ('agents/sdlc-observed-main.md', 'agents/sidkik-sdlc-observed-main.md'),
+        ('skills/sdlc-observer/SKILL.md', 'skills/sdlc-observer/SKILL.md'),
+    ):
+        result[destination] = (observer / source).read_bytes()
     runtime = {name: (ROOT / 'tools/setup' / name).read_bytes()
                for name in ('agent-setup.mjs', 'setup.mjs', 'status.mjs')}
     for name, data in runtime.items():

@@ -24,7 +24,8 @@ class ProcessBundleTests(unittest.TestCase):
         self.assertIn('orchestrator', common)
         self.assertIn('triage', user_only)
         self.assertFalse(common & user_only)
-        self.assertEqual(len(common | user_only), 23)
+        self.assertIn('sdlc-observer', common)
+        self.assertEqual(len(common | user_only), 24)
 
     def test_installed_bytes_match_every_recorded_digest(self):
         bundle = ROOT / 'sdlc-process/bundle'
@@ -102,6 +103,13 @@ class ProcessBundleTests(unittest.TestCase):
                              (ROOT / 'sdlc-process/scripts/setup' / name).read_bytes())
         self.assertEqual((ROOT / 'tools/setup/SKILL.md').read_bytes(),
                          (ROOT / 'sdlc-process/skills/sdlc-setup/SKILL.md').read_bytes())
+        for source, destination in (
+            ('agents/sdlc-observer.md', 'agents/sidkik-sdlc-observer.md'),
+            ('agents/sdlc-observed-main.md', 'agents/sidkik-sdlc-observed-main.md'),
+            ('skills/sdlc-observer/SKILL.md', 'skills/sdlc-observer/SKILL.md'),
+        ):
+            self.assertEqual((ROOT / 'tools/observer' / source).read_bytes(),
+                             (ROOT / 'sdlc-process' / destination).read_bytes())
 
 
 if __name__ == '__main__':

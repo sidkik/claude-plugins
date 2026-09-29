@@ -5,8 +5,8 @@
     "repository": "sidkik/planning",
     "path": "docs/work/agent-orchestration/process/orchestration.process.md",
     "section": "required-stage-completion",
-    "commit": "18b7aca81996f0ce2bd7445bb80c49bce0d2f9f3",
-    "sha256": "205a8338fdd3ff6e51fb96869a9f16919da53a882c9cdd0254a5d37e7c4d6e40"
+    "commit": "fd98a3d61b6cdc58330dc40d4ee284189f2b6a9b",
+    "sha256": "f8af3d206433d1271dc3496c78a72ca603bb0d9dcf5163f41e90da2e8fa463bf"
   },
   "routes": {
     "triage": {

@@ -16,6 +16,8 @@ the dependent action once; do not add an acknowledgment checkpoint. Explicitly
 name each action when one assessment covers a coherent sequence, and retain any
 execution-time conditions. Reassess changed inputs and uncovered actions.
 
+For a native observer return, apply the checkpoint contract's advisory-observer rule: inspect the underlying evidence before asserting noncompliance, preserve coverage gaps as such, and distinguish corrective advice from the independent assessment required for advancement.
+
 ## Independent review
 
 The assessor is a separately assigned agent from the worker whose advancement is assessed. Use the [source agent brief](../../../.claude/agents/sdlc-policy-reviewer.md) and actual available harness. If independent execution is unavailable, return a required unknown for the checkpoint; a worker self-check is useful preparation, not the independent pass. Helpers return findings to the accountable session; they do not send global reports or mutate tracker state on its behalf.

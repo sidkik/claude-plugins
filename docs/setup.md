@@ -45,6 +45,38 @@ conflicts. The agent resolves their actual scope and authority; setup never
 silently changes managed policy. Failed setup is reported with its affected
 capability, not as a successful installation.
 
+## See the Claude observer
+
+On Claude Code 2.1.284 or newer, agent-owned setup installs managed local
+agent definitions from the process plugin and enables the native observer
+experiment. Claude's current plugin-agent loader does not preserve observer
+attachment fields, so setup handles that local adapter for you. The main agent's
+body stays empty to preserve Claude's normal coding instructions, chosen model
+and permissions; the observer uses Haiku. Existing custom-agent selections and
+unmanaged files are preserved and reported as scoped conflicts.
+
+Start a fresh Claude session after setup. A plugin reload does not establish
+attachment to an already-running main session. In the SDLC footer:
+
+- **Observer: starting** means setup requested observation but runtime evidence
+  has not appeared yet. Initial activity may precede observer startup.
+- **Observer: seen … ago** means this session's native observer record was found.
+  This is timestamped observation evidence, not a live heartbeat or proof of compliance.
+- **Observer: unavailable** means observation is not established for this session.
+  Ask the agent to check the installed `sdlc-observer` skill and setup diagnostics.
+
+Claude's agent panel shows `sidkik-sdlc-observer` for the detailed native view.
+Useful corrections arrive in the main conversation through `ObserverReport`.
+The observer is advisory: it can identify an unsupported claim or unnecessary
+process gate, but it cannot approve work or replace independent checkpoint review.
+Codex and Grok retain the shared process/status capabilities; this release does
+not claim a native observer for those hosts.
+
+The widget labels route scope so **Triage complete** cannot be mistaken for
+**Delivery complete**. It can show a pending delivery start while an actual
+execution hold remains. Agents use the atomic `record` operation for changed
+facts and the returned inspection instead of repeating full-state edits.
+
 ## Updates
 
 Ask the agent to update the SDLC plugins. It uses the setup runtime inside the

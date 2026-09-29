@@ -1,6 +1,6 @@
 # SDLC Process
 
-`0.1.1` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.2.0` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a SessionStart instruction. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
@@ -10,6 +10,27 @@ wrappers; its SDLC entry reads the user-only Pocock sources directly. The hook
 initiates agent-owned setup even on a fresh machine without a managed repository
 marker. It reports status and directs the agent to the packaged `sdlc-setup`
 skill. Required configuration changes are performed by the agent, not the hook.
+
+On supported Claude Code versions, agent-owned setup enables native observation
+of future foreground MAIN sessions. It installs managed local agent definitions
+because Claude's plugin-agent loader does not retain the experimental observer
+fields, selects the observed MAIN only when no custom default agent conflicts,
+and preserves the user's model, tools, permissions, authentication and unrelated
+settings. The MAIN definition has an empty body so Claude retains its normal
+system prompt; the observer uses Haiku and can only read and send native advisory
+reports. Existing user or project agent choices and unmanaged filename collisions
+remain unchanged and appear as explicit setup gaps.
+
+The status renderer shows `Observer: starting` from configuration and
+`Observer: seen … ago` only after the current transcript contains a matching
+native observer record. `Seen` means native observer activity was recorded as
+of that timestamp, not a live heartbeat. Installation alone is never activation
+evidence, and stopped or failed states require native evidence. This setup has
+no supported hot-attach path; start a fresh session after setup or repair. Live
+tests proved native report delivery, MAIN
+correction, model separation and silence on a compliant fixture. They did not
+prove that every observer turn reads the packaged shared process sources; the
+prompt requires those reads when a finding relies on that process.
 
 Install this plugin and reload the client. If the agent does not start setup,
 tell it **“Finish SDLC setup.”** The hook displays this fallback; automatic

@@ -474,7 +474,7 @@ test("legacy state remains readable as untracked and every supported route initi
   assert.equal(invoke(root,["template","--route","invented"]).status,1);
 }));
 
-test("declared specialist criteria survive omission, cannot replace base and require reviewed route reset", () => setup(root => {
+test("declared specialist criteria survive omission, cannot replace base and route projection preserves history", () => setup(root => {
   const s=stageSample(root); passAll(s); s.progress.active="VE";
   const extra={id:"X-temporal-workflow-writer-load",label:"temporal-workflow-writer loaded",stage:"VE",source:".claude/skills/temporal-workflow-writer/SKILL.md",sourceRevision:"skill-sha256"};
   s.progress.additions=[extra];
@@ -492,9 +492,8 @@ test("declared specialist criteria survive omission, cannot replace base and req
   mark(s,extra.id); assert.equal(write(root,"claude","one",s).status,0);
   assert.match(stageRender(root),/Verify\[ok\]/);
   const reset=stageSample(root,"research");
-  assert.equal(write(root,"claude","one",reset).status,1);
-  reset.progress.routeChange={actor:"primary",reference:"scoped route decision",revision:"candidate-abc",assessment:{result:"passed",actor:"reviewer",reference:"reviewed route change",revision:"candidate-abc"}};
   assert.equal(write(root,"claude","one",reset).status,0);
+  assert.match(stageRender(root),/Triage complete > Research pending/);
   const legacy={...reset};delete legacy.progress;
   assert.equal(write(root,"claude","one",legacy).status,1);
 }));
@@ -665,4 +664,126 @@ test("failed substantive update preserves previous state and verified recovery e
   assert.match(verified.stdout,/Investigate the accepted design/);
   assert.match(verified.stdout,/Human: none.*Decision receipt recorded/);
   assert.match(invoke(root,["inspect","--client","claude","--session","other"]).stdout,/UNKNOWN/);
+}));
+
+test("triage can project pending delivery without review and retains its immutable holds", () => setup(root => {
+  const triage=stageSample(root);passAll(triage);triage.progress.active="CL";triage.progress.claimedComplete=["IN","VE","RF","BR","RV","CL"];
+  mark(triage,"VE-2","failed");
+  assert.equal(write(root,"claude","one",triage).status,0);
+  const delivery=stageSample(root,"delivery");
+  assert.equal(write(root,"claude","one",delivery).status,0);
+  const shown=stageRender(root);
+  assert.match(shown,/Triage held > Delivery pending/);
+  const inspected=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
+  assert.match(inspected,/Previous route: triage/);
+  assert.match(inspected,/VE-2 failed/);
+  const storedPath=join(root,readdirSync(root)[0]);
+  const completed=JSON.parse(readFileSync(storedPath));
+  passAll(completed);completed.progress.active="CL";completed.progress.claimedComplete=["RS","DE","CL"];
+  assert.equal(write(root,"claude","one",completed).status,0);
+  assert.match(stageRender(root),/Triage held > Delivery pending/);
+  completed.progress.historyDispositions={"triage@candidate-abc:VE-2":{status:"passed",reason:"delivery regression verifies the failed triage requirement",actor:"primary",reference:"delivery verification",revision:"candidate-abc"}};
+  assert.equal(write(root,"claude","one",completed).status,0);
+  assert.match(stageRender(root),/Triage complete > Delivery complete/);
+  const file=join(root,readdirSync(root)[0]), stored=JSON.parse(readFileSync(file));
+  stored.progress.routeHistory[0].results["VE-2"].status="passed";
+  const tampered=write(root,"claude","one",stored);
+  assert.equal(tampered.status,1);
+  assert.match(tampered.stdout,/route history is immutable/);
+}));
+
+test("lateral route projection preserves history without manufacturing an assessment", () => setup(root => {
+  const triage=stageSample(root);assert.equal(write(root,"claude","one",triage).status,0);
+  const research=stageSample(root,"research");
+  assert.equal(write(root,"claude","one",research).status,0);
+  assert.match(stageRender(root),/Triage pending > Research pending/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/Previous route: triage/);
+}));
+
+test("record atomically merges shared evidence and assessment then returns inspection", () => setup(root => {
+  const s=stageSample(root);assert.equal(write(root,"claude","one",s).status,0);
+  const event={
+    changed:{phase:"Triage review",next:"Record disposition",progress:{active:"RV"}},
+    results:{"RV-1":{status:"passed"},"SK-sdlc-policy-review-apply":{status:"passed"}},
+    evidence:{actor:"primary",reference:"candidate facts",revision:"candidate-abc"},
+    assessment:{result:"passed",actor:"policy-reviewer",reference:"shared policy assessment",revision:"candidate-abc"}
+  };
+  const recorded=invoke(root,["record","--client","claude","--session","one"],JSON.stringify(event));
+  assert.equal(recorded.status,0,recorded.stdout);
+  assert.match(recorded.stdout,/active: RV/);
+  assert.match(recorded.stdout,/RV-1 passed/);
+  assert.match(recorded.stdout,/SK-sdlc-policy-review-apply passed/);
+  assert.match(recorded.stdout,/shared policy assessment/);
+  assert.match(recorded.stdout,/core\/issues\/456/);
+  assert.match(recorded.stdout,/Next: Record disposition/);
+  assert.match(recorded.stdout,/Human: none/);
+}));
+
+test("shared evidence does not imply independent approval and invalid record is atomic", () => setup(root => {
+  const s=stageSample(root);assert.equal(write(root,"claude","one",s).status,0);
+  const file=join(root,readdirSync(root)[0]), before=readFileSync(file);
+  const evidenceOnly={results:{"RV-1":{status:"passed"}},evidence:{actor:"primary",reference:"candidate facts",revision:"candidate-abc"}};
+  const recorded=invoke(root,["record","--client","claude","--session","one"],JSON.stringify(evidenceOnly));
+  assert.equal(recorded.status,0);
+  assert.match(recorded.stdout,/RV-1 unknown.*independent assessment missing/);
+  const invalid={changed:{progress:{active:"NOT-A-STAGE"}}};
+  assert.equal(invoke(root,["record","--client","claude","--session","one"],JSON.stringify(invalid)).status,1);
+  assert.notDeepEqual(readFileSync(file),before);
+  const afterValid=readFileSync(file);
+  assert.equal(invoke(root,["record","--client","claude","--session","one"],JSON.stringify(invalid)).status,1);
+  assert.deepEqual(readFileSync(file),afterValid);
+}));
+
+test("historical dispositions preserve conditional and independent requirements", () => setup(root => {
+  const triage=stageSample(root);passAll(triage);triage.progress.active="RV";mark(triage,"RV-1","failed");
+  assert.equal(write(root,"claude","one",triage).status,0);
+  const delivery=stageSample(root,"delivery");assert.equal(write(root,"claude","one",delivery).status,0);
+  delivery.progress.routeHistory=JSON.parse(readFileSync(join(root,readdirSync(root)[0]))).progress.routeHistory;
+  delivery.progress.historyDispositions={"triage@candidate-abc:RV-1":{status:"na",reason:"hide review",actor:"primary",reference:"self",revision:"candidate-abc"}};
+  assert.equal(write(root,"claude","one",delivery).status,1);
+  delivery.progress.historyDispositions["triage@candidate-abc:RV-1"]={status:"passed",reason:"finding corrected",actor:"primary",reference:"correction evidence",revision:"candidate-abc"};
+  assert.equal(write(root,"claude","one",delivery).status,1);
+  delivery.progress.historyDispositions["triage@candidate-abc:RV-1"].assessment={result:"passed",actor:"reviewer",reference:"current reassessment",revision:"candidate-abc"};
+  assert.equal(write(root,"claude","one",delivery).status,0);
+}));
+
+test("record clears an old independent assessment when evidence changes", () => setup(root => {
+  const s=stageSample(root);passAll(s);assert.equal(write(root,"claude","one",s).status,0);
+  const event={results:{"RV-1":{status:"passed"}},evidence:{actor:"primary",reference:"changed candidate proof",revision:"candidate-abc"}};
+  const recorded=invoke(root,["record","--client","claude","--session","one"],JSON.stringify(event));
+  assert.equal(recorded.status,0);
+  assert.match(recorded.stdout,/RV-1 unknown.*independent assessment missing/);
+}));
+
+test("retained historical disposition remains valid after evidence revision advances", () => setup(root => {
+  const triage=stageSample(root);passAll(triage);triage.progress.active="CL";triage.progress.claimedComplete=["IN","VE","RF","BR","RV","CL"];mark(triage,"VE-2","failed");
+  assert.equal(write(root,"claude","one",triage).status,0);
+  const delivery=stageSample(root,"delivery");assert.equal(write(root,"claude","one",delivery).status,0);
+  const stored=JSON.parse(readFileSync(join(root,readdirSync(root)[0])));
+  stored.progress.historyDispositions={"triage@candidate-abc:VE-2":{status:"passed",reason:"delivery proof resolves the triage failure",actor:"primary",reference:"proof at candidate abc",revision:"candidate-abc"}};
+  assert.equal(write(root,"claude","one",stored).status,0);
+  stored.progress.evidenceRevision="candidate-def";
+  for (const result of Object.values(stored.progress.results)) {
+    if (result.actor) result.revision="candidate-def";
+    if (result.assessment) result.assessment.revision="candidate-def";
+  }
+  assert.equal(write(root,"claude","one",stored).status,0);
+  assert.match(stageRender(root),/Triage complete > Delivery pending/);
+  const research=stageSample(root,"research");research.progress.evidenceRevision="candidate-def";
+  assert.equal(write(root,"claude","one",research).status,0);
+  assert.match(stageRender(root),/Triage complete > Delivery pending > Research pending/);
+  const projected=JSON.parse(readFileSync(join(root,readdirSync(root)[0])));
+  assert.ok(projected.progress.historyDispositions["triage@candidate-abc:VE-2"]);
+}));
+
+test("observer status uses native runtime proof only", () => setup(root => {
+  const s=stageSample(root);assert.equal(write(root,"claude","one",s).status,0);
+  const render=(input,env={})=>invoke(root,["claude"],JSON.stringify({session_id:"one",...input}),env).stdout;
+  assert.match(render({}),/Observer: unavailable/);
+  assert.match(render({observer:{state:"starting",evidence:"launch-request",sessionId:"one"}}),/Observer: starting/);
+  assert.match(render({observer:{state:"active",evidence:"installed"}}),/Observer: unavailable/);
+  const active={state:"active",evidence:"native-observer-ref",sessionId:"one",observerTaskId:"task-1",observedAt:new Date().toISOString(),assurance:"observed-active-as-of-record"};
+  assert.match(render({observer:active}),/Observer: seen \d+s ago/);
+  assert.match(render({observer:{...active,sessionId:"other"}}),/Observer: unavailable/);
+  assert.match(render({observer:{state:"unavailable",evidence:"none",sessionId:"one",reason:"unsupported-version"}}),/Observer: unavailable/);
 }));
