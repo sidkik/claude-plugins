@@ -13,6 +13,24 @@ const END = '<!-- sidkik-sdlc:end -->';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const hash = data => crypto.createHash('sha256').update(data).digest('hex');
 export const shellQuote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+function commandWords(command) {
+  if (typeof command !== 'string') return null;
+  const atom = String.raw`(?:"([^"\\\`$]*)"|'([^']*)'|([^\s"'|&;<>\`$()\\]+))`;
+  const match = command.match(new RegExp(`^[ \\t]*${atom}[ \\t]+${atom}[ \\t]+${atom}[ \\t]*$`));
+  return match ? [match[1] ?? match[2] ?? match[3], match[4] ?? match[5] ?? match[6], match[7] ?? match[8] ?? match[9]] : null;
+}
+function isManagedSdlcWrapper(command, root) {
+  const words = commandWords(command);
+  if (!words || words.length !== 3 || path.basename(words[0]) !== 'node' || words[2] !== 'claude') return false;
+  const script = path.resolve(words[1]).replaceAll('\\', '/');
+  return ['setup','native-setup'].some(folder => script === path.resolve(root,folder,'status.mjs').replaceAll('\\', '/'));
+}
+export function isDirectSdlcStatus(command, root) {
+  const words = commandWords(command);
+  if (!words || words.length !== 3 || path.basename(words[0]) !== 'node' || words[2] !== 'claude') return false;
+  const script = path.resolve(words[1]).replaceAll('\\', '/');
+  return isManagedSdlcWrapper(command, root) || /\/sdlc-status(?:\/[^/]+)*\/scripts\/status\.mjs$/.test(script);
+}
 const json = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const read = file => fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
 export function put(file, value) {
@@ -124,9 +142,18 @@ export function configureClaude(root, dryRun, runtimeFolder = 'setup') {
   if (settings.env !== undefined && (!settings.env || Array.isArray(settings.env) || typeof settings.env !== 'object')) throw new Error('Claude settings.env must be an object');
   settings.env = {...(settings.env || {}), CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS:'1'};
   const command = `node ${shellQuote(path.join(root,runtimeFolder,'status.mjs'))} claude`;
+  const previousFile = path.join(root,'previous-status.json');
+  let previous = fs.existsSync(previousFile) ? json(previousFile) : {};
+  if (!dryRun && isDirectSdlcStatus(previous.claude?.command, root)) {
+    previous = {...previous, claude:null};
+    put(previousFile, JSON.stringify(previous,null,2)+'\n');
+  }
   if (settings.statusLine?.command !== command) {
     if (settings.statusLine && settings.statusLine.type !== 'command') throw new Error('Unsupported existing Claude statusLine type; retain it and resolve composition explicitly');
-    if (!dryRun && !['setup','native-setup'].some(folder => settings.statusLine?.command === `node ${shellQuote(path.join(root,folder,'status.mjs'))} claude`)) { const file = path.join(root,'previous-status.json'); const saved = fs.existsSync(file) ? json(file) : {}; put(file, JSON.stringify({...saved, claude: settings.statusLine || null},null,2)+'\n'); }
+    if (!dryRun && !isManagedSdlcWrapper(settings.statusLine?.command, root)) {
+      const predecessor = isDirectSdlcStatus(settings.statusLine?.command, root) ? null : settings.statusLine || null;
+      put(previousFile, JSON.stringify({...previous, claude:predecessor},null,2)+'\n');
+    }
     settings.statusLine = { type:'command', command, refreshInterval:30 };
   }
   if (!dryRun) put(config, JSON.stringify(settings,null,2)+'\n');

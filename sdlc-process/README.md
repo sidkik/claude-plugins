@@ -1,6 +1,6 @@
 # SDLC Process
 
-`0.2.0` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.2.1` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a SessionStart instruction. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
@@ -20,6 +20,10 @@ settings. The MAIN definition has an empty body so Claude retains its normal
 system prompt; the observer uses Haiku and can only read and send native advisory
 reports. Existing user or project agent choices and unmanaged filename collisions
 remain unchanged and appear as explicit setup gaps.
+
+During upgrades, setup removes a saved predecessor only when it is a direct
+Sidkik SDLC footer command. Custom and compound predecessor commands remain
+composed with the managed footer.
 
 The status renderer shows `Observer: starting` from configuration and
 `Observer: seen … ago` only after the current transcript contains a matching

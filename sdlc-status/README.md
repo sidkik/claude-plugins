@@ -20,7 +20,7 @@ Merge this field into your selected settings file, without replacing other keys:
 {"statusLine":{"type":"command","command":"node \"/absolute/path/to/sdlc-status/scripts/status.mjs\" claude","refreshInterval":30}}
 ```
 
-The command consumes Claude's documented `session_id` from JSON stdin. It prints five bounded lines with an attention marker, stage chain and unmet criteria. Use `--width 100` to narrow them. Obtain the current ID from Claude's session information or the current transcript filename; confirm it belongs to this session before writing. Never infer it from the working directory.
+The command consumes Claude's documented `session_id` from JSON stdin. It prints three bounded rows for attention, the route/stage chain and the next action. A material failure adds one concise blocker row; full criterion IDs and evidence remain in `inspect`. Use `--width 100` to narrow them. Obtain the current ID from Claude's session information or the current transcript filename; confirm it belongs to this session before writing. Never infer it from the working directory.
 
 [Claude status-line contract](https://code.claude.com/docs/en/statusline) and [plugin packaging](https://code.claude.com/docs/en/plugins-reference). The main status line is separately configured, not automatically installed by the plugin manifest.
 
@@ -71,14 +71,14 @@ references. Use it when the compact footer truncates details.
 
 `--width` sets a 20–500 column limit; otherwise `COLUMNS` is bounded to that
 range, defaulting to 140. Grok keeps one row with attention, current stage and reported assurance;
-issue and next action appear when space permits, with an inspection pointer. Claude keeps five rows. Both color and plain modes
+issue and next action appear when space permits, with an inspection pointer. Claude keeps three rows, adding one blocker row for a material failure. Both color and plain modes
 truncate visible text, not ANSI bytes. Terminal font size applies to the terminal;
 this plugin uses color, bold and layout rather than per-row font-size escapes.
 
 
 ## Required stages and evidence
 
-Version 0.3.0 requires verified display updates after substantive events and
+Version 0.3.1 requires verified display updates after substantive events and
 before yielding changed state to the user. It retains Intake orchestrator load
 and explicit bug reproduction criteria. The agent initializes it from
 `template --route triage|feature|delivery|research`; you can start with an ordinary
@@ -87,19 +87,18 @@ Templates in `templates/routes.json` pin the canonical planning source by path,
 commit and SHA-256. Their required IDs cannot be replaced with a caller's list.
 
 ```text
-? reported | core#456 | ? PENDING
-Intake[?] > Verify[.] > Refine[.] > Brief[.] > Review[.] > Closeout[.]
-SK-orchestrator-load: orchestrator loaded (unknown)
-Next: Load orchestrator before selecting the route
-Human: none | inspect
+core#456 | Triage | PENDING                                      Obs: unavailable
+→ ? Intake  · Verify  · Refine  · Brief  · Review  · Closeout
+Next: Load orchestrator before selecting the route | inspect
 ```
 
-`[ok]` green means every applicable required criterion has current reported
-proof, including independent assessment where required. `[?]` amber is current
-pending/unknown; `[.]` is future work. `[!]` red is a failure or attempted
-advancement/explicit completion with an unmet prerequisite. `[E]` amber is an
-authorized exception, never an unqualified complete stage. `[-]` is justified
-N/A. These meanings survive color being disabled. Reports remain unauthenticated;
+`✓` green means every applicable required criterion has current reported
+proof, including independent assessment where required. `?` amber is current
+pending/unknown; `·` is future work. `✕` marks a failure in red, or attempted
+advancement/explicit completion with an unknown prerequisite in amber. `E` amber is an
+authorized exception, never an unqualified complete stage. `-` is justified
+N/A. `→` identifies the current stage without concealing its separate status
+symbol. These meanings survive color being disabled. Reports remain unauthenticated;
 even an independent assessment is a reported reference, not a verified identity.
 
 Stages abbreviate Intake, Verify, Refine, Brief, Review, Ready/start, Deliver and

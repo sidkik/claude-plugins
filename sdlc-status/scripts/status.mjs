@@ -142,9 +142,11 @@ function displayWidth(opts) {
 }
 function paint(parts, width, colored) {
   let remaining = width;
-  return parts.map(([value, tone, bold]) => {
+  return parts.map(([value, tone, bold, trusted]) => {
     if (!remaining) return "";
-    const valueText = (String(value).startsWith(" ") ? " " : "") + ascii(value) + (String(value).endsWith(" ") ? " " : "");
+    // Trusted parts are renderer-owned single-cell glyphs or layout spaces.
+    // Payload-derived text always takes the sanitized path.
+    const valueText = trusted ? String(value) : (String(value).startsWith(" ") ? " " : "") + ascii(value) + (String(value).endsWith(" ") ? " " : "");
     const shown = valueText.length > remaining
       ? valueText.slice(0, Math.max(0, remaining - 3)) + ".".repeat(Math.min(3, remaining))
       : valueText;
@@ -181,40 +183,83 @@ function compact(s, age, stale, width, colored, single) {
     paint([["Skills (agent): ", undefined, true], [`${skill.applied} applied / ${skill.loaded} loaded / ${skill.pending} pending`, skill.pending ? "amber" : undefined], [" | legacy/untracked; template then inspect", "detail"]], width, colored),
   ];
 }
-function stageLines(s, projection, width, colored, single, observer = "unavailable") {
+function stageLines(s, projection, width, colored, single, observer = "unavailable", age = 0, stale = false) {
   const tone = status => status === "!" ? "red" : status === "ok" ? "green" : ["?", "E"].includes(status) ? "amber" : "detail";
   const first = projection.blocking;
   const violation = projection.stages.some(x => x.status === "!");
-  const alert = projection.invalid ? projection.reason : violation ? "! VIOLATION" : s.human.status === "needed" ? "YOU NEEDED" : first ? "? PENDING" : "REPORTED";
-  const detail = first ? `${first.id}: ${first.label} (${first.status})` : s.human.detail;
-  const routeSummary = [...(projection.routeHistory || []).map(x => `${templates.routes[x.route]?.label || x.route[0].toUpperCase() + x.route.slice(1)} ${x.status}`), `${templates.routes[s.progress.route]?.label || s.progress.route[0].toUpperCase() + s.progress.route.slice(1)} ${projection.currentStatus}`].join(" > ");
-  const observerRow = width < 30
-    ? `Obs:${observer.startsWith("seen") ? "seen" : observer[0].toUpperCase()} | inspect`
-    : `Observer: ${observer} | inspect | ${s.human.status === "none" ? "Human: none" : `Human ${s.human.status}: ${s.human.detail}`}`;
+  const historyHeld = (projection.routeHistory || []).flatMap(x => x.unresolved || []);
+  const failed = [...projection.stages.flatMap(stage => stage.rows.filter(row => row.status === "failed" || row.violation)), ...historyHeld];
+  const actualFailures = failed.filter(row => row.status === "failed");
+  const issue = s.work.match(/\/([^/]+)\/issues\/(\d+)$/).slice(1).join("#");
+  const observerLabel = width < 60 ? "" : `Obs: ${observer}`;
+  const marker = status => status === "ok" ? "✓" : status === "!" ? "✕" : status === "?" ? "?" : status === "E" ? "E" : status === "-" ? "-" : "·";
+  const stateTone = actualFailures.length ? "red" : projection.invalid || stale || violation || historyHeld.length || s.human.status !== "none" || first ? "amber" : "green";
   if (single) {
-    // At narrow widths retain an attention symbol, active stage, reported
-    // assurance and inspection path. Longer rows add the next action.
-    const issue = s.work.match(/\/([^/]+)\/issues\/(\d+)$/).slice(1).join("#");
     const activeName = projection.stages.find(x => x.id === projection.active).label;
-    const attention = projection.invalid || violation ? "!" : s.human.status !== "none" ? "YOU" : first ? "?" : "+";
-    const activity = width >= 60 ? ` ${activeName} ${issue}` : width >= 24 ? ` ${projection.active}` : attention === "YOU" ? "" : projection.active;
+    const activeStatus = projection.stages.find(x => x.id === projection.active).status;
+    const attention = s.human.status !== "none" ? (violation || historyHeld.length ? "YOU!" : "YOU") : violation || historyHeld.length ? "!" : projection.invalid || stale || first ? "?" : "+";
+    const activity = width >= 60 ? ` ${issue} > ${activeName}[${activeStatus}]` : width >= 24 ? ` ${projection.active}[${activeStatus}]` : "";
     const prefix = `${attention}${activity} reported`;
     const room = width - prefix.length - " inspect".length;
     const middle = room > 10 ? ` next:${clip(s.next, room - 6)}` : "";
-    return [paint([[prefix, projection.invalid || violation ? "red" : first || s.human.status !== "none" ? "amber" : "cyan", true], [middle], [" inspect", "detail"]], width, colored)];
+    return [paint([[prefix, stateTone, true], [middle], [" inspect", "detail"]], width, colored)];
   }
-  const names = width >= 80;
-  const chain = projection.stages.flatMap((x, i) => [[`${i ? " > " : ""}${names ? x.label : x.id}[${x.status}]`, tone(x.status), true]]);
-  const chainText = projection.stages.map(x => `${names ? x.label : x.id}[${x.status}]`).join(" > ");
-  // Include 'inspect' before truncation even at the smallest supported width.
-  const chainRow = chainText.length <= width ? paint(chain, width, colored) : paint([["inspect | ", "detail"], ...chain], width, colored);
-  return [
-    paint([[projection.invalid ? "!" : violation ? "!" : first ? "?" : "+", projection.invalid || violation ? "red" : "amber", true], [" reported | ", "detail"], [s.work.match(/\/([^/]+)\/issues\/(\d+)$/).slice(1).join("#"), "cyan"], [" | " + alert, projection.invalid || violation ? "red" : "amber", true], [` | ${routeSummary}`, "detail", true]], width, colored),
-    chainRow,
-    paint([[detail, violation ? "red" : "amber"]], width, colored),
-    paint([["Next: ", undefined, true], [s.next]], width, colored),
-    paint([[observerRow, s.human.status === "none" ? "detail" : "amber"]], width, colored),
-  ];
+  const currentRoute = templates.routes[s.progress.route]?.label || s.progress.route[0].toUpperCase() + s.progress.route.slice(1);
+  const humanLabel = s.human.status === "needed" ? "YOU NEEDED" : s.human.status === "unknown" ? "HUMAN UNKNOWN" : "";
+  const heldCount = failed.length - actualFailures.length;
+  const blockedSummary = [actualFailures.length ? `FAILED ${actualFailures.length}` : "", heldCount ? `BLOCKED ${heldCount}` : ""].filter(Boolean).join(" | ");
+  const assurance = projection.invalid ? projection.reason : stale ? `STALE ${Math.floor(age / 1000)}s` : violation || historyHeld.length ? blockedSummary : first ? "PENDING" : "REPORTED";
+  const attention = humanLabel ? `${humanLabel} | ${assurance}: ${s.human.detail}` : assurance;
+  const rightRoom = observerLabel ? observerLabel.length + 3 : 0;
+  const attentionRoom = Math.max(4, width - rightRoom - issue.length - currentRoute.length - 6);
+  const shownAttention = clip(attention, attentionRoom);
+  const left = `${issue} | ${currentRoute} | ${shownAttention}`;
+  const gap = " ".repeat(Math.max(observerLabel ? 1 : 0, width - left.length - observerLabel.length));
+  const narrowAttention = humanLabel
+    ? `${humanLabel}${stale ? " | STALE" : projection.invalid ? " | CHANGED" : violation || historyHeld.length ? ` | ${actualFailures.length ? "FAILED" : "BLOCKED"}` : ""}`
+    : assurance;
+  const row1 = width < 60
+    ? paint([[clip(narrowAttention, width), stateTone, true]], width, colored)
+    : paint([[issue], [" | "], [currentRoute], [" | "], [shownAttention, stateTone, true], [gap, undefined, false, true], [observerLabel, "detail"]], width, colored);
+  const history = (projection.routeHistory || []).map(x => {
+    const label = templates.routes[x.route]?.label || x.route[0].toUpperCase() + x.route.slice(1);
+    return `${label} ${x.status === "complete" ? "✓" : x.status === "held" ? "✕" : "?"}`;
+  });
+  const chain = projection.stages.flatMap((x, i) => {
+    const status = projection.invalid || stale ? (x.status === "." ? "." : "?") : x.status;
+    const active = x.id === projection.active;
+    const stageTone = status === "!" && !x.rows.some(row => row.status === "failed") ? "amber" : tone(status);
+    return [
+      [i ? "  " : "", undefined, false, true],
+      [active ? "→ " : `${marker(status)} `, active ? "cyan" : stageTone, active || status === "!", true],
+      [active ? `${marker(status)} ` : "", stageTone, status === "!", true],
+      [x.label, active ? "cyan" : stageTone, active || status === "!"],
+    ];
+  });
+  const routePrefix = history.length ? `${history.join(" → ")} → ${currentRoute} ${projection.currentStatus === "complete" ? "✓" : "?"} | ` : "";
+  const activeStage = projection.stages.find(x => x.id === projection.active);
+  const activeStatus = projection.invalid || stale ? (activeStage.status === "." ? "." : "?") : activeStage.status;
+  const activeTone = activeStatus === "!" && !activeStage.rows.some(row => row.status === "failed") ? "amber" : tone(activeStatus);
+  const fullChainText = projection.stages.map(x => `${x.id === projection.active ? `→ ${marker(projection.invalid || stale ? (x.status === "." ? "." : "?") : x.status)} ` : `${marker(projection.invalid || stale ? (x.status === "." ? "." : "?") : x.status)} `}${x.label}`).join("  ");
+  let chainRow;
+  if (width < 60) {
+    chainRow = paint([[`${currentRoute} | `], ["→ ", "cyan", true, true], [`${marker(activeStatus)} `, activeTone, activeStatus === "!", true], [activeStage.label, "cyan", true]], width, colored);
+  } else if (routePrefix.length + fullChainText.length <= width) {
+    chainRow = paint([[routePrefix, "detail", false, true], ...chain], width, colored);
+  } else {
+    const complete = projection.stages.filter(x => ["ok", "-"].includes(x.status)).length;
+    const compactHistory = history.length ? `${history[0]}${history.length > 1 ? ` +${history.length - 1}` : ""} → ${currentRoute} ${projection.currentStatus === "complete" ? "✓" : "?"} | ` : `${currentRoute} | `;
+    chainRow = paint([[compactHistory, "detail", false, true], [`${complete}/${projection.stages.length} `, "detail"], ["→ ", "cyan", true, true], [`${marker(activeStatus)} `, activeTone, activeStatus === "!", true], [activeStage.label, "cyan", true]], width, colored);
+  }
+  const nextSuffix = width < 40 ? " | inspect" : " | inspect | reported";
+  const nextRoom = Math.max(4, width - "Next: ".length - nextSuffix.length);
+  const rows = [row1, chainRow, paint([["Next: ", undefined, true], [clip(s.next, nextRoom)], [nextSuffix, "detail"]], width, colored)];
+  if (failed.length) {
+    const failure = failed[0];
+    const failureTone = failure.status === "failed" ? "red" : "amber";
+    rows.push(paint([["Blocked: ", failureTone, true], [clip(`${failure.label} (${failure.status})${failed.length > 1 ? ` +${failed.length - 1}` : ""}`, width - 9), failureTone]], width, colored));
+  }
+  return rows;
 }
 function inspectStages(s, projection) {
   console.log(ascii(`SDLC ${projection.reason}; reported assertions, not independently authenticated`));
@@ -375,7 +420,7 @@ async function main() {
   if (command === "inspect") {
     inspectAll(s, projection, Math.max(0, age), age > maxAge * 1000);
   } else if (projection.tracked) {
-    const shown = stageLines(s, projection, width, colored, command === "grok", observerStatus(payload));
+    const shown = stageLines(s, projection, width, colored, command === "grok", observerStatus(payload), Math.max(0, age), age > maxAge * 1000);
     console.log(shown.join("\n"));
   }
   else if (s.progress) console.log(paint([["SDLC UNKNOWN", "red", true], [" | reported | " + projection.reason + " | inspect"]], width, colored));

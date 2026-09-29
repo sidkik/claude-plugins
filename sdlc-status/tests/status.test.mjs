@@ -364,14 +364,14 @@ test("route skeleton is exhaustive and missing orchestrator stays visible before
   delete s.progress.results["SK-orchestrator-load"];
   assert.equal(write(root,"claude","one",s).status,0);
   let out=stageRender(root);
-  assert.match(out,/Intake\[\?\].*Verify\[\.\]/);
-  assert.match(out,/orchestrator loaded \(unknown\)/);
+  assert.match(out,/→ \? Intake.*· Verify/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/SK-orchestrator-load unknown: orchestrator loaded/);
   s.progress.activities=["delegation"];
   assert.equal(write(root,"claude","one",s).status,0);
   out=stageRender(root);
-  assert.match(out,/VIOLATION/);
-  assert.match(out,/Intake\[!\]/);
-  assert.match(out,/SK-orchestrator-load/);
+  assert.match(out,/BLOCKED 1/);
+  assert.match(out,/→ ✕ Intake/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/SK-orchestrator-load unknown.*VIOLATION/);
 }));
 test("claiming verification complete cannot hide missing evidence or replace template denominator", () => setup(root => {
   const s=stageSample(root);
@@ -380,11 +380,11 @@ test("claiming verification complete cannot hide missing evidence or replace tem
   s.progress.active="VE";
   delete s.progress.results["VE-2"];
   write(root,"claude","one",s);
-  assert.match(stageRender(root),/Verify\[\?\]/);
+  assert.match(stageRender(root),/→ \? Verify/);
   s.progress.claimedComplete=["VE"];
   write(root,"claude","one",s);
-  assert.match(stageRender(root),/Verify\[!\]/);
-  assert.match(stageRender(root),/VE-2/);
+  assert.match(stageRender(root),/→ ✕ Verify/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/VE-2 unknown/);
   s.progress.required=[];
   assert.equal(write(root,"claude","one",s).status,1);
   delete s.progress.required;
@@ -399,18 +399,18 @@ test("passing requires evidence revision, independent assessments and non-self a
   passAll(s); s.progress.active="RV";
   delete s.progress.results["RV-1"].assessment;
   write(root,"claude","one",s);
-  assert.match(stageRender(root),/Review\[\?\]/);
+  assert.match(stageRender(root),/→ \? Review/);
   const inspect=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
   assert.match(inspect,/RV-1 unknown.*independent assessment missing/);
   s.progress.results["RV-1"].assessment={result:"passed",actor:"primary",reference:"self",revision:"candidate-abc"};
   write(root,"claude","one",s);
-  assert.match(stageRender(root),/Review\[\?\]/);
+  assert.match(stageRender(root),/→ \? Review/);
   passAll(s);
   write(root,"claude","one",s);
-  assert.match(stageRender(root),/Review\[ok\]/);
+  assert.match(stageRender(root),/→ ✓ Review/);
   s.progress.results["VE-2"].revision="older";
   write(root,"claude","one",s);
-  assert.match(stageRender(root),/Verify\[!\]/);
+  assert.match(stageRender(root),/✕ Verify/);
 }));
 test("conditional N/A needs a reason, human exceptions remain E and failures remain red", () => setup(root => {
   const s=stageSample(root); passAll(s); s.progress.active="RF";
@@ -425,9 +425,9 @@ test("conditional N/A needs a reason, human exceptions remain E and failures rem
   assert.equal(write(root,"claude","one",s).status,1);
   Object.assign(s.progress.results["VE-2"],{reason:"Scoped alternate evidence",authority:{kind:"human",actor:"Chad",reference:"actual decision receipt",revision:"candidate-abc"}});
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[E\]/);
+  assert.match(stageRender(root),/E Verify/);
   mark(s,"VE-2","failed"); write(root,"claude","one",s);
-  assert.match(stageRender(root,["--color","always"]),/\x1b\[1;31m > Verify\[!\]\x1b\[0m/);
+  assert.match(stageRender(root,["--color","always"]),/\x1b\[1;31m✕ \x1b\[0m\x1b\[1;31mVerify\x1b\[0m/);
 }));
 test("stale, changed source/evidence and unknown template withdraw all stage green", () => setup(root => {
   const s=stageSample(root); passAll(s); write(root,"claude","one",s);
@@ -436,7 +436,7 @@ test("stale, changed source/evidence and unknown template withdraw all stage gre
   }
   const path=join(root,readdirSync(root)[0]), stored=JSON.parse(readFileSync(path));
   writeFileSync(path,JSON.stringify({...stored,updated_at:"2020-01-01T00:00:00Z"}));
-  assert.match(stageRender(root),/STALE/); assert.doesNotMatch(stageRender(root),/\[ok\]/);
+  assert.match(stageRender(root),/STALE/); assert.doesNotMatch(stageRender(root),/✓/);
   stored.progress.template="sidkik-sdlc@unknown";
   writeFileSync(path,JSON.stringify(stored));
   assert.match(stageRender(root),/UNKNOWN.*unknown template/); assert.doesNotMatch(stageRender(root),/\[ok\]/);
@@ -451,25 +451,67 @@ test("stage rendering is bounded, injection safe, plain equivalent and inspect r
     const color=stageRender(root,["--width",String(width),"--color","always"]);
     assert.equal(stripSGR(color),plain);
     assert.ok(plain.trimEnd().split("\n").every(x=>x.length<=width));
-    assert.match(plain,/reported/); assert.match(plain,/inspect/);
+    assert.match(plain,/Next:/); assert.match(plain,/inspect/);
     assert.doesNotMatch(stripSGR(color),/[\x1b\u202e]|https:\/\/evil/);
     const row=grok(root,["--width",String(width)]).stdout.trimEnd();
     assert.ok(row.length<=width); assert.equal(row.split("\n").length,1);
-    assert.match(row,/reported/); assert.match(row,/inspect/);
+    assert.match(row,/inspect/);
   }
   const detail=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
   for(const id of Object.keys(s.progress.results)) assert.ok(detail.includes(id),id);
   assert.match(detail,/actor=primary revision=candidate-abc/);
   assert.doesNotMatch(detail,/[\x1b\u202e]|https:\/\/evil/);
 }));
+test("quiet footer keeps human need, route, stage assurance, next action and stale state visible", () => setup(root => {
+  const s=stageSample(root,"delivery");passAll(s);s.progress.active="DE";
+  s.human={status:"needed",detail:"Choose whether release remains paused"};
+  s.next="Review PR #684; merge remains paused";
+  assert.equal(write(root,"claude","one",s).status,0);
+  for (const width of [80,120]) {
+    const shown=stageRender(root,["--width",String(width),"--color","never"]).trimEnd().split("\n");
+    assert.equal(shown.length,3);
+    assert.match(shown[0],/core#456 \| Delivery \| YOU NEEDED/);
+    assert.match(shown[0],/Obs: unavailable/);
+    assert.match(shown[1],/→ ✓ Deliver/);
+    assert.match(shown[2],/^Next: Review PR #684; merge remains paused \| inspect \| reported$/);
+    assert.ok(shown.every(row=>row.length<=width));
+  }
+  const narrow=stageRender(root,["--width","20","--color","never"]).trimEnd().split("\n");
+  assert.match(narrow[0],/^YOU NEEDED/);
+  assert.match(narrow[1],/^Delivery \| → ✓/);
+  assert.match(narrow[2],/inspect/);
+  const path=join(root,readdirSync(root)[0]), stored=JSON.parse(readFileSync(path));
+  writeFileSync(path,JSON.stringify({...stored,updated_at:"2020-01-01T00:00:00Z"}));
+  const stale=stageRender(root,["--width","80","--color","never"]);
+  assert.match(stale,/YOU NEEDED \| STALE/);
+  assert.doesNotMatch(stale,/✓/);
+  assert.match(stale,/→ \? Deliver/);
+  const narrowStale=stageRender(root,["--width","20","--color","never"]);
+  assert.match(narrowStale,/^YOU NEEDED \| STALE/);
+  assert.match(narrowStale,/Delivery \| → \?/);
+}));
+test("quiet footer adds one concise blocker row while inspect retains its identity", () => setup(root => {
+  const s=stageSample(root,"delivery");passAll(s);s.progress.active="DE";mark(s,"DE-1","failed");
+  assert.equal(write(root,"claude","one",s).status,0);
+  for (const width of [80,120]) {
+    const shown=stageRender(root,["--width",String(width),"--color","never"]).trimEnd().split("\n");
+    assert.equal(shown.length,4);
+    assert.match(shown[0],/FAILED 1/);
+    assert.match(shown[1],/→ ✕ Deliver/);
+    assert.match(shown[2],/^Next:/);
+    assert.match(shown[3],/^Blocked: implementation, verification, build and applicable QA/);
+    assert.ok(shown.every(row=>row.length<=width));
+  }
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/DE-1 failed/);
+}));
 test("legacy state remains readable as untracked and every supported route initializes", () => setup(root => {
   write(root,"claude");
   assert.match(stageRender(root),/legacy\/untracked/);
-  assert.doesNotMatch(stageRender(root),/Intake\[ok\]/);
+  assert.doesNotMatch(stageRender(root),/✓ Intake/);
   for (const route of ["triage","feature","delivery","research"]) {
     const s=stageSample(root,route);
     assert.equal(write(root,"claude",route,s).status,0);
-    assert.match(invoke(root,["claude"],JSON.stringify({session_id:route})).stdout,/Intake\[\?\]/);
+    assert.match(invoke(root,["claude"],JSON.stringify({session_id:route})).stdout,/→ \? Intake/);
   }
   assert.equal(invoke(root,["template","--route","invented"]).status,1);
 }));
@@ -479,21 +521,21 @@ test("declared specialist criteria survive omission, cannot replace base and rou
   const extra={id:"X-temporal-workflow-writer-load",label:"temporal-workflow-writer loaded",stage:"VE",source:".claude/skills/temporal-workflow-writer/SKILL.md",sourceRevision:"skill-sha256"};
   s.progress.additions=[extra];
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[\?\]/);
-  assert.match(stageRender(root),/X-temporal-workflow-writer-load/);
+  assert.match(stageRender(root),/→ \? Verify/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/X-temporal-workflow-writer-load unknown/);
   delete s.progress.additions;
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/X-temporal-workflow-writer-load/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/X-temporal-workflow-writer-load unknown/);
   s.progress.additions=[{...extra,label:"renamed to hide requirement"}];
   assert.equal(write(root,"claude","one",s).status,1);
   s.progress.additions=[{...extra,id:"VE-2"}];
   assert.equal(write(root,"claude","one",s).status,1);
   delete s.progress.additions;
   mark(s,extra.id); assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[ok\]/);
+  assert.match(stageRender(root),/✓ Verify/);
   const reset=stageSample(root,"research");
   assert.equal(write(root,"claude","one",reset).status,0);
-  assert.match(stageRender(root),/Triage complete > Research pending/);
+  assert.match(stageRender(root),/Triage ✓ → Research \?/);
   const legacy={...reset};delete legacy.progress;
   assert.equal(write(root,"claude","one",legacy).status,1);
 }));
@@ -501,7 +543,7 @@ test("failed assessment wins and result fields cannot disguise template requirem
   const s=stageSample(root);passAll(s);s.progress.active="VE";
   s.progress.results["VE-2"].assessment.result="failed";
   write(root,"claude","one",s);
-  assert.match(stageRender(root),/Verify\[!\]/);
+  assert.match(stageRender(root),/→ ✕ Verify/);
   s.progress.results["VE-2"]={status:"unknown",id:"FAKE",label:"everything done",independent:true,conditional:true};
   write(root,"claude","one",s);
   const out=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
@@ -515,7 +557,7 @@ test("Grok keeps human-needed and stage assurance visible, adding work and next 
   assert.match(grok(root,["--color","always"]).stdout,/\x1b\[1;33mYOU/);
   for(const width of [20,30,80,140]) {
     const row=grok(root,["--width",String(width)]).stdout.trimEnd();
-    assert.match(row,/YOU/);assert.match(row,/reported/);assert.match(row,/inspect/);
+    assert.match(row,/YOU/);assert.match(row,/inspect/);
     assert.ok(row.length<=width);
     if(width>=80){assert.match(row,/core#456/);assert.match(row,/next:/);}
   }
@@ -549,8 +591,8 @@ test("reproduced routine bug completes Verify with justified diagnosis N/A, with
   s.progress.results["RS-BUG1"]={status:"unknown"};
   s.progress.claimedComplete=["VE"];
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[ok\]/);
-  assert.doesNotMatch(stageRender(root),/VIOLATION|Review\[ok\]/);
+  assert.match(stageRender(root),/→ ✓ Verify/);
+  assert.doesNotMatch(stageRender(root),/FAILED|✓ Review/);
   const detail=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
   assert.match(detail,/SK-diagnosing-bugs-apply na/);
   assert.match(detail,/RS-BUG1 unknown/);
@@ -558,8 +600,8 @@ test("reproduced routine bug completes Verify with justified diagnosis N/A, with
   // and applicable readiness controls have evidence.
   s.progress.claimedComplete.push("RV");
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Review\[!\]/);
-  assert.match(stageRender(root),/RS-BUG1/);
+  assert.match(stageRender(root),/✕ Review/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/RS-BUG1 unknown.*VIOLATION/);
 }));
 
 test("bug reproduction cannot complete with omitted, unsupported or mismatched criterion evidence", () => setup(root => {
@@ -570,8 +612,8 @@ test("bug reproduction cannot complete with omitted, unsupported or mismatched c
       else if(omission==="reference") delete s.progress.results[id].reference;
       else s.progress.results[id].revision="different-candidate";
       assert.equal(write(root,"claude","one",s).status,0);
-      assert.match(stageRender(root),/Verify\[!\]/);
-      assert.ok(stageRender(root).includes(id));
+      assert.match(stageRender(root),/→ ✕ Verify/);
+      assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,new RegExp(`${id} unknown.*VIOLATION`));
     }
   }
 }));
@@ -583,17 +625,17 @@ test("reported unrelated red remains failed while conditional diagnosis requires
   mark(s,"VE-BUG2","failed");
   s.progress.results["VE-BUG2"].reason="Only setup failed; reported symptom has not been reproduced";
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[!\]/);
-  assert.match(stageRender(root),/VE-BUG2/);
+  assert.match(stageRender(root),/→ ✕ Verify/);
+  assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/VE-BUG2 failed/);
   mark(s,"VE-BUG2");
   s.progress.results["SK-diagnosing-bugs-apply"]={status:"unknown"};
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[\?\]/);
+  assert.match(stageRender(root),/→ \? Verify/);
   s.progress.results["SK-diagnosing-bugs-apply"]={status:"na"};
   assert.equal(write(root,"claude","one",s).status,1);
   s.progress.results["SK-diagnosing-bugs-apply"].reason="Reproduction complete; diagnosis not needed, no diagnostic gap remains";
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[ok\]/);
+  assert.match(stageRender(root),/✓ Verify/);
 }));
 
 test("already-fixed disposition can exclude reproduction with a reason and delivery retains repair readiness", () => setup(root => {
@@ -601,8 +643,8 @@ test("already-fixed disposition can exclude reproduction with a reason and deliv
   for(const id of ["VE-BUG1","VE-BUG2","VE-BUG3","RS-BUG1"])
     s.progress.results[id]={status:"na",reason:"Integrated fix verified; closeout disposition, no new repair"};
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[ok\]/);
-  assert.match(stageRender(root),/Review\[ok\]/);
+  assert.match(stageRender(root),/✓ Verify/);
+  assert.match(stageRender(root),/→ ✓ Review/);
   const delivery=stageSample(root,"delivery");
   assert.deepEqual(delivery.progress.results["RS-BUG1"],{status:"unknown"});
 }));
@@ -613,7 +655,7 @@ test("requested handoff can disposition repair readiness N/A without concealing 
   s.progress.results["RS-BUG1"]={status:"na",reason:"User requested stop/handoff; no ready/start proposal"};
   s.next="Preserve current evidence and unresolved reproduction in handoff";
   assert.equal(write(root,"claude","one",s).status,0);
-  assert.match(stageRender(root),/Verify\[\?\]/);
+  assert.match(stageRender(root),/→ \? Verify/);
   const detail=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
   assert.match(detail,/VE-BUG2 unknown/);
   assert.match(detail,/RS-BUG1 na/);
@@ -626,14 +668,14 @@ test("every route exposes missing orchestrator load at Intake before any delegat
     assert.deepEqual(s.progress.activities,[]);
     assert.equal(write(root,"claude",route,s).status,0);
     const render=()=>invoke(root,["claude"],JSON.stringify({session_id:route})).stdout;
-    assert.match(render(),/Intake\[\?\]/);
-    assert.match(render(),/SK-orchestrator-load/);
+    assert.match(render(),/→ \? Intake/);
+    assert.match(invoke(root,["inspect","--client","claude","--session",route]).stdout,/SK-orchestrator-load unknown/);
     s.progress.claimedComplete=["IN"];
     assert.equal(write(root,"claude",route,s).status,0);
-    assert.match(render(),/Intake\[!\]/);
+    assert.match(render(),/→ ✕ Intake/);
     mark(s,"SK-orchestrator-load");
     assert.equal(write(root,"claude",route,s).status,0);
-    assert.match(render(),/Intake\[ok\]/);
+    assert.match(render(),/→ ✓ Intake/);
     assert.doesNotMatch(render(),/VIOLATION/);
   }
 }));
@@ -673,7 +715,8 @@ test("triage can project pending delivery without review and retains its immutab
   const delivery=stageSample(root,"delivery");
   assert.equal(write(root,"claude","one",delivery).status,0);
   const shown=stageRender(root);
-  assert.match(shown,/Triage held > Delivery pending/);
+  assert.match(shown,/Triage ✕ → Delivery \?/);
+  assert.match(stageRender(root,["--width","80"]),/→ \? Intake/);
   const inspected=invoke(root,["inspect","--client","claude","--session","one"]).stdout;
   assert.match(inspected,/Previous route: triage/);
   assert.match(inspected,/VE-2 failed/);
@@ -681,10 +724,10 @@ test("triage can project pending delivery without review and retains its immutab
   const completed=JSON.parse(readFileSync(storedPath));
   passAll(completed);completed.progress.active="CL";completed.progress.claimedComplete=["RS","DE","CL"];
   assert.equal(write(root,"claude","one",completed).status,0);
-  assert.match(stageRender(root),/Triage held > Delivery pending/);
+  assert.match(stageRender(root),/Triage ✕ → Delivery \?/);
   completed.progress.historyDispositions={"triage@candidate-abc:VE-2":{status:"passed",reason:"delivery regression verifies the failed triage requirement",actor:"primary",reference:"delivery verification",revision:"candidate-abc"}};
   assert.equal(write(root,"claude","one",completed).status,0);
-  assert.match(stageRender(root),/Triage complete > Delivery complete/);
+  assert.match(stageRender(root),/Triage ✓ → Delivery ✓/);
   const file=join(root,readdirSync(root)[0]), stored=JSON.parse(readFileSync(file));
   stored.progress.routeHistory[0].results["VE-2"].status="passed";
   const tampered=write(root,"claude","one",stored);
@@ -696,7 +739,7 @@ test("lateral route projection preserves history without manufacturing an assess
   const triage=stageSample(root);assert.equal(write(root,"claude","one",triage).status,0);
   const research=stageSample(root,"research");
   assert.equal(write(root,"claude","one",research).status,0);
-  assert.match(stageRender(root),/Triage pending > Research pending/);
+  assert.match(stageRender(root),/Triage \? → Research \?/);
   assert.match(invoke(root,["inspect","--client","claude","--session","one"]).stdout,/Previous route: triage/);
 }));
 
@@ -768,10 +811,10 @@ test("retained historical disposition remains valid after evidence revision adva
     if (result.assessment) result.assessment.revision="candidate-def";
   }
   assert.equal(write(root,"claude","one",stored).status,0);
-  assert.match(stageRender(root),/Triage complete > Delivery pending/);
+  assert.match(stageRender(root),/Triage ✓ → Delivery \?/);
   const research=stageSample(root,"research");research.progress.evidenceRevision="candidate-def";
   assert.equal(write(root,"claude","one",research).status,0);
-  assert.match(stageRender(root),/Triage complete > Delivery pending > Research pending/);
+  assert.match(stageRender(root),/Triage ✓ → Delivery \? → Research \?/);
   const projected=JSON.parse(readFileSync(join(root,readdirSync(root)[0])));
   assert.ok(projected.progress.historyDispositions["triage@candidate-abc:VE-2"]);
 }));
@@ -779,11 +822,11 @@ test("retained historical disposition remains valid after evidence revision adva
 test("observer status uses native runtime proof only", () => setup(root => {
   const s=stageSample(root);assert.equal(write(root,"claude","one",s).status,0);
   const render=(input,env={})=>invoke(root,["claude"],JSON.stringify({session_id:"one",...input}),env).stdout;
-  assert.match(render({}),/Observer: unavailable/);
-  assert.match(render({observer:{state:"starting",evidence:"launch-request",sessionId:"one"}}),/Observer: starting/);
-  assert.match(render({observer:{state:"active",evidence:"installed"}}),/Observer: unavailable/);
+  assert.match(render({}),/Obs: unavailable/);
+  assert.match(render({observer:{state:"starting",evidence:"launch-request",sessionId:"one"}}),/Obs: starting/);
+  assert.match(render({observer:{state:"active",evidence:"installed"}}),/Obs: unavailable/);
   const active={state:"active",evidence:"native-observer-ref",sessionId:"one",observerTaskId:"task-1",observedAt:new Date().toISOString(),assurance:"observed-active-as-of-record"};
-  assert.match(render({observer:active}),/Observer: seen \d+s ago/);
-  assert.match(render({observer:{...active,sessionId:"other"}}),/Observer: unavailable/);
-  assert.match(render({observer:{state:"unavailable",evidence:"none",sessionId:"one",reason:"unsupported-version"}}),/Observer: unavailable/);
+  assert.match(render({observer:active}),/Obs: seen \d+s ago/);
+  assert.match(render({observer:{...active,sessionId:"other"}}),/Obs: unavailable/);
+  assert.match(render({observer:{state:"unavailable",evidence:"none",sessionId:"one",reason:"unsupported-version"}}),/Obs: unavailable/);
 }));
