@@ -1,6 +1,6 @@
 # SDLC Process
 
-`0.2.1` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.3.0` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a SessionStart instruction. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
@@ -35,6 +35,14 @@ tests proved native report delivery, MAIN
 correction, model separation and silence on a compliant fixture. They did not
 prove that every observer turn reads the packaged shared process sources; the
 prompt requires those reads when a finding relies on that process.
+
+For a live observer view, ask the agent to **“Show this session’s observer activity.”**
+The observer skill starts a local, auto-refreshing page and provides its link.
+It reads the selected session’s existing native records; it does not publish them
+or write a diagnostic archive. Findings and subsequent public actions remain
+separate from attributed correction assessments. Launch evidence and zero reports
+do not prove that every turn was observed. Stop the viewer to discard its
+in-memory assessments; Claude retains its original logs under its own policy.
 
 Install this plugin and reload the client. If the agent does not start setup,
 tell it **“Finish SDLC setup.”** The hook displays this fallback; automatic
