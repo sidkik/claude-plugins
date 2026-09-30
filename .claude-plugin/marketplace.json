@@ -21,7 +21,7 @@
     },
     {
       "name": "sdlc-process",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "source": "./sdlc-process",
       "description": "Portable Sidkik SDLC process, policy, orchestration and pinned Pocock skills."
     }

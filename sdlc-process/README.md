@@ -1,6 +1,6 @@
 # SDLC Process
 
-`0.3.3` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.3.4` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a silent SessionStart metadata hook. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
@@ -29,7 +29,20 @@ fields, selects the observed MAIN only when no custom default agent conflicts,
 and preserves the user's model, tools, permissions, authentication and unrelated
 settings. The MAIN definition has an empty body so Claude retains its normal
 system prompt; the observer uses Haiku and can only read and send native advisory
-reports. Existing user or project agent choices and unmanaged filename collisions
+reports. Observation is scoped to MAIN, with worker delegation unchanged.
+A narrowly matched `SubagentStart` hook passes native MAIN identity and a bounded
+public-record baseline to the observer, excluding internal metadata and reasoning.
+It reads snapshots up to 32 MiB and supplies up to 256 KiB of public records at
+whole-record boundaries, marking exceeded limits and omitted public content.
+The observer consumes this baseline once, then reconciles subsequent digests,
+suppressing overlap conservatively. Targeted reads resolve specific gaps. Missing
+or truncated history stays unknown and cannot prove a prerequisite was skipped.
+Claude may persist larger hook output and supply a preview with its exact file
+path. The observer reads that normalized output before claiming it loaded the
+baseline; preview or partial reads remain unknown. This uses Claude’s native
+output retention, with no independent plugin archive. Baseline recovery
+is historical context, not live first-turn coverage.
+Existing user or project agent choices and unmanaged filename collisions
 remain unchanged and appear as explicit setup gaps.
 
 During upgrades, setup removes a saved predecessor only when it is a direct
