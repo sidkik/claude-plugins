@@ -131,6 +131,7 @@ Read [the source adapter](../SOURCE-ADAPTER.md), then [the actual reviewer brief
     for name, data in runtime.items():
         result['scripts/setup/' + name] = data
     result['skills/sdlc-setup/SKILL.md'] = (ROOT / 'tools/setup/SKILL.md').read_bytes()
+    result['skills/session-start/SKILL.md'] = (ROOT / 'tools/session-start/SKILL.md').read_bytes()
     result['scripts/setup/source-manifest.json'] = (json.dumps({
         'source': 'tools/setup', 'files': {name: digest(data) for name, data in runtime.items()}
     }, indent=2) + '\n').encode()

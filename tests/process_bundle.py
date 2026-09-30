@@ -25,7 +25,8 @@ class ProcessBundleTests(unittest.TestCase):
         self.assertIn('triage', user_only)
         self.assertFalse(common & user_only)
         self.assertIn('sdlc-observer', common)
-        self.assertEqual(len(common | user_only), 24)
+        self.assertIn('session-start', common)
+        self.assertEqual(len(common | user_only), 25)
 
     def test_installed_bytes_match_every_recorded_digest(self):
         bundle = ROOT / 'sdlc-process/bundle'
@@ -98,6 +99,8 @@ class ProcessBundleTests(unittest.TestCase):
                 build.source_bytes({'revision': 'HEAD'}, repo, 'skill.md')
 
     def test_setup_runtime_is_packaged_from_maintained_source(self):
+        self.assertEqual((ROOT / 'tools/session-start/SKILL.md').read_bytes(),
+                         (ROOT / 'sdlc-process/skills/session-start/SKILL.md').read_bytes())
         for name in ('setup.mjs', 'status.mjs', 'agent-setup.mjs'):
             self.assertEqual((ROOT / 'tools/setup' / name).read_bytes(),
                              (ROOT / 'sdlc-process/scripts/setup' / name).read_bytes())

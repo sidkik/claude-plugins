@@ -1,6 +1,6 @@
 # SDLC Process
 
-`0.3.1` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.3.2` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a SessionStart instruction. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
@@ -10,6 +10,16 @@ wrappers; its SDLC entry reads the user-only Pocock sources directly. The hook
 initiates agent-owned setup even on a fresh machine without a managed repository
 marker. It reports status and directs the agent to the packaged `sdlc-setup`
 skill. Required configuration changes are performed by the agent, not the hook.
+
+Use **`/sdlc-process:session-start`** for session readiness after installation.
+It loads governing sources, checks setup without changing it, and starts or
+reuses the current MAIN session's observer view. It returns a clickable URL and
+stop handle without opening a browser. With an assigned task it initializes the
+real work projection; without work it reports **widget waiting for work** and
+ends, preserving existing state. The widget currently requires an issue rather
+than supporting an unassigned session. Pending observer evidence remains explicit
+and is checked again on the next work turn; preparation does not establish
+first-turn coverage or fix the native observer defect.
 
 On supported Claude Code versions, agent-owned setup enables native observation
 of future foreground MAIN sessions. It installs managed local agent definitions

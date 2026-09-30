@@ -25,6 +25,28 @@ function fixture(t) {
   };
 }
 
+test("same-session viewer stays reusable while native evidence is pending and later arrives", async (t) => {
+  const f = fixture(t);
+  f.append({type: "user", sessionId: sid, message: {content: "Prepare this session"}});
+  const v = createViewer({transcriptPath: f.file, sessionId: sid});
+  await new Promise((r) => v.server.listen(0, "127.0.0.1", r));
+  t.after(() => v.server.close());
+  const base = `http://127.0.0.1:${v.server.address().port}/${v.cap}/`;
+  let state = await fetch(base + "state").then((r) => r.json());
+  assert.equal(state.sessionId, sid);
+  assert.equal(state.coverage, "complete");
+  assert.equal(state.launch, null);
+  assert.equal(state.observerActivity, null);
+  assert.deepEqual(state.reports, []);
+  f.append({type: "observer-ref", sessionId: sid, observerAgentType: "sidkik-sdlc-observer", observerTaskId: tid, timestamp: "2026-01-01T00:00:03Z"});
+  state = await fetch(base + "state").then((r) => r.json());
+  assert.equal(state.sessionId, sid);
+  assert.equal(state.launch.observerTaskId, tid);
+  assert.equal(state.launch.evidence, "native-observer-ref");
+  assert.equal((await fetch(base + "stop", {method: "POST"})).status, 202);
+  assert.deepEqual(fs.readdirSync(f.dir), [`${sid}.jsonl`]);
+});
+
 test("HTTP view follows appended unique native delivery without hidden thinking or archives", async (t) => {
   const f = fixture(t);
   f.append({

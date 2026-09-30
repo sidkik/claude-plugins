@@ -24,10 +24,26 @@ process.exit(1)`;
  for(const name of ['claude','codex','grok','git','gh']){write(path.join(bin,name),fake);fs.chmodSync(path.join(bin,name),0o755)}
  const env={...process.env,HOME:home,CLAUDE_PLUGIN_ROOT:plugin,SIDKIK_SDLC_CLIENT:'claude',PATH:bin+path.delimiter+process.env.PATH};delete env.CLAUDE_CONFIG_DIR;delete env.CODEX_HOME;delete env.GROK_HOME;
  const run=(...args)=>spawnSync(process.execPath,[path.join(plugin,'scripts/setup/agent-setup.mjs'),...args,'--client','claude'],{env,cwd:repo,encoding:'utf8'});
- const hook=()=>spawnSync(process.execPath,[path.join(plugin,'scripts/session-start.mjs')],{env,cwd:repo,input:JSON.stringify({cwd:repo}),encoding:'utf8'});
+ const hook=(metadata={})=>spawnSync(process.execPath,[path.join(plugin,'scripts/session-start.mjs')],{env,cwd:repo,input:JSON.stringify({cwd:repo,...metadata}),encoding:'utf8'});
  return{home,plugin,repo,env,run,hook};
 }
 test('fresh plugin starts bootstrap with actionable companions and no managed root',t=>{const f=fixture(t),r=f.hook();assert.equal(r.status,0,r.stderr);const v=JSON.parse(r.stdout);assert.match(v.systemMessage,/Ask this agent to finish SDLC setup if it does not start automatically/);assert.match(v.hookSpecificOutput.additionalContext,/Invoke the native sdlc-process:sdlc-setup skill/);assert.match(v.hookSpecificOutput.additionalContext,/sdlc-status/);assert.equal(fs.existsSync(path.join(f.home,'.local/share/sidkik')),false)});
+test('startup forwards matching native MAIN identity without guessing from sibling transcripts',t=>{
+ const f=fixture(t),sessionId='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
+ const transcript=path.join(f.home,'.claude/projects/project',`${sessionId}.jsonl`);
+ write(transcript,JSON.stringify({sessionId})+'\n');write(path.join(path.dirname(transcript),`${other}.jsonl`),JSON.stringify({sessionId:other})+'\n');
+ const result=f.hook({session_id:sessionId,transcript_path:transcript});assert.equal(result.status,0,result.stderr);
+ const context=JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+ assert.ok(context.includes(JSON.stringify({sessionId,transcriptPath:transcript})));
+ assert.ok(!context.includes(other));assert.equal(fs.existsSync(path.join(f.home,'.local/share/sidkik')),false);
+});
+test('startup leaves missing or mismatched transcript identity explicit',t=>{
+ const f=fixture(t),sessionId='11111111-1111-4111-8111-111111111111';
+ const context=metadata=>JSON.parse(f.hook(metadata).stdout).hookSpecificOutput.additionalContext;
+ assert.ok(context({}).includes(JSON.stringify({sessionId:null,transcriptPath:null})));
+ assert.ok(context({session_id:sessionId,transcript_path:'/tmp/other.jsonl'}).includes(JSON.stringify({sessionId,transcriptPath:null})));
+ assert.ok(context({session_id:sessionId,transcript_path:`relative/${sessionId}.jsonl`}).includes(JSON.stringify({sessionId,transcriptPath:null})));
+});
 test('native repair reuses registry, installs named plugins, configures footer and verifies repeat startup',t=>{const f=fixture(t);let r=f.run('repair','--repo',f.repo);assert.equal(r.status,0,r.stderr);assert.match(fs.readFileSync(path.join(f.repo,'CLAUDE.md'),'utf8'),/Existing rules/);const calls=fs.readFileSync(path.join(f.home,'calls'),'utf8');assert.doesNotMatch(calls,/"add",".*sidkik/);assert.match(calls,/"install","sdlc-status@sidkik-plugins"/);r=f.run('doctor','--repo',f.repo);assert.equal(r.status,0,r.stderr);const before=fs.readFileSync(path.join(f.home,'.claude/settings.json'),'utf8');r=f.hook();assert.equal(r.status,0,r.stderr);assert.match(JSON.parse(r.stdout).hookSpecificOutput.additionalContext,/verified|checked/);assert.equal(fs.readFileSync(path.join(f.home,'.claude/settings.json'),'utf8'),before);assert.equal(f.run('repair','--repo',f.repo).status,0)});
 test('disabled companions repaired, unrelated disabled plugin preserved',t=>{const f=fixture(t);assert.equal(f.run('repair').status,0);const file=path.join(f.home,'fake.json'),s=JSON.parse(fs.readFileSync(file));s.plugins.find(p=>p.id.startsWith('grok-crew')).enabled=false;s.plugins.push({id:'unrelated@other',enabled:false});write(file,JSON.stringify(s));assert.equal(f.run('repair').status,0);const after=JSON.parse(fs.readFileSync(file));assert.equal(after.plugins.find(p=>p.id.startsWith('grok-crew')).enabled,true);assert.equal(after.plugins.find(p=>p.id==='unrelated@other').enabled,false)});
 test('bad settings schema is a blocker and preserves bytes',t=>{const f=fixture(t),config=path.join(f.home,'.claude/settings.json');write(config,'[]');const r=f.run('repair');assert.notEqual(r.status,0);assert.match(r.stderr,/settings|object/i);assert.equal(fs.readFileSync(config,'utf8'),'[]');const h=JSON.parse(f.hook().stdout);assert.match(h.hookSpecificOutput.additionalContext,/settings|object/i)});
