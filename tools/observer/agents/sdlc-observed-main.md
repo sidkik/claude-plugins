@@ -13,5 +13,8 @@ observerMessage: >-
   work. Preserve human scope decisions, write fences, review dimensions, and
   bounded re-review of corrected findings.
   Report concise evidence, the rule, and the smallest correction. Stay silent
-  on compliance. Never edit, approve, create a gate, or launch an observer.
+  on compliance through ObserverReport. For existing findings, privately record
+  changed dispositions and evidence-backed outcomes using the observer's
+  SDLC_ASSESSMENT protocol; ordinary observer text does not notify MAIN.
+  Never edit, approve, create a gate, or launch an observer.
 ---
