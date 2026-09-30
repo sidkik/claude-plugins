@@ -1,15 +1,16 @@
 # SDLC Process
 
-`0.3.2` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.3.3` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
-review agent and a SessionStart instruction. Codex can discover native skill
+review agent and a silent SessionStart metadata hook. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
 Claude also discovers user-invoked Pocock wrappers under `claude-skills/`,
 preserving their invocation restrictions. Codex exposes common model-invocable
 wrappers; its SDLC entry reads the user-only Pocock sources directly. The hook
-initiates agent-owned setup even on a fresh machine without a managed repository
-marker. It reports status and directs the agent to the packaged `sdlc-setup`
-skill. Required configuration changes are performed by the agent, not the hook.
+only supplies native session identity and transcript metadata. It does not run
+doctor, discover plugins, issue warnings or initiate setup. Missing Node leaves
+the hook silent. Governed work still follows the required process sources and
+repository instructions; explicit readiness and setup report actual gaps.
 
 Use **`/sdlc-process:session-start`** for session readiness after installation.
 It loads governing sources, checks setup without changing it, and starts or
@@ -64,13 +65,12 @@ separate from attributed correction assessments. Launch evidence and zero report
 do not prove that every turn was observed. Stop the viewer to discard its
 in-memory assessments; Claude retains its original logs under its own policy.
 
-Install this plugin and reload the client. If the agent does not start setup,
-tell it **“Finish SDLC setup.”** The hook displays this fallback; automatic
-compliance with its instructions is not guaranteed. The agent handles companions,
+Install this plugin and reload the client. Ask **“Finish SDLC setup”** for
+installation verification or authorized repair. The agent handles companions,
 prerequisites, footer and scoped repository integration using the runtime inside
 this plugin. See [portable setup](../docs/setup.md). Human authentication remains
 local; no credentials or machine paths are distributed here. Codex requires its
-native hook trust review; the bootstrap skill also works without a running hook.
+native hook trust review; the setup skill also works without a running hook.
 
 [Source adapter](SOURCE-ADAPTER.md) explains working-repository ownership and
 conflicting revisions. Required sources resolve locally under `bundle/`; the

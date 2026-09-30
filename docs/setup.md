@@ -1,22 +1,23 @@
 # Portable setup on WSL
 
-Install **sdlc-process** using your agent CLI's plugin interface. Reload its plugins
-or start a new session once installation finishes, then describe your work normally.
-The hook directs the agent to handle remaining setup, verification and repairs.
-If it does not start automatically, tell it **“Finish SDLC setup.”** Some hosts
-may disregard startup instructions; the visible hook message provides this
-fallback. No repository clone or manual setup script is required.
+Install **sdlc-process** using your agent CLI's plugin interface, then reload its
+plugins or start a new session. Ask **“Finish SDLC setup”** for installation
+verification and authorized repairs, or use **`/sdlc-process:session-start`** for
+session readiness. Opening a session runs neither workflow. No repository clone
+or manual setup script is required.
 
 For Claude, the plugin is `sdlc-process@sidkik-plugins` in the
-`sidkik/claude-plugins` marketplace. Its SessionStart hook reports setup status to
-you and supplies the agent with actionable diagnostics and the installed
-`sdlc-setup` skill. The hook only reads state. The agent performs authorized
-changes and verifies their results.
+`sidkik/claude-plugins` marketplace. Its SessionStart hook is silent and passes
+only native session identity and transcript metadata to the agent. It performs
+no plugin discovery, readiness checks or setup instructions. Missing Node or
+metadata does not produce a startup warning. Explicit readiness/setup workflows
+report their actual capability gaps; governed work still follows the required
+process and repository instructions.
 
-Codex discovers the same bootstrap skill; its native hook review/trust prompt
+Codex discovers the same setup skill; its native hook review/trust prompt
 must be accepted by the human before hooks can run. A skill remains available
-without hook trust. Grok uses the installed bootstrap skill when the host does not
-run the hook. The agent chooses the actual host explicitly; inherited environment
+without hook trust. Grok uses the installed setup skill on request.
+The agent chooses the actual host explicitly; inherited environment
 variables from another CLI do not establish host identity.
 
 ## What the agent handles
@@ -28,7 +29,7 @@ variables from another CLI do not establish host identity.
 - Configures Claude/Grok footers and preserves previous command displays. Codex
   uses the status plugin's text workflow.
 - Repairs prerequisites through supported installation methods within its existing
-  permissions. Missing Node is reported even before the JavaScript hook can run.
+  permissions. Explicit setup identifies missing Node through the host's shell.
 - Adds or repairs repository entry instructions when that repository is within
   the user's requested SDLC scope. Installing a plugin does not silently replace
   unrelated repository policies.

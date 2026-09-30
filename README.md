@@ -2,9 +2,9 @@
 
 Portable SDLC process, status display and agent delegation for Sidkik.
 
-Install **sdlc-process**, reload the client, and describe your work. The startup
-hook directs agent-owned setup. If it does not begin automatically, tell the agent
-**“Finish SDLC setup.”** The agent handles companions, verification and repairs. See the
+Install **sdlc-process** and reload the client. Ask the agent to
+**“Finish SDLC setup”** when you want installation verification or repair.
+Startup is silent; the agent handles companions, verification and repairs when requested. See the
 [WSL setup guide](docs/setup.md) for the behavior and authentication boundaries.
 
 In Claude, **`/sdlc-process:session-start`** prepares the current session and
@@ -25,6 +25,6 @@ Project architecture, environment and delivery conventions stay in their owning
 repositories. GitHub remains intake, workflow and system of record.
 
 For Claude, install `sdlc-process@sidkik-plugins` from the
-`sidkik/claude-plugins` marketplace. Its startup hook reports missing setup and
-loads an agent-owned repair path from the installed plugin. You do not need to
-clone this repository or run setup commands yourself.
+`sidkik/claude-plugins` marketplace. Its startup hook only passes native session
+metadata to the agent. It does not run diagnostics or initiate setup.
+You do not need to clone this repository or run setup commands yourself.
