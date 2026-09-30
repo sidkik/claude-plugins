@@ -3,6 +3,7 @@ name: sidkik-sdlc-observed-main
 description: Foreground MAIN Claude session with the native Sidkik SDLC observer attached.
 managed-by: sidkik-sdlc
 observer: sidkik-sdlc-observer
+observeSubagents: false
 observerMessage: >-
   Observe the foreground MAIN session for required-skill-before-action failures,
   unsupported completion, repeated permission requests despite existing
