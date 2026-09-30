@@ -4,6 +4,7 @@ import http from "node:http";
 import path from "node:path";
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
+import { buildLedger, observerRecords } from "./observer-ledger.mjs";
 import { page } from "./observer-view-page.mjs";
 const AGENT = "observer:sidkik-sdlc-observer",
   TYPE = "sidkik-sdlc-observer",
@@ -80,7 +81,7 @@ export function inspectTranscript(file, sessionId) {
       (r) =>
         r &&
         typeof r === "object" &&
-        (!r.sessionId || r.sessionId === sessionId),
+        (r.sessionId === sessionId || (!r.sessionId && r.type === "observer-ref")) && !r.isSidechain && !r.agentId,
     ),
     refs = new Map();
   own.forEach((r, i) => {
@@ -95,6 +96,7 @@ export function inspectTranscript(file, sessionId) {
   own.forEach((r, i) => {
     const o = r.origin;
     if (
+      r.type !== "user" ||
       o?.kind !== "observer" ||
       o.from !== AGENT ||
       !task(o.senderTaskId) ||
@@ -141,6 +143,8 @@ export function inspectTranscript(file, sessionId) {
         "A delivery proves observer activity at this record; it does not prove every earlier turn was observed.",
     };
   }
+  out.observerSources = [];
+  const sourceCoverage = [];
   for (const id of new Set([
     ...refs.keys(),
     ...out.reports.map((r) => r.observerTaskId),
@@ -152,32 +156,27 @@ export function inspectTranscript(file, sessionId) {
       `agent-${id}.jsonl`,
     );
     try {
-      if (hasSymlinkComponent(sub)) continue;
+      if (hasSymlinkComponent(sub)) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: "Observer transcript symlink rejected."}); continue; }
       const stat = fs.lstatSync(sub);
-      if (stat.isSymbolicLink() || stat.size > 8 * 1024 * 1024) continue;
-      const lines = fs.readFileSync(sub, "utf8").split("\n").filter(Boolean);
-      let first, last;
-      for (const line of lines) {
-        try {
-          const r = JSON.parse(line);
-          if (
-            !first &&
-            r.type === "user" &&
-            String(r.message?.content).includes(
-              "<sidkik-sdlc-observed-main-activity>",
-            )
-          )
-            first = r.timestamp;
-          if (r.timestamp) last = r.timestamp;
-        } catch {}
-      }
+      if (stat.isSymbolicLink() || stat.size > 8 * 1024 * 1024) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: "Observer transcript exceeds the 8 MiB limit or is a symlink."}); continue; }
+      const raw = fs.readFileSync(sub, "utf8");
+      const lines = raw.split("\n").filter(Boolean);
+      const parsed = [];
+      let malformed = 0;
+      for (const line of lines) { try { parsed.push(JSON.parse(line)); } catch { malformed++; } }
+      const selected = observerRecords(parsed, sessionId, id);
+      sourceCoverage.push({taskId: id, coverage: malformed || (raw && !raw.endsWith("\n")) || !selected.length ? "partial" : "complete", malformedLines: malformed, reason: !selected.length ? "No matching native observer records." : null});
+      const inputs = selected.filter(r => r.type === "user" && r.origin?.kind === "observer-activity");
+      out.observerSources.push({taskId: id, records: selected});
       out.observerActivity = {
         observerTaskId: id,
-        firstRecordedInputAt: first || null,
-        lastRecordedAt: last || null,
+        firstRecordedInputAt: inputs[0]?.timestamp || null,
+        lastRecordedAt: selected.at(-1)?.timestamp || null,
+        inputCount: inputs.length,
+        coverage: malformed ? "partial" : "recorded",
         label: "recorded activity; not a heartbeat",
       };
-    } catch {}
+    } catch (error) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: error.code || error.message}); }
   }
   if (!out.launch && !out.reports.length)
     out.reason =
@@ -198,6 +197,11 @@ export function inspectTranscript(file, sessionId) {
     out.coverage = "partial";
     out.malformedBlocks = malformedBlocks;
   }
+  out.ledger = buildLedger(own, out.reports, out.observerSources, sessionId);
+  out.ledger.coverage = out.coverage === "complete" && sourceCoverage.length && sourceCoverage.every(x => x.coverage === "complete") ? "complete" : "partial";
+  out.ledger.sources = sourceCoverage;
+  out.ledger.usage.coverage = out.ledger.coverage;
+  delete out.observerSources;
   out.reportCount = out.reports.length;
   out.reportsTruncated = out.reportCount > 100;
   if (out.reportsTruncated) out.reports = out.reports.slice(-100);
@@ -394,7 +398,7 @@ async function main(argv) {
           assessmentUrl: base + "assess",
           stopUrl: base + "stop",
           retention:
-            "Assessments are memory-only and end when this server stops. Native records retain Claude's own retention.",
+            "Manual assessments are memory-only. Automatic tracking is rebuilt from native transcripts and follows Claude retention; no separate archive is created.",
         }),
       );
     });

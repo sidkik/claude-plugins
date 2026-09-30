@@ -1,6 +1,6 @@
 # SDLC Process
 
-`0.3.4` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.4.0` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a silent SessionStart metadata hook. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
@@ -73,10 +73,24 @@ in [issue #32](https://github.com/sidkik/claude-plugins/issues/32).
 For a live observer view, ask the agent to **“Show this session’s observer activity.”**
 The observer skill starts a local, auto-refreshing page and provides its link.
 It reads the selected session’s existing native records; it does not publish them
-or write a diagnostic archive. Findings and subsequent public actions remain
-separate from attributed correction assessments. Launch evidence and zero reports
-do not prove that every turn was observed. Stop the viewer to discard its
-in-memory assessments; Claude retains its original logs under its own policy.
+or write a diagnostic archive. The view links findings through assessment, corrective action and verification,
+with native record references. Acknowledgment alone never marks correction verified.
+Counts distinguish evidence-backed, observer-attributed verification from useful
+corrections attributed to the observer or shared intervention. Validity, timeliness,
+materiality, attribution, disruption and possible misses stay unknown when unassessed;
+misses are opportunistic, not an exhaustive audit. Verification currently requires
+tool evidence; conversational corrections stay assessed, without extra tool calls
+for bookkeeping. Recorded input batches are separate from delivered reports.
+Launch evidence and zero reports do not prove every turn was observed.
+
+The observer emits private lifecycle annotations only when finding evidence changes;
+MAIN can give a short normal response. The viewer reconstructs these annotations
+from matching native MAIN/observer transcripts after restart, with no separate
+archive or per-turn model invocation. Native records retain Claude's own policy.
+Optional manual assessments remain in viewer memory and never increase automatic
+verified counts. Usage deduplicates native observer message IDs; unavailable fields,
+monetary cost and incomplete source coverage remain explicit. Keep the viewer in
+a supported background handle without an arbitrary two-hour lifetime.
 
 Install this plugin and reload the client. Ask **“Finish SDLC setup”** for
 installation verification or authorized repair. The agent handles companions,
