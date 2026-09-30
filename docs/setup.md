@@ -65,6 +65,15 @@ attachment to an already-running main session. In the SDLC footer:
 - **Observer: unavailable** means observation is not established for this session.
   Ask the agent to check the installed `sdlc-observer` skill and setup diagnostics.
 
+Doctor's `ready` result and exit status describe installation and configuration.
+Its separate `observer` result reports **known-missing** first-turn coverage on
+Claude Code **2.1.285**: the native observer misses the first interactive MAIN
+turn even with correct setup. Setup repair cannot fix that runtime defect.
+Continue independent SDLC work while this limitation remains. Other versions,
+including newer releases, report **unverified** until their first real interactive
+MAIN turn is shown to reach the observer. A later observer record does not supply
+that evidence; doctor itself does not check active observation.
+
 Claude's agent panel shows `sidkik-sdlc-observer` for the detailed native view.
 Useful corrections arrive in the main conversation through `ObserverReport`.
 The observer is advisory: it can identify an unsupported claim or unnecessary
