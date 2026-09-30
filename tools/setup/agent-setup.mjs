@@ -35,7 +35,7 @@ function installedPath(p,client){return client==='claude'?p.installPath:client==
 function validatePayload(location,name,client){
  const manifest=path.join(location,client==='codex'?'.codex-plugin/plugin.json':'.claude-plugin/plugin.json');
  if(!fs.existsSync(manifest)||json(manifest).name!==name)throw new Error(`${name}: installed manifest missing or invalid`);
- const resources={'sdlc-process':['SOURCE-ADAPTER.md','bundle/source-manifest.json','bundle/.claude/skills/sdlc-process/SKILL.md','bundle/.claude/skills/orchestrator/SKILL.md','skills/sdlc-setup/SKILL.md','skills/sdlc-observer/SKILL.md','agents/sidkik-sdlc-observer.md','agents/sidkik-sdlc-observed-main.md','scripts/observer-evidence.mjs','scripts/setup/agent-setup.mjs'], 'sdlc-status':['scripts/status.mjs','skills/sdlc-status/SKILL.md'],'grok-crew':['skills/grok-crew-runtime/SKILL.md'],'codex-crew':['skills/crew-runtime/SKILL.md']};
+ const resources={'sdlc-process':['SOURCE-ADAPTER.md','bundle/source-manifest.json','bundle/.claude/skills/sdlc-process/SKILL.md','bundle/.claude/skills/orchestrator/SKILL.md','skills/sdlc-setup/SKILL.md','skills/session-start/SKILL.md','skills/sdlc-observer/SKILL.md','agents/sidkik-sdlc-observer.md','agents/sidkik-sdlc-observed-main.md','scripts/observer-evidence.mjs','scripts/setup/agent-setup.mjs'], 'sdlc-status':['scripts/status.mjs','skills/sdlc-status/SKILL.md'],'grok-crew':['skills/grok-crew-runtime/SKILL.md'],'codex-crew':['skills/crew-runtime/SKILL.md']};
  for(const resource of resources[name]||[])if(!fs.existsSync(path.join(location,resource)))throw new Error(`${name}: installed resource missing: ${resource}`);
  if(name==='sdlc-process'){
   const source=json(path.join(location,'bundle/source-manifest.json'));

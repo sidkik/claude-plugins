@@ -7,6 +7,10 @@ hook directs agent-owned setup. If it does not begin automatically, tell the age
 **“Finish SDLC setup.”** The agent handles companions, verification and repairs. See the
 [WSL setup guide](docs/setup.md) for the behavior and authentication boundaries.
 
+In Claude, **`/sdlc-process:session-start`** prepares the current session and
+returns its observer view before you assign work. It reports readiness separately
+from native observer evidence; installation repair remains the setup workflow.
+
 | Plugin | Purpose |
 |---|---|
 | [sdlc-process](sdlc-process/) | Shared SDLC instructions, Pocock flows, policy review and a native Claude main-session observer, with pinned source provenance. |

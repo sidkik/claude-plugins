@@ -47,6 +47,19 @@ capability, not as a successful installation.
 
 ## See the Claude observer
 
+Run **`/sdlc-process:session-start`** to prepare a Claude MAIN session before
+assigning work. It reads the governing sources, checks readiness, and returns a
+clickable observer view with a stop handle. It reuses a verified same-session
+view when available and does not open a browser automatically. An optional issue
+or task lets it initialize the actual work projection; with no assigned work it
+reports **widget waiting for work**, preserves existing state and ends after
+readiness. The current widget requires a real issue and has no unassigned state.
+Installation or repair remains the separate setup workflow.
+
+Native observer evidence can still be pending during this preparation turn.
+The agent checks again on the next user work turn before claiming observation.
+Session preparation does not fix the runtime limitation described below.
+
 On Claude Code 2.1.284 or newer, agent-owned setup installs managed local
 agent definitions from the process plugin and enables the native observer
 experiment. Claude's current plugin-agent loader does not preserve observer
