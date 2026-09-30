@@ -14,7 +14,7 @@ function fixture(t){
  const state={markets:[{name:'sidkik-plugins',path:'/existing/native/marketplace'}],plugins:[{id:'sdlc-process@sidkik-plugins',enabled:true,scope:'user',installPath:plugin,version:'0.1.1'}]};write(path.join(home,'fake.json'),JSON.stringify(state));
  const fake=`#!${process.execPath}
 const fs=require('fs'),path=require('path');const a=process.argv.slice(2),file=path.join(process.env.HOME,'fake.json'),s=JSON.parse(fs.readFileSync(file));fs.appendFileSync(path.join(process.env.HOME,'calls'),JSON.stringify(a)+'\\n');const save=()=>fs.writeFileSync(file,JSON.stringify(s));
-if(a[0]==='--version'){console.log('2.1.285 (Claude Code)');process.exit()}
+if(a[0]==='--version'){console.log(process.env.FAKE_CLAUDE_VERSION??'2.1.285 (Claude Code)');process.exit()}
 if(a[0]==='auth'){console.log('{"loggedIn":true}');process.exit()}
 if(a[0]==='login')process.exit();
 if(a[1]==='marketplace'){if(a[2]==='list')console.log(JSON.stringify(s.markets));if(a[2]==='add'){s.markets.push({name:'openai-codex'});save()}process.exit()}
@@ -32,6 +32,34 @@ test('native repair reuses registry, installs named plugins, configures footer a
 test('disabled companions repaired, unrelated disabled plugin preserved',t=>{const f=fixture(t);assert.equal(f.run('repair').status,0);const file=path.join(f.home,'fake.json'),s=JSON.parse(fs.readFileSync(file));s.plugins.find(p=>p.id.startsWith('grok-crew')).enabled=false;s.plugins.push({id:'unrelated@other',enabled:false});write(file,JSON.stringify(s));assert.equal(f.run('repair').status,0);const after=JSON.parse(fs.readFileSync(file));assert.equal(after.plugins.find(p=>p.id.startsWith('grok-crew')).enabled,true);assert.equal(after.plugins.find(p=>p.id==='unrelated@other').enabled,false)});
 test('bad settings schema is a blocker and preserves bytes',t=>{const f=fixture(t),config=path.join(f.home,'.claude/settings.json');write(config,'[]');const r=f.run('repair');assert.notEqual(r.status,0);assert.match(r.stderr,/settings|object/i);assert.equal(fs.readFileSync(config,'utf8'),'[]');const h=JSON.parse(f.hook().stdout);assert.match(h.hookSpecificOutput.additionalContext,/settings|object/i)});
 test('observer setup preserves permissions and unrelated environment',t=>{const f=fixture(t),config=path.join(f.home,'.claude/settings.json');write(config,JSON.stringify({permissions:{allow:['Read']},env:{EXISTING:'yes'}}));assert.equal(f.run('repair').status,0);const settings=JSON.parse(fs.readFileSync(config));assert.deepEqual(settings.permissions,{allow:['Read']});assert.equal(settings.env.EXISTING,'yes');assert.equal(settings.env.CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS,'1');assert.equal(settings.agent,'sidkik-sdlc-observed-main');assert.equal(fs.readFileSync(path.join(f.home,'.claude/agents/sidkik-sdlc-observed-main.md'),'utf8'),fs.readFileSync(path.join(f.plugin,'agents/sidkik-sdlc-observed-main.md'),'utf8'))});
+test('ready setup reports the known first interactive turn defect without repair or activation claims',t=>{
+ const f=fixture(t);assert.equal(f.run('repair').status,0);
+ const config=path.join(f.home,'.claude/settings.json'),before=fs.readFileSync(config,'utf8');
+ const result=f.run('doctor');assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+ assert.equal(report.ready,true);assert.equal(report.readyScope,'installation-and-configuration');assert.deepEqual(report.gaps,[]);
+ assert.equal(report.observer.configurationReady,true);assert.equal(report.observer.runtimeVersion,'2.1.285');
+ assert.equal(report.observer.firstInteractiveTurn,'known-missing');assert.equal(report.observer.runtimeActivity,'not-checked');
+ assert.match(report.observer.detail,/first interactive MAIN turn/);assert.match(report.observer.nextAction,/continue independent work/i);
+ assert.match(report.observer.nextAction,/setup repair cannot/i);
+ const hook=JSON.parse(f.hook().stdout);assert.match(hook.systemMessage,/first interactive MAIN turn/);
+ assert.doesNotMatch(hook.systemMessage,/finish SDLC setup/);
+ assert.match(hook.hookSpecificOutput.additionalContext,/known-missing/);
+ assert.equal(fs.readFileSync(config,'utf8'),before);
+});
+for(const version of ['2.1.284 (Claude Code)','2.1.286 (Claude Code)','3.0.0 (Claude Code)'])test(`observer first-turn coverage stays unverified on ${version}`,t=>{
+ const f=fixture(t);f.env.FAKE_CLAUDE_VERSION=version;assert.equal(f.run('repair').status,0);
+ const result=f.run('doctor');assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+ assert.equal(report.ready,true);assert.deepEqual(report.gaps,[]);assert.equal(report.observer.configurationReady,true);
+ assert.equal(report.observer.firstInteractiveTurn,'unverified');assert.equal(report.observer.runtimeActivity,'not-checked');
+ assert.match(report.observer.nextAction,/first real interactive MAIN turn/);
+});
+test('unrecognized runtime version remains unverified with an explicit setup version gap',t=>{
+ const f=fixture(t);assert.equal(f.run('repair').status,0);f.env.FAKE_CLAUDE_VERSION='unknown build';
+ const result=f.run('doctor');assert.equal(result.status,1);const report=JSON.parse(result.stdout);
+ assert.equal(report.ready,false);assert.ok(report.gaps.some(gap=>gap.code==='observer-version'));
+ assert.equal(report.observer.runtimeVersion,null);assert.equal(report.observer.firstInteractiveTurn,'unverified');
+ assert.equal(report.observer.runtimeActivity,'not-checked');assert.equal(report.observer.configurationReady,false);
+});
 test('custom default agent is preserved while independent setup repairs',t=>{const f=fixture(t),config=path.join(f.home,'.claude/settings.json');write(config,JSON.stringify({agent:'custom-main'}));const result=f.run('repair');assert.notEqual(result.status,0);assert.match(result.stdout,/custom-main.*preserved/i);const settings=JSON.parse(fs.readFileSync(config));assert.equal(settings.agent,'custom-main');assert.equal(settings.env.CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS,'1');assert.ok(settings.statusLine)});
 test('unmanaged local agent collision is preserved',t=>{const f=fixture(t),target=path.join(f.home,'.claude/agents/sidkik-sdlc-observer.md');write(target,'custom observer');const result=f.run('repair');assert.notEqual(result.status,0);assert.match(result.stderr,/path collision/);assert.equal(fs.readFileSync(target,'utf8'),'custom observer')});
 test('project custom agent override remains an explicit observer gap',t=>{const f=fixture(t);write(path.join(f.repo,'.claude/settings.local.json'),JSON.stringify({agent:'project-main'}));const result=f.run('repair','--repo',f.repo);assert.notEqual(result.status,0);assert.match(result.stdout,/project-main.*preserved/i)});

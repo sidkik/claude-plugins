@@ -1,6 +1,6 @@
 # SDLC Process
 
-`0.3.0` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+`0.3.1` packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a SessionStart instruction. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
@@ -35,6 +35,16 @@ tests proved native report delivery, MAIN
 correction, model separation and silence on a compliant fixture. They did not
 prove that every observer turn reads the packaged shared process sources; the
 prompt requires those reads when a finding relies on that process.
+
+Claude Code **2.1.285 misses the first interactive MAIN turn** during native
+observer initialization, even with correct setup. Doctor separates this
+`known-missing` coverage from installation/configuration `ready`; its exit status
+still describes setup. Setup repair cannot correct the runtime defect, and this
+release reports it without blocking independent SDLC work. Other versions remain
+`unverified` until first-turn coverage is demonstrated; a newer version or later
+observer record is insufficient. Earlier live tests did not establish first-turn
+coverage. This reporting correction does not resolve the runtime defect tracked
+in [issue #32](https://github.com/sidkik/claude-plugins/issues/32).
 
 For a live observer view, ask the agent to **“Show this session’s observer activity.”**
 The observer skill starts a local, auto-refreshing page and provides its link.

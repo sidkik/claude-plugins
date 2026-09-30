@@ -1,7 +1,7 @@
 {
   "source": "tools/setup",
   "files": {
-    "agent-setup.mjs": "1b070496312b04dc5f0e41ec89ef163de86244121ff201dfb062dc6db09ab4a2",
+    "agent-setup.mjs": "8bdd0d6d1fb6cf7eb4ef7a9d2ab1959119b871720dfa8335dfb2bbe5139607d8",
     "setup.mjs": "2acc76ebbda8b08ba290dee96fa0beed8645587377da446697de3efc42c5ac7f",
     "status.mjs": "3f9340d4ea3b5eca032c9970c8418256b1f57cf0166b50551f6a76591c296b97"
   }
