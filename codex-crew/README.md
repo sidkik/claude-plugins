@@ -11,6 +11,12 @@ This plugin is Codex-only. Claude → Grok inject is
 `send_subagent_message` does not move a finding from Claude into a Grok
 job Claude launched.
 
+Reviewer evidence uses the [runtime review contract](skills/crew-runtime/SKILL.md#review-evidence):
+reviewers can write and run focused regression tests in an isolated checkout at
+the pinned candidate, while production and shared worktrees remain unchanged.
+`task --write` supplies this mode; ordinary review commands remain read-only.
+Explicit human read-only restrictions still apply.
+
 ## Agents
 
 Implementation is tiered across the GPT-6 family, plus GPT-5.6 Terra because
@@ -23,7 +29,7 @@ each agent's description carries the selection criteria:
 | `codex-implementer-sol` | gpt-6-sol (workhorse) | xhigh | write | Default for real implementation, routine or intricate, when the evidence is bounded |
 | `codex-implementer-terra` | gpt-5.6-terra (no GPT-6 successor) | xhigh | write | Only when the brief names Terra. Not cheaper than GPT-6 Sol |
 | `codex-implementer-luna` | gpt-6-luna (affordable) | xhigh | write | Mechanical, repetitive, parallelizable chores with an exact recipe; fan out freely |
-| `codex-reviewer` | gpt-6-sol | xhigh | read-only | Diff/branch reviews, adversarial reviews, independent diagnosis |
+| `codex-reviewer` | gpt-6-sol | xhigh | read-only; isolated test proof when authorized | Diff/branch reviews, adversarial reviews, independent diagnosis |
 
 List price per million tokens (input / output): Astra $10 / $50, GPT-6 Sol
 $2 / $10, GPT-5.6 Terra $2 / $12, GPT-6 Luna $0.10 / $0.50. Per token Astra is

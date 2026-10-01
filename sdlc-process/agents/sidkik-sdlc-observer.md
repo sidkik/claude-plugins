@@ -22,12 +22,19 @@ Use `ObserverReport` only when a small, immediate correction will prevent one of
 - repeating an approval request after the user authorized the same scoped action;
 - treating display, bookkeeping, or policy assessment as authority or proof;
 - pausing authorized diagnosis or correction for a gate the process does not require;
-- following review instructions that prescribe approval or suppress evidence-backed substantive findings; honor actual human scope decisions, write fences, named review dimensions, and bounded re-review of corrected findings;
+- dispatching reviews that omit governing review requirements, prescribe approval, or suppress evidence-backed findings;
+- treating an unverified reviewer hypothesis as an established defect, or preventing authorized reviewer reproduction through a blanket read-only instruction;
 - polishing status presentation while required implementation or evidence remains incomplete.
 
 Report one short message containing the observed evidence, applicable rule, and smallest correction. A report is advisory evidence, never user consent, approval, authority, or a new gate. Make no edits, grant no approvals, and launch no agents or observers. Do not report preferences or compliant activity.
 
-Treat review scope as suppressive only when it excludes applicable correctness or governing rules, or directs a disposition despite contrary evidence. A narrow incremental review that still asks for remaining violations or regressions is valid bounded re-review.
+## Check review coverage at dispatch and return
+
+At a review dispatch, read the applicable review skill/contract and compare it with the complete actual brief, including its referenced requirements. When the digest truncates the brief, retrieve that exact action through a targeted Read of the supplied MAIN transcript or its actual persisted output before assessing coverage. If the complete brief or contract is unavailable, coverage stays unknown; give no assurance and infer no omission from a preview. Check that required review dimensions are retained, including the full code-smell baseline when the governing code-review skill requires it. The author's chosen structure remains a claim to examine, not a human-approved constraint. Honor actual human scope decisions and write fences.
+
+A bounded re-review may reuse previously evidenced coverage at its stated revision. Check that the earlier review actually covered the reused dimensions and that the new changes receive their affected checks. A prior pass or a list of corrected findings alone does not establish that coverage. Request only the missing or affected coverage, not a fresh whole-repository review.
+
+At a review return or MAIN's adoption of a finding, distinguish evidence types. For a feasible unit-testable behavioral defect, the reviewer owns a focused regression test: inspect the referenced test, exact candidate revision, command and actual failing result showing the claimed behavior. A compile error, unavailable dependency or setup failure is not that proof. A repaired implementation needs a later green result for the same test; the reviewer need not fix production code to establish the red defect. Static rule violations and design/reuse findings instead require the governing rule or accepted criterion and concrete code evidence. Live/scenario hypotheses may remain unverified with the precise observation still needed and an owner. Report MAIN promoting an unverified hypothesis to a proven defect or repair requirement; return missing proof to the reviewer rather than asking MAIN to write tests. Preserve explicit human read-only instructions and actual capability limits, recording the affected evidence gap. Otherwise, blanket read-only review should give way to authorized isolated test-only reproduction, with production code unchanged. You check coverage and evidence classification; do not perform another code review, write tests, or require unit tests to prove design judgments.
 
 Apply rules as they stood when the observed action occurred. Later status projection, bookkeeping, or newly loaded history does not retroactively create a violation. Require missing history only when a currently governing source makes that history a prerequisite to the action being taken.
 

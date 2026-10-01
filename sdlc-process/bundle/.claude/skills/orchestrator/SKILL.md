@@ -95,6 +95,11 @@ gate silently is the deception the DoD rules forbid. *Paid for by:* A1
 shipping with zero reviews (C14 got two) while nine hours of runway
 remained; the architecture violation sat until Q found it himself.
 
+- **Before drafting a code-review brief, load
+  [code-review](../../../.agents/skills/code-review/SKILL.md).** Preserve its
+  independent Standards and Spec axes and paste its complete mandatory smell
+  baseline into the Standards brief alongside repository standards. A tailored
+  checklist supplements that contract; it cannot replace it.
 - **The reviewer loads the governing skill first** and reviews against
   its checklist — tests and self-reports verify OUTCOMES; skills define
   CONVENTIONS. A worker can be all-green and built wrong.
@@ -112,10 +117,17 @@ remained; the architecture violation sat until Q found it himself.
   into an exhaustive whole-repository audit. Report source-backed defects or
   contradictions in the spec or approach for disposition by the proper
   authority; do not silently rewrite accepted human intent.
-- **A bounded re-review stays bounded.** Re-test the claimed correction and
-  affected regression surface at the new revision. This does not create a
-  fresh overall approval or erase findings and evidence from the earlier
-  review.
+- **Challenge additions against existing capabilities.** For new production
+  functions and paths, inspect relevant existing equivalents and callers; state
+  whether reuse or modification could satisfy the requirement and why an addition
+  is necessary. Apply repository architecture, concurrency and compatibility
+  constraints. Function count and smell labels alone do not prove a defect.
+- **A bounded re-review stays bounded.** Carry forward identified prior coverage
+  and evidence only where the applicable inputs are unchanged. Re-test the
+  correction and new affected surface at the pinned revision, including reuse
+  checks for added code. Missing earlier coverage still needs assessment before
+  overall approval. A brief listing prior findings cannot suppress new supported
+  findings within that affected surface or erase unresolved earlier findings.
 - **Adversarial reviews for complex/money areas**: independent skeptics
   briefed to REFUTE — concurrency envelopes, idempotency under retry,
   race windows, orphaned-state paths. *Paid for by:* the orphaned-PENDING
@@ -125,9 +137,48 @@ remained; the architecture violation sat until Q found it himself.
   fixes are agent output with better PR. *Paid for by:* my
   MarkRefundFailed/ResolvePayment additions shipping without the adapter
   tests every sibling method had — caught by the next review, not by me.
-- Review findings are typed: must-fix (blocks commit), should-fix
-  (fix now or Q rules), flagged (Q decides). Every finding gets a
-  disposition in writing.
+- Review findings retain their Standards or Spec axis and are typed: must-fix
+  (blocks commit), should-fix (fix now or Q rules), flagged (Q decides). Record
+  the evidence class below separately from severity and give each a disposition.
+  An unverified suspicion alone is not a proven must-fix; an unmet required
+  verification criterion holds only its dependent action.
+
+### Reviewer-owned proof
+
+Review briefs authorize test creation and execution in a reviewer-owned isolated
+checkout of the exact candidate revision, including a pinned patch for reviewed
+uncommitted changes. Name its write fence; keep production code and the
+implementer's working tree untouched. Arrange the necessary test capability
+instead of imposing blanket read-only review. Respect an explicit human read-only
+restriction and report the resulting proof gap. Follow the delivery repository's
+test selection and test-writing skills.
+
+- **Unit-testable behavioral defect:** the reviewer writes and runs a focused
+  failing regression before reporting the defect as proven. Assert the accepted
+  behavior through the real code path, with only dependencies mocked as the
+  repository permits. Return the candidate SHA, transferable test patch, command,
+  expected versus actual result and relevant failure output. A compilation,
+  dependency or environment failure is a proof gap, not a reproduced defect.
+- **Static standards or design finding:** cite the exact rule and affected code;
+  identify smell findings as judgement calls and explain the concrete reuse or
+  maintenance consequence. These do not require invented behavioral red tests.
+- **Scenario/live or unavailable proof:** return the source-backed hypothesis as
+  unverified, the exact missing observation or capability, its owner and next
+  check. Use existing scenario seams where feasible; do not manufacture a new
+  integration harness merely to turn a review suspicion into a red test.
+
+The reviewer owns producing the proof, including correcting an invalid test.
+The implementer verifies transfer of the same regression and reviewed candidate,
+reuses its red evidence when those inputs are unchanged, repairs production code
+and demonstrates green on the repaired revision. A changed test, expected behavior
+or reviewed baseline requires renewed red evidence on that baseline; any test
+change also needs an explicit reason. The intended production repair is the green
+revision, not a demand for another failure. The primary
+checks the expectation, revisions, patch and actual run results before treating
+an alleged behavioral defect as established; it routes missing proof back to its
+owner rather than writing the test itself. Keep concise results in the existing
+review return, with the regression transferred to the delivery repository when
+accepted; no separate diagnostic archive is required.
 
 ## Verification — self-reports are hypotheses
 
