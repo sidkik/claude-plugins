@@ -31,7 +31,8 @@ Claude bridge is optional. It is not a new workflow engine or a `crew-grok` bina
    its owning repository/issue; scratch prompts and logs need no repository commit.
    Set a new UUID for a new conversation, an absolute checkout and separate stdout
    and stderr paths. Use the [launch recipes](../../README.md#launch-recipes),
-   choosing read-only review or explicitly authorized implementation permissions.
+   choosing read-only inspection or the authorized isolated-test/implementation
+   permissions described below.
    Completion: a real Grok process has been launched with a recorded session ID,
    host job handle, scope, bounded poll interval, output paths and any justified
    job deadline with its source; a command proposal is not a run.
@@ -53,6 +54,35 @@ Claude bridge is optional. It is not a new workflow engine or a `crew-grok` bina
    under the repository's review contract. Report the consolidated result to the
    user with the Grok session ID and remaining gaps. Do not claim a model's own
    success report proves completion.
+
+## Reviewer-owned regression proof
+
+Carry the complete governing review checklist and human scope into the brief;
+coordinator assumptions are claims to test. Preserve substantive new findings
+and applicable standards when a re-review is bounded to a correction.
+
+For a governing code review permitting regression proof, select the isolated
+workspace/acceptEdits mode at dispatch, with allowed test paths and commands.
+Grok writes and runs the smallest focused regression needed for a behavioral
+concern in that separate clean checkout at the pinned candidate. For WIP, pin
+the base plus exact patch identity and apply that patch to the isolated checkout.
+The primary prepares isolation and verifies the return; it does not write the
+reviewer’s proof. Name allowed test/fixture files and authorized commands. Keep
+production code unchanged; exclude shared worktree writes and live environment
+changes. Use the README’s workspace/acceptEdits recipe for this authorized test
+mode. Those settings permit workspace writes, not a test-only OS boundary: the
+file fence remains an instruction. Explicit human read-only/no-execution limits
+win; retain unverified concerns and explain the precise capability gap instead
+of bypassing the restriction.
+
+Return each finding as a proven behavioral defect (candidate revision, proof
+patch/path, exact command, expected behavior and observed assertion failure), a
+static finding (source and violated criterion), or an unverified behavioral
+concern (missing evidence/capability). Build/setup failures are not reproductions.
+Duplication and other inspectable static violations need no artificial red test.
+Stop once the test discriminates the claimed bug; retain the proof for the
+implementer’s repair and subsequent green verification without applying it to the
+delivery branch. Retract or revise a claim contradicted by its reproduction.
 
 ## Continue or change direction
 

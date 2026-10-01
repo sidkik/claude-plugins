@@ -1,6 +1,6 @@
 # Grok Crew
 
-Version **0.1.1** supplies a delegation skill for **Claude Code and Codex**. It
+Version **0.1.2** supplies a delegation skill for **Claude Code and Codex**. It
 launches the installed Grok CLI for reviews, investigations and authorized edits,
 collects its output, and resumes known sessions. No custom broker or official
 Claude bridge is required. Read [the skill](skills/grok-crew-runtime/SKILL.md).
@@ -51,7 +51,8 @@ poll interval is not a reason to kill it. Preserve explicit user budgets without
 automatic extension; report the affected work when one expires. Exit 124 from
 GNU timeout means interrupted work, not a completed review.
 
-For authorized implementation, use the same invocation with
+For authorized implementation or [reviewer-owned regression proof](skills/grok-crew-runtime/SKILL.md#reviewer-owned-regression-proof)
+in a separate checkout pinned to the reviewed candidate, use the same invocation with
 `--permission-mode acceptEdits --sandbox workspace`. Carry exact allowed files and
 commands in the brief; permit necessary shell commands using narrowly scoped
 `--allow` rules supported by the installed CLI, for example

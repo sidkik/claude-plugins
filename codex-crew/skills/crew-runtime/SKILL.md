@@ -13,6 +13,55 @@ agents. The worker execution rules apply inside `codex-implementer-astra`,
 Claude → Grok inject is
 [grok-crew-runtime](../../../grok-crew/skills/grok-crew-runtime/SKILL.md).
 
+## Review evidence
+
+The primary supplies the governing review skill/checklist, accepted human scope,
+base and candidate revisions (or, for uncommitted work, the base plus exact patch
+identity applied to the isolated checkout). Reviewer findings may challenge the primary’s brief
+or implementation assumptions; a bounded re-review retains applicable standards
+for new or changed code and substantive new findings.
+
+For a governing code review that permits regression proof, provision the
+proof-capable isolated task at dispatch; do not wait for the read-only reviewer
+to return an unsupported hypothesis. The reviewer owns any focused regression
+test and run needed to establish a behavioral finding. Set up a separate clean
+checkout pinned to the candidate (including the identified WIP patch when
+applicable) and include its absolute path, permitted test/fixture paths and test
+commands in the dispatch. The primary may prepare isolation and consolidate the
+result; it does not write the reviewer’s proof. The reviewer may write only that
+proof and necessary test fixtures, not production code, shared worktree files,
+or runtime configuration. Use existing test conventions and the smallest test
+that discriminates the claimed failure. Keep production code at the pinned
+revision; run the test against that unchanged candidate and report the actual
+assertion failure, not a build/setup error as a reproduction.
+
+Use `codex-reviewer`’s `task --write` route for this isolated proof. Launch and all
+supervision calls use that same isolated checkout as cwd. Never pass `--write` to
+`review` or `adversarial-review`. The companion maps `task --write` to
+`workspace-write`; it does not enforce a test-file allowlist. Brief path fences
+are agent instructions, not filesystem security. A shared parent root grants too
+much workspace access for this mode; use the isolated checkout root and preserve
+host permission restrictions. If explicit human instructions prohibit writes or
+execution, honor them and report the behavioral finding as unverified with the
+missing capability. Never change permissions or request repeated authorization
+for evidence work already allowed by the governing review task.
+
+The review return distinguishes:
+
+- **Proven behavioral defect**: pinned candidate, regression patch/path, exact
+  command, expected behavior and observed assertion failure. Retain the proof for
+  the implementer’s repair and later green run; do not silently apply it to the
+  delivery branch.
+- **Static finding**: source and governing criterion support duplication, wrong
+  layering or another inspectable violation; no artificial failing test required.
+- **Unverified behavioral concern**: hypothesis and precise missing evidence,
+  permission or environment. Neither a confirmed defect nor a passing check.
+
+Stop reproducing once the focused test establishes the claimed defect. The
+implementer owns the repair; the reviewer rechecks affected findings against the
+new revision. Existing findings unsupported by their attempted reproduction are
+retracted or revised, not preserved by weakening the test.
+
 Directory and ownership rules (these bind every command below):
 
 - **Every `crew-codex` call is ONE shell call that begins with
