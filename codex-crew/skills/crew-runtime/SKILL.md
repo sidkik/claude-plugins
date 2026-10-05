@@ -110,8 +110,8 @@ Directory and ownership rules (these bind every command below):
 Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 
 - `crew-codex task [--background] [--write] [--resume-last] [--model <m>] [--effort <none|minimal|low|medium|high|xhigh>] "<prompt>"`
-- `crew-codex review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>]`
-- `crew-codex adversarial-review [--wait|--background] [--base <ref>] [--scope <...>] [focus text]`
+- `crew-codex review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <m>]`
+- `crew-codex adversarial-review [--wait|--background] [--base <ref>] [--scope <...>] [--model <m>] [focus text]`
 - `crew-codex await <job-id> [--for <seconds>]` — block until the job leaves
   `running`, or until the deadline; prints ONE line. Exit 0 completed,
   1 failed/cancelled, 2 job not found, 3 job died silently, 4 SUPERSEDED by a
@@ -172,9 +172,11 @@ Execution rules:
   cost only one short status line per ~9 minutes.
 - Each agent's model/effort/write pins are defaults; only an explicit
   model or effort named in the request overrides them. `spark` maps to
-  `--model gpt-5.3-codex-spark`; `astra` maps to `--model gpt-6-astra
+  `--model gpt-5.3-codex-spark` only on explicit request; verify availability
+  because it is absent from the checked registry; `astra` maps to `--model gpt-6-astra
   --effort medium` (Astra's registry default), and an effort named in the
-  request still wins.
+  request still wins. Astra above `medium` requires Chad's explicit permission
+  before launch.
 - `cancel`, `redirect` and cross-job triage belong to the main thread
   (`/codex:status`, `/codex:cancel`); a crew agent only awaits the one job it
   launched, or the successor a redirect hands it via exit 4.
@@ -210,15 +212,27 @@ Execution rules:
   report that verbatim — the orchestrator decides whether to re-dispatch on
   another tier. Do NOT add your own retry loop on top.
 
-Model ladder (Codex CLI 0.156.1): **gpt-6-astra** = frontier flagship,
-registry default effort `medium`, keeps notes across context windows, rejects
-`none`/`minimal`, asks rather than guesses when input could change the result;
-**gpt-6-sol** = workhorse under Astra and the default implementer pin;
-**gpt-6-luna** = fast/affordable low tier; **gpt-5.6-terra** = still listed,
-but there is no GPT-6 Terra and it is not cheaper than GPT-6 Sol, so choose
-it only when the brief names Terra. Also listed: gpt-5.6-sol, gpt-5.6-luna,
-gpt-5.5, and gpt-5.3-codex-spark (ultra-fast, not in the API). GPT-5.4 Mini
-was retired on 2026-08-31 in favour of Luna. These models accept up to
-`xhigh` (Luna's ceiling is `max`; Astra and Sol also list `ultra`). The
-companion runtime still rejects `max`/`ultra`, so `xhigh` is the ceiling
-through this plugin.
+Model selection (verified 2026-10-05 model registry snapshot):
+[official guidance](https://learn.chatgpt.com/docs/models) recommends
+**gpt-6.1-sol** for complex coding and repeated work, **gpt-6-astra** for the
+most demanding work, and **gpt-6-luna** for clear, repeatable tasks. The crew
+pins Sol implementation and reviewer task routes to `gpt-6.1-sol` at `xhigh`;
+its CLI registry default is `low`. Astra remains at `medium`, its registry
+default; above medium requires Chad's explicit permission. Terra remains
+`gpt-5.6-terra` only when named explicitly; the registry has no GPT-6 Terra.
+Also listed: `gpt-6-sol`, `gpt-5.6-sol`, `gpt-5.6-luna` and `gpt-5.5`.
+Spark is absent from this registry; its existing alias is an explicit request,
+not evidence of account access. Verify availability and report rejection.
+
+The registry lists `max` for these lanes and `ultra` for Sol/Astra/Terra,
+but companion 1.0.6 accepts only `none|minimal|low|medium|high|xhigh`.
+Keep the crew's chosen effort pins; do not infer runtime support from registry
+capabilities. Astra's registry supports `low` and above.
+
+Generic `review` and `adversarial-review` accept optional `--model` in the
+installed companion. The crew reviewer passes `--model gpt-6.1-sol` as the thread model by default,
+and honors explicit model requests. These commands accept no effort flag;
+use `task` when an explicit effort is required. Native `review` can use its
+configured review model independently of the thread model; report that
+selection separately from the crew thread pin. Reviewer task routes carry
+both the crew's explicit model and effort defaults.

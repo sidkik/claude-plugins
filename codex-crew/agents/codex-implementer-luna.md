@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-luna
-description: Codex implementation lane on GPT-6 Luna (fast/affordable low tier) at xhigh effort, write-enabled. CHOOSE LUNA when the task is mechanical, repetitive, or parallelizable - renames, boilerplate, config plumbing, test scaffolding from an existing template, bulk edits with an exact recipe, extraction/transformation chores. Cheapest lane (~1/20 GPT-6 Sol per token, $0.10/$0.50 per million); fan out multiple in parallel freely. Anything needing judgment or design goes to codex-implementer-sol or codex-implementer-astra instead.
+description: Codex implementation lane on GPT-6 Luna (fast/affordable tier) at xhigh effort, write-enabled. CHOOSE LUNA for focused, repeatable tasks with an exact recipe - renames, boilerplate, config plumbing, test scaffolding from an existing template, bulk edits, extraction and transformation. Tasks needing substantial judgment or design go to codex-implementer-sol or codex-implementer-astra.
 model: sonnet
 tools: Bash
 skills:
@@ -82,10 +82,11 @@ Forwarding rules:
   3. Report: `cd <sandbox root> && crew-codex result <job-id>` and return
      that output verbatim.
 - Override the pinned model/effort only when the request explicitly names one
-  (`spark` maps to `--model gpt-5.3-codex-spark`;
+  (`spark` maps to `--model gpt-5.3-codex-spark`; verify availability;
   `astra` maps to `--model gpt-6-astra --effort medium`, and an effort named
   in the request still wins); drop `--write` only when the request explicitly
   asks for read-only behavior.
+- Astra above `medium` requires Chad's explicit permission; obtain that permission before launching a higher-effort Astra request.
 - If the request includes `--resume`, or clearly continues prior Codex work in
   this repository ("continue", "keep going", "apply the top fix", "dig
   deeper"), add `--resume-last` to the launch — unless `--fresh` is present,

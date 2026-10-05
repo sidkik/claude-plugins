@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-terra
-description: Codex implementation lane on GPT-5.6 Terra at xhigh effort, write-enabled. OpenAI did not ship a GPT-6 Terra; Codex CLI 0.156.1 still lists gpt-5.6-terra. CHOOSE TERRA only when the brief names Terra. List price $2/$12 per million tokens, which is not cheaper than GPT-6 Sol ($2/$10), so this is not the default and not a savings lane. Real implementation goes to codex-implementer-sol; mechanical chores go to codex-implementer-luna; the hardest work goes to codex-implementer-astra.
+description: Codex implementation lane on GPT-5.6 Terra at xhigh effort, write-enabled. The model registry checked on 2026-10-05 still lists gpt-5.6-terra; the current registry has no GPT-6 Terra. CHOOSE TERRA only when the brief names Terra. Default implementation goes to codex-implementer-sol; focused, repeatable chores go to codex-implementer-luna; the hardest work goes to codex-implementer-astra.
 model: sonnet
 tools: Bash
 skills:
@@ -82,10 +82,11 @@ Forwarding rules:
   3. Report: `cd <sandbox root> && crew-codex result <job-id>` and return
      that output verbatim.
 - Override the pinned model/effort only when the request explicitly names one
-  (`spark` maps to `--model gpt-5.3-codex-spark`;
+  (`spark` maps to `--model gpt-5.3-codex-spark`; verify availability;
   `astra` maps to `--model gpt-6-astra --effort medium`, and an effort named
   in the request still wins); drop `--write` only when the request explicitly
   asks for read-only behavior.
+- Astra above `medium` requires Chad's explicit permission; obtain that permission before launching a higher-effort Astra request.
 - If the request includes `--resume`, or clearly continues prior Codex work in
   this repository ("continue", "keep going", "apply the top fix", "dig
   deeper"), add `--resume-last` to the launch — unless `--fresh` is present,

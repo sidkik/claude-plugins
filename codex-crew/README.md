@@ -19,44 +19,52 @@ Explicit human read-only restrictions still apply.
 
 ## Agents
 
-Implementation is tiered across the GPT-6 family, plus GPT-5.6 Terra because
-OpenAI did not ship a GPT-6 Terra. The orchestrator picks the tier per task;
-each agent's description carries the selection criteria:
+The default implementation and custom reviewer task lanes use GPT-6.1 Sol.
+Astra handles the most demanding work; Luna handles focused, repeatable tasks.
+Terra remains available when explicitly requested.
 
 | Agent | Model | Effort | Posture | Choose when |
 |---|---|---|---|---|
-| `codex-implementer-astra` | gpt-6-astra (frontier flagship) | medium | write | The hardest work: evidence scattered across many files or subsystems, multi-hour jobs that outlive a context window, debugging Sol already needed a second round on, logic spanning retries/ownership/persisted state |
-| `codex-implementer-sol` | gpt-6-sol (workhorse) | xhigh | write | Default for real implementation, routine or intricate, when the evidence is bounded |
-| `codex-implementer-terra` | gpt-5.6-terra (no GPT-6 successor) | xhigh | write | Only when the brief names Terra. Not cheaper than GPT-6 Sol |
-| `codex-implementer-luna` | gpt-6-luna (affordable) | xhigh | write | Mechanical, repetitive, parallelizable chores with an exact recipe; fan out freely |
-| `codex-reviewer` | gpt-6-sol | xhigh | read-only; isolated test proof when authorized | Diff/branch reviews, adversarial reviews, independent diagnosis |
+| `codex-implementer-astra` | gpt-6-astra | medium | write | Most demanding work, scattered evidence, sustained reasoning across tools, or a failed Sol attempt |
+| `codex-implementer-sol` | gpt-6.1-sol | xhigh | write | Default for bounded implementation, routine or intricate |
+| `codex-implementer-terra` | gpt-5.6-terra | xhigh | write | The brief explicitly names Terra |
+| `codex-implementer-luna` | gpt-6-luna | xhigh | write | Focused, repeatable work with an exact recipe |
+| `codex-reviewer` task routes | gpt-6.1-sol | xhigh | read-only; isolated test proof when authorized | Governing reviews, custom analysis and diagnosis |
+| `codex-reviewer` generic review routes | gpt-6.1-sol thread model; native reviewer uses Codex configuration | Codex configuration | read-only | Generic diff/branch and adversarial reviews |
 
-List price per million tokens (input / output): Astra $10 / $50, GPT-6 Sol
-$2 / $10, GPT-5.6 Terra $2 / $12, GPT-6 Luna $0.10 / $0.50. Per token Astra is
-5× Sol and 100× Luna. Terra is not a savings tier against GPT-6 Sol. Pins are
-defaults — a dispatch brief that explicitly names a model or effort overrides
-them (`spark` → `gpt-5.3-codex-spark`; `astra` → `gpt-6-astra` at medium unless
-the brief also names an effort). GPT-5.4 Mini was retired on 2026-08-31, so
-its `mini` alias is gone; Luna is its replacement. Codex CLI 0.156.1 still
-lists `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`; this plugin pins Sol
-and Luna to the GPT-6 ids.
+[OpenAI's model guidance](https://learn.chatgpt.com/docs/models) recommends
+GPT-6.1 Sol for complex coding, Astra for the hardest work, and Luna for
+clear, repeatable tasks. Verified against the Codex model registry snapshot
+on 2026-10-05: GPT-6 Sol and GPT-5.6 Sol/Terra/Luna remain listed; no GPT-6
+Terra is listed. GPT-6.1 Sol's CLI registry default is `low`; this plugin
+explicitly chooses `xhigh` for its Sol implementation and reviewer task lanes.
 
-**Why Astra runs at medium.** Medium is Astra's default in OpenAI's model
-registry and the effort OpenAI's own reasoning guide calls the default
-configuration for most workloads. It is also where the cost/quality curve
-bends: in the comparison above, medium caught a startup bug that high missed.
-Name `high` in the brief for work that crosses retries, ownership and persisted
-state, and `xhigh` for a hard architectural call or a debugging loop that has
-resisted medium. Astra rejects `none` and `minimal`, and the companion runtime
-still caps effort at `xhigh`, so the registry's `max` and `ultra` levels are
-unreachable through this plugin.
+Pins are defaults: an explicit model or effort in the brief overrides them.
+`astra` selects `gpt-6-astra` at `medium` unless the brief also names an effort.
+`spark` retains the companion alias for `gpt-5.3-codex-spark` only on explicit
+request; it is absent from the verified registry, so check account/client
+availability before selecting it. Exact model ids pass through unchanged.
 
-**Astra briefs must be self-contained.** Astra asks rather than guesses when
-more input could change the result, and a detached job has nobody to answer.
-State decisions and assumptions up front; if the result comes back as a
-question, answer it and re-dispatch with `--resume`. Astra also keeps notes
-across context windows instead of compressing them into a summary, which is
-what makes it the lane for jobs that run for hours.
+**Why Astra runs at medium.** This lane keeps its chosen `medium` effort,
+which is also Astra's CLI registry default. Astra above `medium` requires
+Chad's explicit permission. Registry defaults and API/client defaults can
+differ. The installed companion (1.0.6) accepts efforts only through `xhigh`;
+registry-listed `max` and `ultra` are unavailable through this runtime.
+
+Generic `review` and `adversarial-review` pass `--model gpt-6.1-sol` to the
+installed companion (1.0.6). Explicit model requests override that thread model.
+These commands accept no effort flag; use a reviewer `task` route when an
+explicit effort or custom governing brief is required. Native `review` can
+select its configured review model independently of its thread model, so its
+reviewer model is not a verified crew pin.
+
+For cost comparisons, consult [current API pricing](https://developers.openai.com/api/docs/pricing).
+API token prices vary by context length and processing mode; they do not
+establish Codex plan credit usage.
+
+**Astra briefs must be self-contained.** State decisions, constraints and
+assumptions up front. If the result asks a clarifying question, answer it and
+resume the task with `--resume-last`.
 
 ## Requirements
 
@@ -98,7 +106,7 @@ between Bash calls. A dispatch therefore looks like this, one shell call per
 line, launch and await never sharing a call:
 
 ```
-cd <sandbox root> && crew-codex task --background --model gpt-6-sol --effort xhigh --write "<task text>"
+cd <sandbox root> && crew-codex task --background --model gpt-6.1-sol --effort xhigh --write "<task text>"
 cd <sandbox root> && crew-codex await <job-id> --for 540      # repeat while exit 10
 cd <sandbox root> && crew-codex result <job-id>
 ```
