@@ -8,7 +8,7 @@ user-invocable: false
 
 The primary session reads this contract to dispatch and supervise `codex-crew`
 agents. The worker execution rules apply inside `codex-implementer-astra`,
-`codex-implementer-sol`, `codex-implementer-terra`, `codex-implementer-luna` and
+`codex-implementer-sol`, `codex-implementer-luna` and
 `codex-reviewer`; reading it does not make the primary a forwarding worker.
 Claude → Grok inject is
 [grok-crew-runtime](../../../grok-crew/skills/grok-crew-runtime/SKILL.md).
@@ -218,13 +218,13 @@ Model selection (verified 2026-10-05 model registry snapshot):
 most demanding work, and **gpt-6-luna** for clear, repeatable tasks. The crew
 pins Sol implementation and reviewer task routes to `gpt-6.1-sol` at `xhigh`;
 its CLI registry default is `low`. Astra remains at `medium`, its registry
-default; above medium requires Chad's explicit permission. Terra remains
-`gpt-5.6-terra` only when named explicitly; the registry has no GPT-6 Terra.
-Also listed: `gpt-6-sol`, `gpt-5.6-sol`, `gpt-5.6-luna` and `gpt-5.5`.
+default; above medium requires Chad's explicit permission. Exact model ids
+requested in a brief pass through unchanged, including older models still
+available in the account's registry.
 Spark is absent from this registry; its existing alias is an explicit request,
 not evidence of account access. Verify availability and report rejection.
 
-The registry lists `max` for these lanes and `ultra` for Sol/Astra/Terra,
+The registry lists `max` for these lanes and `ultra` for Sol/Astra,
 but companion 1.0.6 accepts only `none|minimal|low|medium|high|xhigh`.
 Keep the crew's chosen effort pins; do not infer runtime support from registry
 capabilities. Astra's registry supports `low` and above.

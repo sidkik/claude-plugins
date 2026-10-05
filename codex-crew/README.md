@@ -21,13 +21,11 @@ Explicit human read-only restrictions still apply.
 
 The default implementation and custom reviewer task lanes use GPT-6.1 Sol.
 Astra handles the most demanding work; Luna handles focused, repeatable tasks.
-Terra remains available when explicitly requested.
 
 | Agent | Model | Effort | Posture | Choose when |
 |---|---|---|---|---|
 | `codex-implementer-astra` | gpt-6-astra | medium | write | Most demanding work, scattered evidence, sustained reasoning across tools, or a failed Sol attempt |
 | `codex-implementer-sol` | gpt-6.1-sol | xhigh | write | Default for bounded implementation, routine or intricate |
-| `codex-implementer-terra` | gpt-5.6-terra | xhigh | write | The brief explicitly names Terra |
 | `codex-implementer-luna` | gpt-6-luna | xhigh | write | Focused, repeatable work with an exact recipe |
 | `codex-reviewer` task routes | gpt-6.1-sol | xhigh | read-only; isolated test proof when authorized | Governing reviews, custom analysis and diagnosis |
 | `codex-reviewer` generic review routes | gpt-6.1-sol thread model; native reviewer uses Codex configuration | Codex configuration | read-only | Generic diff/branch and adversarial reviews |
@@ -35,8 +33,7 @@ Terra remains available when explicitly requested.
 [OpenAI's model guidance](https://learn.chatgpt.com/docs/models) recommends
 GPT-6.1 Sol for complex coding, Astra for the hardest work, and Luna for
 clear, repeatable tasks. Verified against the Codex model registry snapshot
-on 2026-10-05: GPT-6 Sol and GPT-5.6 Sol/Terra/Luna remain listed; no GPT-6
-Terra is listed. GPT-6.1 Sol's CLI registry default is `low`; this plugin
+on 2026-10-05. GPT-6.1 Sol's CLI registry default is `low`; this plugin
 explicitly chooses `xhigh` for its Sol implementation and reviewer task lanes.
 
 Pins are defaults: an explicit model or effort in the brief overrides them.

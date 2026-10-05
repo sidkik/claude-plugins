@@ -1,6 +1,6 @@
 # SDLC Process
 
-`0.4.0` packages the shared Sidkik process, selected Pocock skills, orchestrator,
+This plugin packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a silent SessionStart metadata hook. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.

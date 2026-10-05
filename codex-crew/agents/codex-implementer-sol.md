@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-sol
-description: Codex implementation lane on GPT-6.1 Sol (latest workhorse) at xhigh effort, write-enabled. CHOOSE SOL for real implementation - routine well-specified work and intricate bounded work alike, including cross-cutting changes, concurrency/idempotency/money-path correctness, and debugging with bounded evidence. Use codex-implementer-luna for focused, repeatable chores. Escalate to codex-implementer-astra for the most demanding work or when Sol needs another round. Terra remains an explicitly requested older lane.
+description: Codex implementation lane on GPT-6.1 Sol (latest workhorse) at xhigh effort, write-enabled. CHOOSE SOL for real implementation - routine well-specified work and intricate bounded work alike, including cross-cutting changes, concurrency/idempotency/money-path correctness, and debugging with bounded evidence. Use codex-implementer-luna for focused, repeatable chores. Escalate to codex-implementer-astra for the most demanding work or when Sol needs another round.
 model: sonnet
 tools: Bash
 skills:
