@@ -101,6 +101,21 @@ out="$(CLAUDE_CONFIG_DIR="$TMP/happy" env -u CLAUDE_PLUGIN_DATA bash "$CREW" sta
 check "argv forwarding" 0 "ARGS:status,--json" "$rc" "$out"
 check "CLAUDE_PLUGIN_DATA default" 0 "DATA:$TMP/happy/plugins/data/codex-openai-codex" "$rc" "$out"
 
+# Explicit model ids and efforts are forwarded unchanged, including older ids.
+# Agent-selected defaults use the same path; the wrapper never rewrites a tier.
+for selected_model in gpt-6.1-sol gpt-6-sol gpt-6-astra gpt-6-luna gpt-5.6-terra custom-model-id; do
+  out="$(CLAUDE_CONFIG_DIR="$TMP/happy" CREW_CODEX_NO_JOB_BROKER=1 \
+    bash "$CREW" task --background --model "$selected_model" --effort xhigh --write "model probe" 2>&1)" && rc=0 || rc=$?
+  check "task preserves explicit $selected_model and effort" 0 \
+    "ARGS:task,--background,--model,$selected_model,--effort,xhigh,--write,model probe" "$rc" "$out"
+done
+for review_command in review adversarial-review; do
+  out="$(CLAUDE_CONFIG_DIR="$TMP/happy" CREW_CODEX_NO_JOB_BROKER=1 \
+    bash "$CREW" "$review_command" --background --model gpt-6.1-sol --base main 2>&1)" && rc=0 || rc=$?
+  check "$review_command forwards latest thread model" 0 \
+    "ARGS:$review_command,--background,--model,gpt-6.1-sol,--base,main" "$rc" "$out"
+done
+
 # --- Capacity-retry cases: fake companion whose behavior depends on attempt count ---
 mkdir -p "$TMP/retry/plugins" "$TMP/retry/install/scripts"
 echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/retry/install\"}]}}" > "$TMP/retry/plugins/installed_plugins.json"
@@ -963,19 +978,24 @@ fi
 kill -9 "$innocent" 2>/dev/null || true
 
 # --- lane pins: each agent launches with its own model and effort ------------
-# The Astra lane defaults to medium (its registry default and the cost/quality
-# sweet spot); Sol and Luna are GPT-6 at xhigh, Terra stays gpt-5.6-terra at xhigh. A drifted pin silently changes
+# The Astra lane defaults to medium (its registry default); Sol is GPT-6.1 and Luna is GPT-6 at xhigh; Terra stays gpt-5.6-terra at xhigh. A drifted pin silently changes
 # what every dispatch costs, so each launch line is asserted verbatim.
 check_contains "astra lane pins gpt-6-astra at medium" "$AGENT_DIR/codex-implementer-astra.md" \
   'crew-codex task --background --model gpt-6-astra --effort medium --write'
-check_contains "sol lane pins gpt-6-sol at xhigh" "$AGENT_DIR/codex-implementer-sol.md" \
-  'crew-codex task --background --model gpt-6-sol --effort xhigh --write'
+check_contains "sol lane pins gpt-6.1-sol at xhigh" "$AGENT_DIR/codex-implementer-sol.md" \
+  'crew-codex task --background --model gpt-6.1-sol --effort xhigh --write'
 check_contains "terra lane pins gpt-5.6-terra at xhigh" "$AGENT_DIR/codex-implementer-terra.md" \
   'crew-codex task --background --model gpt-5.6-terra --effort xhigh --write'
 check_contains "luna lane pins gpt-6-luna at xhigh" "$AGENT_DIR/codex-implementer-luna.md" \
   'crew-codex task --background --model gpt-6-luna --effort xhigh --write'
-check_contains "reviewer read-only task route pins gpt-6-sol at xhigh" "$AGENT_DIR/codex-reviewer.md" \
-  'crew-codex task --background --model gpt-6-sol --effort xhigh "<task text>"'
+check_contains "reviewer read-only task route pins gpt-6.1-sol at xhigh" "$AGENT_DIR/codex-reviewer.md" \
+  'crew-codex task --background --model gpt-6.1-sol --effort xhigh "<task text>"'
+check_contains "reviewer proof task pins gpt-6.1-sol at xhigh" "$AGENT_DIR/codex-reviewer.md" \
+  'crew-codex task --background --model gpt-6.1-sol --effort xhigh --write'
+check_contains "reviewer generic review passes latest thread model" "$AGENT_DIR/codex-reviewer.md" \
+  'crew-codex review --background --model gpt-6.1-sol'
+check_contains "reviewer adversarial review passes latest thread model" "$AGENT_DIR/codex-reviewer.md" \
+  'crew-codex adversarial-review --background --model gpt-6.1-sol'
 check_contains "astra lane tells the forwarder what to do with a clarifying question" \
   "$AGENT_DIR/codex-implementer-astra.md" 'Do not answer it yourself'
 for f in "$AGENT_DIR"/*.md "$SKILL_FILE"; do

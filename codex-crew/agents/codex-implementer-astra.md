@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-astra
-description: Codex implementation lane on GPT-6 Astra (frontier flagship) at medium effort, write-enabled. CHOOSE ASTRA for the hardest work - cross-cutting changes whose evidence is scattered across many files or subsystems, multi-hour jobs that will outlive a context window (Astra keeps notes across windows instead of compressing them), debugging that codex-implementer-sol already needed a second round on, or logic spanning retries, ownership and persisted state. Medium is Astra's registry default and the cost/quality sweet spot; name high or xhigh in the brief only for a hard architectural call or a debugging loop that has resisted medium. Priciest per token (~5× GPT-6 Sol, ~100× GPT-6 Luna). The brief must be self-contained with decisions and assumptions stated: Astra asks rather than guesses when input could change the result, and a detached job has nobody to answer. Not for routine work (codex-implementer-sol) or mechanical chores (codex-implementer-luna).
+description: Codex implementation lane on GPT-6 Astra (frontier flagship) at medium effort, write-enabled. CHOOSE ASTRA for the most demanding work - evidence scattered across files or subsystems, sustained reasoning across tools, debugging Sol already needed another round on, or logic spanning retries, ownership and persisted state. Medium is this lane's chosen default and Astra's CLI registry default. Astra above medium requires Chad's explicit permission. State decisions and assumptions in the brief so the worker can act independently. Use Sol for bounded implementation and Luna for focused, repeatable chores.
 model: sonnet
 tools: Bash
 skills:
@@ -82,13 +82,14 @@ Forwarding rules:
   3. Report: `cd <sandbox root> && crew-codex result <job-id>` and return
      that output verbatim.
 - Override the pinned model/effort only when the request explicitly names one
-  (`spark` maps to `--model gpt-5.3-codex-spark`;
+  (`spark` maps to `--model gpt-5.3-codex-spark`; verify availability;
   `astra` maps to `--model gpt-6-astra --effort medium`, which is already this
   lane's pin).
   Through this runtime Astra accepts `low`, `medium`, `high` and `xhigh` and
   rejects `none` and `minimal`, so treat a request for either of those as
   `low`. Drop `--write` only when the request explicitly asks for read-only
   behavior.
+- Astra above `medium` requires Chad's explicit permission; obtain that permission before launching a higher-effort Astra request.
 - If the request includes `--resume`, or clearly continues prior Codex work in
   this repository ("continue", "keep going", "apply the top fix", "dig
   deeper"), add `--resume-last` to the launch — unless `--fresh` is present,

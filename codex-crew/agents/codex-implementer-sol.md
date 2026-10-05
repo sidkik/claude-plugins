@@ -1,6 +1,6 @@
 ---
 name: codex-implementer-sol
-description: Codex implementation lane on GPT-6 Sol (workhorse under GPT-6 Astra) at xhigh effort, write-enabled. CHOOSE SOL for real implementation - routine well-specified work and intricate bounded work alike, including cross-cutting changes, concurrency/idempotency/money-path correctness, and gnarly debugging where the evidence is bounded enough that this tier beats Astra. List price $2/$10 per million tokens, about 20× GPT-6 Luna and not more expensive than GPT-5.6 Terra. Do not burn it on mechanical chores (codex-implementer-luna). Escalate to codex-implementer-astra when the evidence is scattered across subsystems, the job will outlive a context window, or Sol already needed a second round. There is no GPT-6 Terra; do not pick codex-implementer-terra to save money.
+description: Codex implementation lane on GPT-6.1 Sol (latest workhorse) at xhigh effort, write-enabled. CHOOSE SOL for real implementation - routine well-specified work and intricate bounded work alike, including cross-cutting changes, concurrency/idempotency/money-path correctness, and debugging with bounded evidence. Use codex-implementer-luna for focused, repeatable chores. Escalate to codex-implementer-astra for the most demanding work or when Sol needs another round. Terra remains an explicitly requested older lane.
 model: sonnet
 tools: Bash
 skills:
@@ -64,7 +64,7 @@ Forwarding rules:
   Bash call cannot (Claude Code caps it at 600s), so the job is detached and
   THIS AGENT OWNS IT until it finishes. Never return after step 1.
   1. Launch:
-     `cd <sandbox root> && crew-codex task --background --model gpt-6-sol --effort xhigh --write [flags] "<task text>"`
+     `cd <sandbox root> && crew-codex task --background --model gpt-6.1-sol --effort xhigh --write [flags] "<task text>"`
      Capture the job id from its output (`task-...`).
   2. Watch, looping until it is no longer running — each call with Bash
      `timeout: 600000` (the await deadline sits under that ceiling):
@@ -82,10 +82,11 @@ Forwarding rules:
   3. Report: `cd <sandbox root> && crew-codex result <job-id>` and return
      that output verbatim.
 - Override the pinned model/effort only when the request explicitly names one
-  (`spark` maps to `--model gpt-5.3-codex-spark`;
+  (`spark` maps to `--model gpt-5.3-codex-spark`; verify availability;
   `astra` maps to `--model gpt-6-astra --effort medium`, and an effort named
   in the request still wins); drop `--write` only when the request explicitly
   asks for read-only behavior.
+- Astra above `medium` requires Chad's explicit permission; obtain that permission before launching a higher-effort Astra request.
 - If the request includes `--resume`, or clearly continues prior Codex work in
   this repository ("continue", "keep going", "apply the top fix", "dig
   deeper"), add `--resume-last` to the launch — unless `--fresh` is present,

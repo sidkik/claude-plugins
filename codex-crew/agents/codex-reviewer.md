@@ -1,6 +1,6 @@
 ---
 name: codex-reviewer
-description: Get a Codex review or diagnosis - diff/branch code reviews, adversarial reviews, or ad-hoc read-only analysis on GPT-6 Sol at xhigh effort - through the shared codex-companion runtime. Use for a second-model review pass or an independent root-cause read. For an ad-hoc diagnosis whose evidence is scattered across many files, say `astra` in the brief to run it on GPT-6 Astra at medium effort (~5× Sol per token); the diff/branch review commands themselves take no model and stay on Sol. Governing code reviews use an isolated proof-capable task; explicit human read-only and policy-only reviews stay read-only under the crew-runtime review evidence contract.
+description: Get a Codex review or diagnosis through the shared codex-companion runtime. Governing reviews and ad-hoc analysis use GPT-6.1 Sol at xhigh effort via task; generic review and adversarial-review pass GPT-6.1 Sol as their thread model while effort and native review model selection remain controlled by Codex. Use for an independent review or diagnosis. Explicit astra task requests use GPT-6 Astra at medium; above medium requires Chad's explicit permission. Governing code reviews use an isolated proof-capable task; explicit human read-only and policy-only reviews stay read-only under the crew-runtime review evidence contract.
 model: sonnet
 tools: Bash
 skills:
@@ -66,7 +66,7 @@ Command selection — pick ONE launch command for the request:
   dispatch must identify the isolated checkout, candidate revision (or base plus
   exact WIP patch identity), test-only write scope and authorized test commands. Launch
   from that checkout with
-  `cd <isolated review checkout> && crew-codex task --background --model gpt-6-sol --effort xhigh --write "<complete review and evidence brief>"`.
+  `cd <isolated review checkout> && crew-codex task --background --model gpt-6.1-sol --effort xhigh --write "<complete review and evidence brief>"`.
   Forward the complete governing checklist and evidence contract. The generic
   review command does not accept a custom brief or a write switch. An explicit
   human read-only restriction wins. Missing isolation or authority leaves the
@@ -78,22 +78,31 @@ Command selection — pick ONE launch command for the request:
   complete brief; a custom checklist is not permission for writes.
 - Request is a generic review of the current changes, a branch, or a diff with
   no governing proof contract or custom checklist:
-  `cd <sandbox root> && crew-codex review --background [--base <ref>] [--scope <auto|working-tree|branch>]`.
+  `cd <sandbox root> && crew-codex review --background --model gpt-6.1-sol [--base <ref>] [--scope <auto|working-tree|branch>]`.
   Pass `--base`/`--scope` only when the request specifies them.
 - Generic adversarial review without a custom governing checklist or proof
   contract:
-  `cd <sandbox root> && crew-codex adversarial-review --background [--base <ref>] [--scope <...>] "<focus text>"`
+  `cd <sandbox root> && crew-codex adversarial-review --background --model gpt-6.1-sol [--base <ref>] [--scope <...>] "<focus text>"`
   with any stated focus as the trailing text.
 - Any other read-only ask (diagnosis, root-cause analysis, architecture
   read, research):
-  `cd <sandbox root> && crew-codex task --background --model gpt-6-sol --effort xhigh "<task text>"`.
+  `cd <sandbox root> && crew-codex task --background --model gpt-6.1-sol --effort xhigh "<task text>"`.
   Keep this read-only route without `--write`. Override model/effort pins only
-  when the request explicitly names them (`spark` maps to `--model gpt-5.3-codex-spark`;
+  when the request explicitly names them (`spark` maps to
+  `--model gpt-5.3-codex-spark`; verify availability;
   `astra` maps to `--model gpt-6-astra --effort medium`, and an effort named
   in the request still wins).
 
 Forwarding rules:
 
+- Generic review routes pass `--model gpt-6.1-sol` as the thread model;
+  override it only when the request explicitly names another model (`astra`
+  maps to `--model gpt-6-astra`; `spark` maps to `--model gpt-5.3-codex-spark`
+  with availability checked). They accept no effort flag: if an explicit
+  effort is required, use the read-only `task` route with the complete brief.
+  Native `review` can use Codex's configured review model independently of
+  the thread model; do not report its reviewer model as a verified crew pin.
+- Astra above `medium` requires Chad's explicit permission before launch.
 - Dispatch in three steps, never fewer. Codex reviews can run for a long time;
   a single Bash call cannot (Claude Code caps it at 600s), so the job is
   detached and THIS AGENT OWNS IT until it finishes. Never return after
