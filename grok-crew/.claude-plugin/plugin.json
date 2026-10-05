@@ -1,6 +1,6 @@
 {
   "name": "grok-crew",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Delegate bounded review, investigation and implementation from Claude Code or Codex to the Grok CLI.",
   "author": {
     "name": "Sidkik"

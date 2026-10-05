@@ -1,6 +1,6 @@
 # Grok Crew
 
-Version **0.1.2** supplies a delegation skill for **Claude Code and Codex**. It
+This plugin supplies a delegation skill for **Claude Code and Codex**. It
 launches the installed Grok CLI for reviews, investigations and authorized edits,
 collects its output, and resumes known sessions. No custom broker or official
 Claude bridge is required. Read [the skill](skills/grok-crew-runtime/SKILL.md).

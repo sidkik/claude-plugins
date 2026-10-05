@@ -15,6 +15,22 @@ spec.loader.exec_module(build)
 
 
 class ProcessBundleTests(unittest.TestCase):
+    def test_dual_host_plugin_release_versions_agree(self):
+        marketplace = json.loads((ROOT / '.claude-plugin/marketplace.json').read_text())
+        entries = {entry['name']: entry for entry in marketplace['plugins']}
+        codex_manifests = sorted(ROOT.glob('*/.codex-plugin/plugin.json'))
+        self.assertTrue(codex_manifests, 'expected dual-host plugins')
+        for codex_path in codex_manifests:
+            plugin = codex_path.parent.parent
+            with self.subTest(plugin=plugin.name):
+                codex = json.loads(codex_path.read_text())
+                claude = json.loads((plugin / '.claude-plugin/plugin.json').read_text())
+                self.assertEqual(codex['name'], claude['name'])
+                self.assertEqual(codex['version'], claude['version'])
+                entry = entries[claude['name']]
+                if 'version' in entry:
+                    self.assertEqual(entry['version'], claude['version'])
+
     def test_claude_compatible_manifest_explicitly_includes_both_skill_surfaces(self):
         manifest = json.loads((ROOT / 'sdlc-process/.claude-plugin/plugin.json').read_text())
         self.assertEqual(manifest['skills'], ['./skills/', './claude-skills/'])

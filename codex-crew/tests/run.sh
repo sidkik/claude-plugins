@@ -977,15 +977,23 @@ else
 fi
 kill -9 "$innocent" 2>/dev/null || true
 
+# Packaging must expose exactly the supported dedicated lanes and reviewer.
+# Explicit older model ids remain covered by the argv and redirect tests above.
+packaged_agents="$(find "$AGENT_DIR" -maxdepth 1 -type f -name '*.md' -printf '%f\n' | sort)"
+expected_agents=$'codex-implementer-astra.md\ncodex-implementer-luna.md\ncodex-implementer-sol.md\ncodex-reviewer.md'
+if [[ "$packaged_agents" == "$expected_agents" ]]; then
+  echo "PASS: packaged crew agents match supported lanes"; pass=$((pass + 1))
+else
+  echo "FAIL: unexpected packaged crew agents: $packaged_agents"; fail=$((fail + 1))
+fi
+
 # --- lane pins: each agent launches with its own model and effort ------------
-# The Astra lane defaults to medium (its registry default); Sol is GPT-6.1 and Luna is GPT-6 at xhigh; Terra stays gpt-5.6-terra at xhigh. A drifted pin silently changes
-# what every dispatch costs, so each launch line is asserted verbatim.
+# Astra defaults to medium; Sol is GPT-6.1 and Luna is GPT-6 at xhigh.
+# A drifted pin changes the dispatched model, so assert each launch line.
 check_contains "astra lane pins gpt-6-astra at medium" "$AGENT_DIR/codex-implementer-astra.md" \
   'crew-codex task --background --model gpt-6-astra --effort medium --write'
 check_contains "sol lane pins gpt-6.1-sol at xhigh" "$AGENT_DIR/codex-implementer-sol.md" \
   'crew-codex task --background --model gpt-6.1-sol --effort xhigh --write'
-check_contains "terra lane pins gpt-5.6-terra at xhigh" "$AGENT_DIR/codex-implementer-terra.md" \
-  'crew-codex task --background --model gpt-5.6-terra --effort xhigh --write'
 check_contains "luna lane pins gpt-6-luna at xhigh" "$AGENT_DIR/codex-implementer-luna.md" \
   'crew-codex task --background --model gpt-6-luna --effort xhigh --write'
 check_contains "reviewer read-only task route pins gpt-6.1-sol at xhigh" "$AGENT_DIR/codex-reviewer.md" \
