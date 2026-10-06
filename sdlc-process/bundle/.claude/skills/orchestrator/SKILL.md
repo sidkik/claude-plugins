@@ -77,6 +77,10 @@ and permission behavior rather than assuming that changing cwd grants access.
 Record the launch cwd and use it for subsequent operations when job lookup depends
 on cwd. Every brief names absolute target paths and explicit write fences. Local
 machine paths are observations to discover, not shared process requirements.
+A brief for work that needs a live local environment names the allocated
+environment's custody pointers, or tells the worker to follow the
+[local environment rules](../../../docs/work/agent-orchestration/process/orchestration.process.md#local-runtime-environments-select-own-validate-and-clean-up) to reuse or create one,
+and forbids deleting an environment the worker does not own.
 
 Before changing a running worker's assignment, inspect its current state and the
 runtime's supported controls. Use verified steering when available; distinguish
