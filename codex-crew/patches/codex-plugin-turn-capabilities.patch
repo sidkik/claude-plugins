@@ -1,0 +1,134 @@
+codex-plugin: start a task turn with native skill input and a network-capable sandbox policy
+
+Target: the codex@openai-codex Claude Code plugin (any 1.0.x; applied with
+context matching, not line numbers). Independent of the queue passthrough
+patch: it touches scripts/lib/codex.mjs only.
+
+Why:
+  The companion's task route builds turn/start input as one text item and
+  fixes the sandbox at thread creation ("read-only", or "workspace-write" with
+  --write). Neither can express a required skill, and neither can say "this
+  reviewer may read GitHub". The Codex app-server supports both on turn/start:
+  a {type:"skill", name, path} input item (documented as the way to invoke a
+  skill explicitly), and sandboxPolicy, whose readOnly and workspaceWrite
+  variants carry a separate networkAccess flag.
+
+What this changes:
+  When CREW_CODEX_TURN_SPEC names a JSON file ({"skills":[{name,path}],
+  "network":bool}) written by crew-codex after it validated the skills:
+  1. turn/start input carries "$name" mentions plus one skill item per skill.
+  2. network:true sends sandboxPolicy readOnly+networkAccess, or
+     workspaceWrite+networkAccess when the task was launched with --write.
+  3. The thread the turn runs on is written to "<spec file>.thread", so the
+     launcher can tie the requirements to the job that owns that thread.
+  4. A spec may carry "resumeThread": the thread crew-codex validated the
+     requirements for. If the companion's own resume selection names another
+     thread, the run throws before any thread is resumed or published.
+  With the variable unset, behavior is stock. A set but unreadable or
+  malformed spec throws instead of running without the requirement.
+
+Network is not write authority and write is not network: approvalPolicy and the
+thread sandbox are untouched.
+
+Reverse with: crew-codex patch --revert
+
+--- a/scripts/lib/codex.mjs
++++ b/scripts/lib/codex.mjs
+@@ -82,9 +82,50 @@
+   };
+ }
+ 
++// crew-codex turn requirements: native skill input and a network-capable
++// sandbox policy. CREW_CODEX_TURN_SPEC names a JSON file written by crew-codex
++// after it validated the skills; unset means stock behavior. A set-but-unusable
++// spec throws: silently running without the required skills or capability would
++// let a review proceed on an unmet requirement.
++function readCrewTurnSpec() {
++  const specPath = process.env.CREW_CODEX_TURN_SPEC;
++  if (!specPath) {
++    return null;
++  }
++  let spec;
++  try {
++    spec = JSON.parse(fs.readFileSync(specPath, "utf8"));
++  } catch (error) {
++    throw new Error(`crew-codex turn spec ${specPath} is unreadable: ${error.message}`);
++  }
++  const skills = Array.isArray(spec.skills) ? spec.skills : [];
++  for (const skill of skills) {
++    if (typeof skill?.name !== "string" || !skill.name || typeof skill?.path !== "string" || !skill.path) {
++      throw new Error(`crew-codex turn spec ${specPath} has a skill without name and path`);
++    }
++  }
++  return { specPath, skills, network: spec.network === true, resumeThread: typeof spec.resumeThread === "string" ? spec.resumeThread : null };
++}
++
+ /** @returns {UserInput[]} */
+-function buildTurnInput(prompt) {
+-  return [{ type: "text", text: prompt, text_elements: [] }];
++function buildTurnInput(prompt, spec = null) {
++  const skills = spec?.skills ?? [];
++  const mentions = skills.map((skill) => `$${skill.name}`).join(" ");
++  const text = mentions ? `${mentions}\n\n${prompt}` : prompt;
++  return [
++    { type: "text", text, text_elements: [] },
++    ...skills.map((skill) => ({ type: "skill", name: skill.name, path: skill.path }))
++  ];
++}
++
++// Network is a sandbox-policy field, separate from file-write authority:
++// read-only stays read-only with networkAccess, and workspace-write is only
++// used when the task itself was launched with --write.
++function buildCrewSandboxPolicy(spec, write) {
++  if (!spec?.network) {
++    return null;
++  }
++  return write ? { type: "workspaceWrite", networkAccess: true } : { type: "readOnly", networkAccess: true };
+ }
+ 
+ function shorten(text, limit = 72) {
+@@ -1101,6 +1142,17 @@
+   return withAppServer(cwd, async (client) => {
+     let threadId;
+ 
++    // crew-codex validated these requirements for one selected thread. If the
++    // companion's own selection now names another, hold before any thread is
++    // resumed or published rather than run it under the wrong skill and network.
++    const crewBound = readCrewTurnSpec();
++    if (crewBound?.resumeThread && options.resumeThreadId !== crewBound.resumeThread) {
++      throw new Error(
++        `crew-codex requirements were validated for thread ${crewBound.resumeThread}, but this resume selected ` +
++          `${options.resumeThreadId ?? "a new thread"}; nothing was resumed. Relaunch the continuation.`
++      );
++    }
++
+     if (options.resumeThreadId) {
+       emitProgress(options.onProgress, `Resuming thread ${options.resumeThreadId}.`, "starting");
+       const response = await resumeThread(client, options.resumeThreadId, cwd, {
+@@ -1129,16 +1181,24 @@
+       throw new Error("A prompt is required for this Codex run.");
+     }
+ 
++    const crewSpec = readCrewTurnSpec();
++    const crewSandboxPolicy = buildCrewSandboxPolicy(crewSpec, options.sandbox === "workspace-write");
++    if (crewSpec) {
++      // The thread this turn really runs on, for crew-codex to match the job
++      // that owns these requirements (a foreground run prints no job id).
++      fs.writeFileSync(`${crewSpec.specPath}.thread`, threadId);
++    }
+     const turnState = await captureTurn(
+       client,
+       threadId,
+       () =>
+         client.request("turn/start", {
+           threadId,
+-          input: buildTurnInput(prompt),
++          input: buildTurnInput(prompt, crewSpec),
+           model: options.model ?? null,
+           effort: options.effort ?? null,
+-          outputSchema: options.outputSchema ?? null
++          outputSchema: options.outputSchema ?? null,
++          ...(crewSandboxPolicy ? { sandboxPolicy: crewSandboxPolicy } : {})
+         }),
+       { onProgress: options.onProgress }
+     );

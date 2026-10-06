@@ -62,9 +62,13 @@ add or change cases there, not here.
 When the change concerns skill loading or main-session delivery, run it in a real
 client session and read the transcript.
 
-- A skill-source read (opening `SKILL.md`) is not a native invocation. Count the
-  skill as invoked only when the transcript shows the Skill tool call and its
-  returned launch result.
+- A skill-source read (opening `SKILL.md`) is not a native invocation. In Claude,
+  count the skill as invoked only when the transcript shows the Skill tool call
+  and its returned launch result. For a Codex worker, the mechanism is the
+  structured skill input: count it only when the launch evidence shows the
+  accepted input (`crew-codex task --skill <name>`, resolved name and path) and
+  the turn's result; a file read never substitutes. A job launch or skill
+  discovery alone is not success.
 - Invocation alone does not satisfy the loading contract. Full loading also needs
   the complete packaged source read, plus the directed reference files relevant to
   the work. Check each as its own requirement in the transcript.
@@ -72,6 +76,38 @@ client session and read the transcript.
   call.
 - Use the client's documented CLI help for invocation flags; record the exact
   command you ran in the PR.
+
+### Codex crew native skills and capabilities
+
+When the change touches `crew-codex --skill`/`--network`, the turn-capabilities
+patch or the reviewer/runtime instructions, the stub suite is not native evidence.
+It proves routing, validation order and the params the patched companion builds;
+it does not show that Codex injects a skill or enforces `networkAccess`.
+
+```bash
+bash codex-crew/tests/run.sh   # stubs + the node regressions; ignores the caller's crew environment
+CREW_LIVE=1 node --test codex-crew/tests/live-capabilities.test.mjs
+CREW_LIVE=1 CREW_LIVE_TURNS=1 node --test codex-crew/tests/live-capabilities.test.mjs
+```
+
+The first live command spends nothing: it copies the installed official plugin
+into a throwaway `CLAUDE_CONFIG_DIR`, patches the copy, and checks real
+`skills/list` discovery and the explicit pre-job failures. The second spends
+Codex tokens and needs `gh` auth: skill injection against a control without the
+flag (a token present only in the `SKILL.md`), an authenticated GitHub read with
+and without `--network`, and a read-only task that cannot write beside an
+authorized `--write --network` task that writes inside its disposable checkout
+and not outside it, `--resume-last` keeping the required skill (and not a decoy)
+and the authenticated read while `--no-requirements` drops both, and a literal
+`--network` after `--` granting nothing. The resume check reads Codex's own
+record of the thread (`thread/read` with turns): the accepted skill input and the
+command result, not the reply wording. A resumed thread still holds its earlier
+messages, so dropping requirements stops re-invocation and network but does not
+erase earlier instructions or output. `--network` permits authenticated
+mutations too; the harness only reads, and "no GitHub mutation" remains an
+instruction fence. Record Codex and plugin versions, the command, and each
+case's observed result; a skipped case is not a pass. Never run it against the
+live plugin install or the shared checkout.
 
 ## Rerun scope
 

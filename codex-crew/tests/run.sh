@@ -8,6 +8,16 @@ CREW="$HERE/../bin/crew-codex"
 TMP="$(mktemp -d)"
 STUB_PIDS=""
 
+# The suite runs real crew-codex against fixtures, and it can itself be run from
+# inside a crew worker whose environment names that worker's archive, job state,
+# broker endpoint and turn spec. Inherited, those make fixture launches sweep and
+# reap the worker's own brokers and write stub records into its archive. Start
+# from a clean launcher environment and point every shared location at $TMP; a
+# case that needs a different value still sets it on its own command.
+while IFS= read -r inherited; do unset "$inherited"; done < <(compgen -e | grep -E '^(CREW_CODEX_|CODEX_COMPANION_|CLAUDE_PLUGIN_DATA$|CREW_TEST_)')
+export CREW_CODEX_ARCHIVE_DIR="$TMP/suite-archive"
+export CLAUDE_PLUGIN_DATA="$TMP/suite-plugin-data"
+
 pass=0
 fail=0
 summary_reached=0
@@ -412,8 +422,9 @@ write_job() { # dir id status thread createdAt model effort write
   # gluing bug for a whole release: crew_job_meta's last field was empty, bash
   # stripped the trailing tab, and the corruption only appeared against live
   # data. Keep every field populated the way production populates it.
-  printf '{"id":"%s","status":"%s","threadId":"%s","createdAt":"%s","turnId":"turn-%s","pid":424242,"request":{"cwd":"%s","model":"%s","effort":"%s","write":%s}}\n' \
-    "$2" "$3" "$4" "$5" "$2" "$PWD" "$6" "$7" "$8" > "$1/$2.json"
+  # jobClass and updatedAt are what the official resume selector reads.
+  printf '{"id":"%s","jobClass":"task","status":"%s","threadId":"%s","createdAt":"%s","updatedAt":"%s","turnId":"turn-%s","pid":424242,"request":{"cwd":"%s","model":"%s","effort":"%s","write":%s}}\n' \
+    "$2" "$3" "$4" "$5" "$5" "$2" "$PWD" "$6" "$7" "$8" > "$1/$2.json"
 }
 JOBS="$TMP/redir/data/state/lab-1/jobs"
 write_broker_stub "$TMP/redir/install/scripts"
@@ -493,13 +504,16 @@ check_contains "SKILL.md warns against cancel-and-restart" "$SKILL_FILE" "cancel
 # The fixture is reconstructed FROM the shipped patch's own pre-image, so these
 # cases exercise the real patch file and never touch the real codex install.
 PATCH_FILE="$HERE/../patches/codex-plugin-queue-passthrough.patch"
+TURN_PATCH_FILE="$HERE/../patches/codex-plugin-turn-capabilities.patch"
 
 build_fixture() { # $1 = destination plugin root
-  python3 - "$PATCH_FILE" "$1" <<'PYEOF'
+  python3 - "$1" "$PATCH_FILE" "$TURN_PATCH_FILE" <<'PYEOF'
 import sys, os
-patch, out = sys.argv[1], sys.argv[2]
+out, patches = sys.argv[1], sys.argv[2:]
 cur, files, order = None, {}, []
-for line in open(patch):
+for patch in patches:
+  cur = None
+  for line in open(patch):
     if line.startswith("--- a/"):
         cur = line[6:].strip()
         if cur not in files:
@@ -1016,6 +1030,173 @@ done
 check_contains "SKILL.md lists the astra lane" "$SKILL_FILE" 'codex-implementer-astra'
 check_contains "README documents the astra lane" "$HERE/../README.md" 'codex-implementer-astra'
 check_contains "README explains the medium default" "$HERE/../README.md" 'Why Astra runs at medium'
+
+# --- turn requirements: native skills and network, separate from writes -----
+# Stub tests: they prove crew-codex's own routing, validation order and
+# persistence against a fake companion and a fake skills/list. They do NOT prove
+# that Codex honors skill items or sandboxPolicy; that needs the opt-in live test
+# (tests/live-capabilities.test.mjs) and is reported separately.
+CAP="$TMP/cap"
+mkdir -p "$CAP/plugins" "$CAP/install/scripts" "$CAP/data/state/lab-1/jobs" "$CAP/arc" "$CAP/skills/orch" "$CAP/skills/useronly"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$CAP/install\"}]}}" > "$CAP/plugins/installed_plugins.json"
+printf -- '---\nname: orch\ndescription: x\n---\nbody\n' > "$CAP/skills/orch/SKILL.md"
+printf -- '---\nname: useronly\ndescription: x\ndisable-model-invocation: true\n---\nbody\n' > "$CAP/skills/useronly/SKILL.md"
+touch "$CAP/install/scripts/codex-companion.mjs"
+build_fixture "$CAP/install"
+CLAUDE_CONFIG_DIR="$CAP" bash "$CREW" patch --apply >/dev/null 2>&1 || true
+cat > "$CAP/install/scripts/codex-companion.mjs" <<'EOF'
+import fs from "node:fs";
+const argv = process.argv.slice(2);
+if (argv[0] === "task-resume-candidate") {
+  // The official resume selector's rule: newest finished task job with a thread.
+  const root = process.env.CLAUDE_PLUGIN_DATA + "/state";
+  const jobs = fs.readdirSync(root).flatMap((d) => fs.readdirSync(root + "/" + d + "/jobs").map((f) => JSON.parse(fs.readFileSync(root + "/" + d + "/jobs/" + f, "utf8"))));
+  jobs.sort((a, b) => String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? "")));
+  const c = jobs.find((j) => j.jobClass === "task" && j.threadId && j.status !== "queued" && j.status !== "running");
+  console.log(JSON.stringify({ available: Boolean(c), candidate: c ? { id: c.id, threadId: c.threadId } : null }));
+  process.exit(0);
+}
+let spec = "none";
+if (process.env.CREW_CODEX_TURN_SPEC) spec = fs.readFileSync(process.env.CREW_CODEX_TURN_SPEC, "utf8").trim();
+fs.appendFileSync(process.env.CREW_TEST_ARGV_LOG, argv.join(" ") + " @spec=" + spec + "\n");
+if (argv[0] === "task") console.log("Codex Task started in the background as " + (process.env.CREW_TEST_JOB || "task-cap1-aaa1") + ".");
+else if (argv[0] === "cancel") console.log("Cancelled " + argv[1] + ".");
+process.exit(0);
+EOF
+# Fake discovery: the stub replaces the app-server client the CLI loads.
+cat > "$CAP/install/scripts/lib/app-server.mjs" <<'EOF'
+import fs from "node:fs";
+export class CodexAppServerClient {
+  static async connect(cwd, options) {
+    fs.appendFileSync(process.env.CREW_TEST_RPC_LOG, "connect " + JSON.stringify(options) + "\n");
+    return {
+      async request(method, params) {
+        fs.appendFileSync(process.env.CREW_TEST_RPC_LOG, method + " " + JSON.stringify(params) + "\n");
+        return JSON.parse(fs.readFileSync(process.env.CREW_TEST_SKILLS_JSON, "utf8"));
+      },
+      async close() {}
+    };
+  }
+}
+EOF
+write_skills() { # entries as a JSON array body
+  printf '{"data":[{"cwd":"%s","errors":[],"skills":%s}]}\n' "$PWD" "$1" > "$CAP/skills.json"
+}
+GOOD_SKILLS="[{\"name\":\"orch\",\"path\":\"$CAP/skills/orch/SKILL.md\",\"enabled\":true,\"scope\":\"repo\",\"description\":\"x\"}]"
+write_skills "$GOOD_SKILLS"
+cap_log="$CAP/argv.log"; : > "$cap_log"
+run_cap() {
+  CLAUDE_CONFIG_DIR="$CAP" CLAUDE_PLUGIN_DATA="$CAP/data" CREW_CODEX_ARCHIVE_DIR="$CAP/arc" \
+  CREW_CODEX_NO_JOB_BROKER=1 CREW_TEST_ARGV_LOG="$cap_log" CREW_TEST_RPC_LOG="$CAP/rpc.log" \
+  CREW_TEST_SKILLS_JSON="$CAP/skills.json" GH_TOKEN="ghp_NOT_A_REAL_SECRET_FOR_TEST" \
+  bash "$CREW" "$@" 2>&1
+}
+
+out="$(run_cap task --background --skill orch --model gpt-6.1-sol "review it")" && rc=0 || rc=$?
+check "task --skill launches" 0 "task-cap1-aaa1" "$rc" "$out"
+check "skill flag is not forwarded to the companion" 0 "^task --background --model gpt-6.1-sol review it @spec=" "$rc" "$(cat "$cap_log")"
+check "spec carries the discovered skill identity" 0 "\"name\":\"orch\",\"path\":\"$CAP/skills/orch/SKILL.md\"" "$rc" "$(cat "$cap_log")"
+check "skills alone grant no network" 0 '"network":false' "$rc" "$(cat "$cap_log")"
+check "discovery ran as a forced reload on a private app-server" 0 'connect {"disableBroker":true}' "$rc" "$(cat "$CAP/rpc.log")"
+check "discovery asked skills/list for the worker cwd" 0 "skills/list {\"cwds\":\[\"$PWD\"\],\"forceReload\":true}" "$rc" "$(cat "$CAP/rpc.log")"
+check "job's spec is tied to its id" 0 "spec-" "$rc" "$(cat "$CAP/arc/task-cap1-aaa1.turn")"
+check_absent "no credential reaches the spec, sidecar or log" \
+  "$(cat "$cap_log" "$CAP/rpc.log" "$CAP/arc/task-cap1-aaa1.turn" "$(cat "$CAP/arc/task-cap1-aaa1.turn")")" "ghp_NOT_A_REAL_SECRET"
+
+# Network is a separate switch from writes, in both directions.
+: > "$cap_log"
+out="$(CREW_TEST_JOB=task-capn-aaa2 run_cap task --background --network "fetch PR")" && rc=0 || rc=$?
+check "--network alone still launches read-only" 0 "task-capn-aaa2" "$rc" "$out"
+check_absent "--network does not add --write" "$(cat "$cap_log")" "--write"
+check "--network is recorded for the turn" 0 '"network":true' "$rc" "$(cat "$cap_log")"
+: > "$cap_log"
+out="$(CREW_TEST_JOB=task-capw-aaa3 run_cap task --background --write "fix fixtures")" && rc=0 || rc=$?
+check "--write alone forwards unchanged" 0 "^task --background --write fix fixtures @spec=none" "$rc" "$(cat "$cap_log")"
+: > "$cap_log"
+out="$(CREW_TEST_JOB=task-capp-aaa4 run_cap task --background --write --network "prove it")" && rc=0 || rc=$?
+check "--write --network forwards write and records network" 0 "task --background --write prove it @spec={\"skills\":\[\],\"network\":true}" "$rc" "$(cat "$cap_log")"
+
+# Requirement failures stop BEFORE any job exists.
+for failing in missing disabled ambiguous useronly; do
+  : > "$cap_log"
+  case "$failing" in
+    missing)   write_skills "[]"; want="is not discovered"; name=orch ;;
+    disabled)  write_skills "[{\"name\":\"orch\",\"path\":\"$CAP/skills/orch/SKILL.md\",\"enabled\":false,\"scope\":\"repo\"}]"; want="but disabled"; name=orch ;;
+    ambiguous) write_skills "[{\"name\":\"orch\",\"path\":\"$CAP/skills/orch/SKILL.md\",\"enabled\":true,\"scope\":\"repo\"},{\"name\":\"orch\",\"path\":\"$CAP/skills/useronly/SKILL.md\",\"enabled\":true,\"scope\":\"user\"}]"; want="is ambiguous"; name=orch ;;
+    useronly)  write_skills "[{\"name\":\"useronly\",\"path\":\"$CAP/skills/useronly/SKILL.md\",\"enabled\":true,\"scope\":\"repo\"}]"; want="is user-only"; name=useronly ;;
+  esac
+  out="$(run_cap task --background --skill "$name" "review it")" && rc=0 || rc=$?
+  check "$failing skill fails explicitly" 1 "$want" "$rc" "$out"
+  check "$failing skill names the dependent hold" 1 "no job was started" "$rc" "$out"
+  check_absent "$failing skill never reaches the companion" "$(cat "$cap_log")" "task"
+done
+write_skills "$GOOD_SKILLS"
+
+# Native review has no skill input; refusing beats a review that silently lacks it.
+for review_command in review adversarial-review; do
+  : > "$cap_log"
+  out="$(run_cap "$review_command" --background --skill orch --model gpt-6.1-sol)" && rc=0 || rc=$?
+  check "$review_command refuses --skill" 2 "accepts no skill input" "$rc" "$out"
+  check_absent "$review_command refusal never reaches the companion" "$(cat "$cap_log")" "$review_command"
+done
+out="$(run_cap review --background --network)" && rc=0 || rc=$?
+check "review refuses --network" 2 "accepts no skill input" "$rc" "$out"
+
+# Without the turn patch the flags cannot take effect, so the launch refuses.
+mkdir -p "$TMP/capraw/plugins" "$TMP/capraw/install/scripts"
+echo "{\"version\":2,\"plugins\":{\"codex@openai-codex\":[{\"installPath\":\"$TMP/capraw/install\"}]}}" > "$TMP/capraw/plugins/installed_plugins.json"
+cp "$CAP/install/scripts/codex-companion.mjs" "$TMP/capraw/install/scripts/"
+: > "$cap_log"
+out="$(CLAUDE_CONFIG_DIR="$TMP/capraw" CLAUDE_PLUGIN_DATA="$CAP/data" CREW_CODEX_ARCHIVE_DIR="$CAP/arc" \
+  CREW_CODEX_NO_JOB_BROKER=1 CREW_TEST_ARGV_LOG="$cap_log" bash "$CREW" task --background --network "x" 2>&1)" && rc=0 || rc=$?
+check "unpatched plugin refuses --network" 1 "turn-capabilities patch" "$rc" "$out"
+check_absent "unpatched refusal never reaches the companion" "$(cat "$cap_log")" "task"
+
+# Resume and redirect continue the thread's requirements.
+write_job "$CAP/data/state/lab-1/jobs" task-cap1-aaa1 completed thread-C 2026-02-01T00:00:00.000Z gpt-6.1-sol xhigh false
+: > "$cap_log"
+out="$(CREW_TEST_JOB=task-capr-aaa5 run_cap task --background --resume-last "keep going")" && rc=0 || rc=$?
+check "resume announces inherited requirements" 0 "resuming with task-cap1-aaa1's requirements (skills: orch; network: false)" "$rc" "$out"
+check "resume re-establishes the inherited skill" 0 '"name":"orch"' "$rc" "$(cat "$cap_log")"
+: > "$cap_log"
+out="$(CREW_TEST_JOB=task-capr-aaa6 run_cap task --background --resume-last --no-requirements "keep going")" && rc=0 || rc=$?
+check "--no-requirements drops them" 0 "^task --background --resume-last keep going @spec=none" "$rc" "$(cat "$cap_log")"
+# A newer job that carried network keeps carrying it on resume.
+write_job "$CAP/data/state/lab-1/jobs" task-capp-aaa4 completed thread-D 2026-02-02T00:00:00.000Z gpt-6.1-sol xhigh true
+out="$(CREW_TEST_JOB=task-capr-aaa7 run_cap task --background --resume-last --write "keep going")" && rc=0 || rc=$?
+check "resume inherits network from the newest job" 0 "(skills: none; network: true)" "$rc" "$out"
+rm -f "$CAP/data/state/lab-1/jobs/task-capp-aaa4.json"
+write_job "$CAP/data/state/lab-1/jobs" task-cap1-aaa1 running thread-C 2026-02-01T00:00:00.000Z gpt-6.1-sol xhigh false
+: > "$cap_log"
+out="$(CREW_TEST_JOB=task-cap2-bbb2 run_cap redirect task-cap1-aaa1 "change course")" && rc=0 || rc=$?
+check "redirect carries skills to the successor" 0 "effort xhigh change course @spec={\"skills\":\[{\"name\":\"orch\"" "$rc" "$(cat "$cap_log")"
+check "redirect ties the requirement to the successor" 0 "spec-" "$rc" "$(cat "$CAP/arc/task-cap2-bbb2.turn" 2>/dev/null)"
+# The skill disappears: redirect must refuse BEFORE cancelling the live turn.
+write_job "$CAP/data/state/lab-1/jobs" task-cap2-bbb2 running thread-C 2026-03-01T00:00:00.000Z gpt-6.1-sol xhigh false
+write_skills "[]"
+: > "$cap_log"
+out="$(CREW_TEST_JOB=task-cap3-ccc3 run_cap redirect task-cap2-bbb2 "again")" && rc=0 || rc=$?
+check "redirect refuses when a required skill vanished" 1 "not redirecting task-cap2-bbb2" "$rc" "$out"
+check_absent "refused redirect never cancelled the live job" "$(cat "$cap_log")" "cancel"
+write_skills "$GOOD_SKILLS"
+
+# Documentation separates a fence (instruction) from an enforced restriction.
+check_contains "SKILL.md documents --skill" "$SKILL_FILE" '--skill <name>'
+check_contains "SKILL.md documents --network" "$SKILL_FILE" '--network'
+check_contains "SKILL.md separates network from write authority" "$SKILL_FILE" 'Network is not write authority'
+check_contains "SKILL.md names the instruction fence" "$SKILL_FILE" 'instruction fence'
+check_contains "reviewer launches network-capable reads itself" "$AGENT_DIR/codex-reviewer.md" '--network'
+check_contains "reviewer forwards skills natively" "$AGENT_DIR/codex-reviewer.md" '--skill'
+check_contains "SKILL.md requires native evidence and full reads" "$SKILL_FILE" 'a job launch or skill discovery alone is not success'
+check_contains "SKILL.md states --network permits mutations" "$SKILL_FILE" 'mutations'
+check_contains "README documents native skill input" "$HERE/../README.md" 'Native skill invocation'
+
+# --- node regressions: skill discovery decisions and the patched companion ---
+# Real-wrapper regressions: qualified skill identity across resume/redirect, a
+# parent worker's turn spec, the official resume selector, the -- boundary.
+out="$(node --test "$HERE/capabilities.test.mjs" "$HERE/spec-lifecycle.test.mjs" "$HERE/reviewer-capabilities-regression.test.mjs" 2>&1)" && rc=0 || rc=$?
+check "node capability regressions pass" 0 "# fail 0" "$rc" "$out"
+[[ "$rc" -eq 0 ]] || echo "$out" | grep -E "^not ok|^# fail" || true
 
 summary_reached=1
 echo

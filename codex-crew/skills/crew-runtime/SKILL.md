@@ -35,7 +35,9 @@ that discriminates the claimed failure. Keep production code at the pinned
 revision; run the test against that unchanged candidate and report the actual
 assertion failure, not a build/setup error as a reproduction.
 
-Use `codex-reviewer`’s `task --write` route for this isolated proof. Launch and all
+Use `codex-reviewer`’s `task --write` route for this isolated proof, adding
+`--network` when the reviewer must reach GitHub or fetch test dependencies and
+`--skill <name>` for each governing skill. Launch and all
 supervision calls use that same isolated checkout as cwd. Never pass `--write` to
 `review` or `adversarial-review`. The companion maps `task --write` to
 `workspace-write`; it does not enforce a test-file allowlist. Brief path fences
@@ -45,6 +47,52 @@ host permission restrictions. If explicit human instructions prohibit writes or
 execution, honor them and report the behavioral finding as unverified with the
 missing capability. Never change permissions or request repeated authorization
 for evidence work already allowed by the governing review task.
+
+## Required skills and capabilities
+
+Codex lanes inherit no Claude skills. A required skill needs two kinds of
+evidence in the worker's return or transcript: **native invocation** and the
+**full read** of its source and directed references. The Claude `Skill` tool
+leaves the call and its success; Codex's structured skill input leaves the
+accepted input and its result (`crew-codex task --skill <name>` with the
+resolved identity and path at the worker cwd). A file read substitutes for
+neither invocation, and a job launch or skill discovery alone is not success.
+A brief that only tells the worker to read a `SKILL.md` supplies source
+inspection, never invocation.
+
+- `--skill <name>` (repeatable, `task` only) sends `{type:"skill", name, path}` on
+  `turn/start`. Before launch `crew-codex` requires exactly one enabled skill per
+  name from the app-server's `skills/list` at the worker cwd. Missing, disabled,
+  ambiguous or user-only (`disable-model-invocation`) fails with `no job was
+  started`: hold the dependent review, report the exact line, and route to a lane
+  that can load it or hand a user-only flow to the user. Never read the file as a
+  substitute and never report a skill load that has no invocation evidence. A
+  plugin-qualified request (`<plugin>:<name>`) keeps that qualified identity
+  through resume and redirect; if that plugin skill is disabled or gone, the
+  continuation holds instead of substituting a same-named repository skill.
+- `--network` lets the sandbox reach the network (authenticated `gh` reads, test
+  dependencies). Technically it permits any authenticated request, mutations
+  included; a review authorizes reads only. Network is not write authority: `readOnly`+`networkAccess` without
+  `--write`, `workspaceWrite`+`networkAccess` with it, host approval unchanged. A
+  reviewer owns its GitHub context fetch (PR, issue, checks, diffs) and the
+  execution evidence it needs; the primary neither fetches for it nor finishes
+  its proof. A capability the worker still lacks is reported with its exact error,
+  and the primary repairs the lane or routes a capable reviewer.
+- An explicit human read-only instruction still holds: omit `--write`. `--network`
+  without `--write` reads GitHub and runs read-only commands and grants no file
+  writes. "No GitHub mutation, no production repair" is an authority and
+  instruction fence the reviewer follows; the sandbox does not enforce it.
+- The flags are requirements on the thread: `redirect` re-validates and carries
+  them, `--resume-last` continues the requirements of the very job the companion
+  resumes (its own resume-candidate answer: session preference, failed jobs
+  without a thread skipped); restate to replace, `--no-requirements` to drop. A
+  recorded requirement that cannot be read, or a resume target that cannot be
+  determined, refuses the launch. `--` ends the options as in the companion, so
+  a literal `--network` or `--skill` in prompt text stays text and grants
+  nothing. The launcher ignores a `CREW_CODEX_TURN_SPEC` inherited from a calling
+  worker. Native `review`/`adversarial-review` accept neither flag; use `task`.
+- A path fence in a brief is an instruction fence: the worker may ignore it.
+  Only the sandbox mode and `networkAccess` are enforced restrictions.
 
 The review return distinguishes:
 
@@ -109,7 +157,7 @@ Directory and ownership rules (these bind every command below):
 
 Primary helper — `crew-codex`, on PATH while the plugin is enabled:
 
-- `crew-codex task [--background] [--write] [--resume-last] [--model <m>] [--effort <none|minimal|low|medium|high|xhigh>] "<prompt>"`
+- `crew-codex task [--background] [--write] [--network] [--skill <name>]... [--no-requirements] [--resume-last] [--model <m>] [--effort <none|minimal|low|medium|high|xhigh>] "<prompt>"`
 - `crew-codex review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <m>]`
 - `crew-codex adversarial-review [--wait|--background] [--base <ref>] [--scope <...>] [--model <m>] [focus text]`
 - `crew-codex await <job-id> [--for <seconds>]` — block until the job leaves
@@ -147,8 +195,9 @@ Primary helper — `crew-codex`, on PATH while the plugin is enabled:
   automatically before every launch and on terminal state; only needed by hand
   after an abnormal exit.
 - `crew-codex patch [--status|--apply|--revert]` — apply the queue passthrough
-  fix to whichever version of the codex plugin is installed. Idempotent and
-  reversible; the plugin's SessionStart hook applies it automatically.
+  and turn-capabilities (`--skill`/`--network`) fixes to whichever version of the
+  codex plugin is installed. Idempotent, reversible, each patch independent; the
+  plugin's SessionStart hook applies them automatically.
 - `crew-codex result <job-id>` — the finished job's output (plus its resume id)
 - `crew-codex --resolve` — print the resolved companion script path (diagnostics only)
 

@@ -97,6 +97,11 @@ Forwarding rules:
 - Treat `--background`, `--wait`, `--resume`, `--fresh`, and model/effort
   directives as routing controls: strip them from the task text and preserve
   the rest of the task text verbatim.
+- `--skill <name>` and `--network` in the request are `crew-codex task` launch
+  flags, not task text: pass them on the launch line. A launch that prints
+  `no job was started` is the result (skill missing, disabled, ambiguous or
+  user-only): return it verbatim; never retry without the flag or read the skill
+  file in its place. `--network` grants no file writes; `--write` stays as pinned.
 - Do not inspect the repository, read files, grep, or do any work of your own
   beyond launching, awaiting, and returning the result.
 - Astra asks a question instead of guessing when more input could change the
