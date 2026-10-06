@@ -13,6 +13,13 @@ the rule is never re-litigated.
 
 ## Rule 0 — load the governing skills BEFORE writing briefs
 
+Use the [SDLC entry's loading contract](../sdlc-process/SKILL.md#follow-the-work):
+native invocation and full source inspection are separate requirements. A file
+read alone never satisfies a required skill load. Record unavailable invocation
+as a scoped capability gap, including in delegated worker returns. Before each
+dispatch wave, refresh the applicable constraints against current inputs; reuse
+identified unchanged source reads rather than rereading unchanged files.
+
 You cannot brief work you haven't loaded the skill for, and you cannot
 review it either. **Blind briefs override agent skills**: dispatch briefs
 read as authoritative, so an agent with the right skill preloaded will
@@ -34,9 +41,13 @@ still build your anti-pattern if your brief dictates one.
 - **Every launch names its skills — Claude and codex alike.** Native
   Claude agents get the skill-wins clause above. Codex lanes inherit NO
   skills and NO project context: their brief's STEP 0 is an explicit
-  ordered list of `.claude/skills/<name>/SKILL.md` (+PATTERNS etc.) file
-  paths to READ — they are ordinary repo files — covering every layer
-  the task touches, and the lane's report must state, per file changed,
+  ordered list of skill names and `.claude/skills/<name>/SKILL.md`
+  (+PATTERNS etc.) source paths covering every layer
+  the task touches. Invoke each required skill through the available native
+  mechanism and read its source; if unavailable, report the scoped load gap
+  and hold the governed action. Route that action to an authorized capable
+  worker when available; a source read alone cannot clear the hold.
+  The lane's report must state, per file changed,
   which skill rules it was verified against. An inlined convention
   digest is not a substitute; digests drift and under-specify.
 - *Paid for by:* the accounting-worker rebuild brief dictating
@@ -47,7 +58,7 @@ still build your anti-pattern if your brief dictates one.
 
 Read the installed delegation runtime documentation and skill before launching a
 worker (for example, `codex-crew:crew-runtime` or `grok-crew-runtime`). Reading
-the source establishes the contract when native invocation is unavailable. Its commands and capability
+the source provides instructions when native invocation is unavailable, but does not satisfy a required load. Report that gap under the entry contract. Its commands and capability
 checks govern launch, progress inspection, steering, resume and cancellation.
 Native harness agents use their available tools. A missing runtime holds that
 lane only; use another available, authorized harness where appropriate.

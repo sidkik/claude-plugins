@@ -13,7 +13,10 @@ the hook silent. Governed work still follows the required process sources and
 repository instructions; explicit readiness and setup report actual gaps.
 
 Use **`/sdlc-process:session-start`** for session readiness after installation.
-It loads governing sources, checks setup without changing it, and starts or
+It invokes the process, orchestrator, status and observer skills through Claude's
+native Skill tool and reads their full packaged instructions. File reads alone
+do not satisfy loading; failed or unavailable required invocations leave
+readiness unmet. It checks setup without changing it, and starts or
 reuses the current MAIN session's observer view. It returns a clickable URL and
 stop handle without opening a browser. With an assigned task it initializes the
 real work projection; without work it reports **widget waiting for work** and
