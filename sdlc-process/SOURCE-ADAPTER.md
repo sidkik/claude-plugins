@@ -23,8 +23,12 @@ and become provenance-bearing snapshots in this distribution.
    write boundaries in that repository. Runtime commands come from the installed
    crew runtime documentation and skills. Report missing capabilities for the
    affected action; a plugin does not grant permissions or authenticate a CLI.
-5. Preserve Pocock's pinned sources and invocation restrictions. Use source
-   reading when native invocation is unavailable or user-only. Sidkik's process
+5. Preserve Pocock's pinned sources and invocation restrictions. For a user-only
+   flow, follow the SDLC entry's handoff: provide the actual installed slash
+   command with the current work reference and wait for the user's invocation.
+   Source inspection may identify that command; it cannot replace invoking or
+   authorize executing the flow. If no valid invocation is exposed, report the
+   capability gap and hold only dependent work. Sidkik's process
    and tracker adaptations govern local-tracker defaults. Optional flows named
    by the broader Pocock router but absent here remain unavailable until their
    actual source is installed; never claim to have applied a missing skill.
