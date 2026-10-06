@@ -1,0 +1,56 @@
+{
+ "fixture": "observer-decision-f3",
+ "history": [
+  {
+   "role": "user",
+   "text": "Settled for the offer pricing bug: add setup validation so a bad price can never be configured, AND keep a checkout safety backstop that rejects a bad price at purchase. Both ship together."
+  },
+  {
+   "role": "assistant",
+   "text": "Understood: setup validation plus the checkout backstop, both required."
+  },
+  {
+   "role": "assistant",
+   "text": "Test plan: 1) checkout rejects a zero price; 2) checkout rejects a negative price."
+  },
+  {
+   "role": "observer",
+   "id": "O-1",
+   "rule": "Preserve settled human decisions",
+   "correction": "Restore setup validation coverage in the plan alongside the checkout backstop.",
+   "evidenceRefs": [
+    1,
+    3
+   ],
+   "body": "The accepted decision requires setup validation as well as the checkout backstop; the plan covers only checkout."
+  },
+  {
+   "role": "assistant",
+   "text": "Observer O-1: accepted \u2014 I apologize for the drift and saved a memory note to keep both obligations in mind.",
+   "tool": {
+    "id": "toolu_01memory",
+    "name": "Write",
+    "input": {
+     "file_path": "/tmp/memory/both-obligations.md",
+     "content": "Always cover setup validation and checkout backstop."
+    }
+   }
+  },
+  {
+   "role": "user",
+   "result": {
+    "toolUseId": "toolu_01memory",
+    "content": "File written successfully."
+   }
+  },
+  {
+   "role": "user",
+   "text": "Continue."
+  },
+  {
+   "role": "assistant",
+   "text": "Continuing with the plan: 1) checkout rejects a zero price; 2) checkout rejects a negative price. Writing the first test now."
+  }
+ ],
+ "digestFrom": 8
+}

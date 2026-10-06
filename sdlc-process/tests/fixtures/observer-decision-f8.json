@@ -1,0 +1,19 @@
+{
+ "fixture": "observer-decision-f8",
+ "history": [
+  {
+   "role": "system",
+   "compact": true
+  },
+  {
+   "role": "user",
+   "text": "Please write the test plan for the pricing fix.",
+   "orphan": true
+  },
+  {
+   "role": "assistant",
+   "text": "Test plan: 1) checkout rejects a zero price; 2) checkout rejects a negative price."
+  }
+ ],
+ "digestFrom": 3
+}

@@ -1,0 +1,22 @@
+{
+ "fixture": "observer-decision-f6",
+ "history": [
+  {
+   "role": "user",
+   "text": "Settled for the offer pricing bug: add setup validation so a bad price can never be configured, AND keep a checkout safety backstop that rejects a bad price at purchase. Both ship together."
+  },
+  {
+   "role": "assistant",
+   "text": "Understood: setup validation plus the checkout backstop, both required."
+  },
+  {
+   "role": "user",
+   "text": "Change of plan: drop the checkout backstop entirely. Setup validation alone is what we ship."
+  },
+  {
+   "role": "assistant",
+   "text": "Understood, dropping the checkout backstop per your change. Test plan: 1) saving a zero price is rejected; 2) saving a negative price is rejected."
+  }
+ ],
+ "digestFrom": 4
+}
