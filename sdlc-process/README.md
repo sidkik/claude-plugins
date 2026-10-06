@@ -6,7 +6,9 @@ review agent and a silent SessionStart metadata hook. Codex can discover native 
 wrappers through its manifest or the portable setup's configured source pointers.
 Claude also discovers user-invoked Pocock wrappers under `claude-skills/`,
 preserving their invocation restrictions. Codex exposes common model-invocable
-wrappers; its SDLC entry reads the user-only Pocock sources directly. The hook
+wrappers. A user-only flow requires an explicit handoff with its installed
+invocation command; reading its source does not authorize execution. A host
+without a valid invocation reports the capability gap. The hook
 only supplies native session identity and transcript metadata. It does not run
 doctor, discover plugins, issue warnings or initiate setup. Missing Node leaves
 the hook silent. Governed work still follows the required process sources and
