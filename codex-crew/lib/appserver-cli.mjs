@@ -4,6 +4,7 @@
 //
 //   queue-add  <companionRoot> <cwd> <threadId> <clientId>   (message on stdin)
 //   followups  <companionRoot> <cwd> <threadId> <clientIdPrefix>
+//   skills-resolve <companionRoot> <cwd>   (JSON array of skill names on stdin)
 //
 // queue-add needs the codex plugin patched (patches/codex-plugin-queue-
 // passthrough.patch): stock, the broker refuses the method while a turn is
@@ -20,8 +21,8 @@ function fail(message) {
   process.exit(1);
 }
 
-if (!mode || !companionRoot || !cwd || !threadId) {
-  fail("usage: appserver-cli.mjs <queue-add|followups> <companionRoot> <cwd> <threadId> <clientId>");
+if (!mode || !companionRoot || !cwd || (mode !== "skills-resolve" && !threadId)) {
+  fail("usage: appserver-cli.mjs <queue-add|followups|steer> <companionRoot> <cwd> <threadId> <clientId> | skills-resolve <companionRoot> <cwd>");
 }
 
 async function readStdin() {
@@ -40,9 +41,23 @@ try {
 
 let client = null;
 try {
-  client = await CodexAppServerClient.connect(cwd, { reuseExistingBroker: true });
+  // Discovery is read-only, so it gets its own app-server: a shared broker that
+  // is streaming someone's turn answers "busy" to every other request.
+  client = await CodexAppServerClient.connect(
+    cwd,
+    mode === "skills-resolve" ? { disableBroker: true } : { reuseExistingBroker: true }
+  );
 
-  if (mode === "steer") {
+  if (mode === "skills-resolve") {
+    // Prints the resolved [{name,path}] as JSON, or every problem on stderr
+    // with exit 1, so the launch stops before any dependent review runs.
+    const requested = JSON.parse((await readStdin()) || "[]");
+    const listing = await client.request("skills/list", { cwds: [cwd], forceReload: true });
+    const { resolveSkills } = await import(new URL("./skills-resolve.mjs", import.meta.url).href);
+    const resolved = resolveSkills({ requested, entries: listing?.data, cwd });
+    if (!resolved.ok) fail(resolved.problems.join("\n"));
+    process.stdout.write(JSON.stringify(resolved.skills));
+  } else if (mode === "steer") {
     // Interject into the turn that is already running. Unlike turn/interrupt
     // this stops nothing: the in-flight tool call finishes and the model reads
     // the message at its next step. turnId identifies the turn being steered,

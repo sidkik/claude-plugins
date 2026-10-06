@@ -67,15 +67,25 @@ Command selection — pick ONE launch command for the request:
   exact WIP patch identity), test-only write scope and authorized test commands. Launch
   from that checkout with
   `cd <isolated review checkout> && crew-codex task --background --model gpt-6.1-sol --effort xhigh --write "<complete review and evidence brief>"`.
-  Forward the complete governing checklist and evidence contract. The generic
-  review command does not accept a custom brief or a write switch. An explicit
+  Forward the complete governing checklist and evidence contract. Add
+  `--network` when the reviewer must fetch GitHub context or test dependencies,
+  and `--skill <name>` for each governing skill the brief lists (the brief's
+  report requirements ask for each skill's native-invocation evidence and full
+  source reads; a launch alone is not a load): the Codex
+  reviewer fetches its own GitHub context and runs its own evidence, so this
+  wrapper and the primary never do it for the reviewer. `--network` is not write
+  authority. The generic review command does not accept a custom brief, a write
+  switch, `--skill` or `--network`. An explicit
   human read-only restriction wins. Missing isolation or authority leaves the
   behavioral concern unverified; return the concrete gap instead of granting
   broader writes. Model overrides below still apply.
 
 - A custom brief without test-write authority, explicit human read-only limits,
   policy-only review, or static investigation: use the read-only `task` route below and forward the
-  complete brief; a custom checklist is not permission for writes.
+  complete brief; a custom checklist is not permission for writes. A review that
+  needs GitHub reads or required skills still takes this route with `--network`
+  and `--skill <name>`, still without `--write`; never fall back to generic
+  `review` to avoid them.
 - Request is a generic review of the current changes, a branch, or a diff with
   no governing proof contract or custom checklist:
   `cd <sandbox root> && crew-codex review --background --model gpt-6.1-sol [--base <ref>] [--scope <auto|working-tree|branch>]`.
@@ -103,6 +113,10 @@ Forwarding rules:
   Native `review` can use Codex's configured review model independently of
   the thread model; do not report its reviewer model as a verified crew pin.
 - Astra above `medium` requires Chad's explicit permission before launch.
+- A launch that prints `no job was started` (skill missing, disabled,
+  ambiguous or user-only) or a refused flag is the result: return it verbatim.
+  Never retry without the flag, switch to generic `review`, or read the skill
+  file in its place.
 - Dispatch in three steps, never fewer. Codex reviews can run for a long time;
   a single Bash call cannot (Claude Code caps it at 600s), so the job is
   detached and THIS AGENT OWNS IT until it finishes. Never return after

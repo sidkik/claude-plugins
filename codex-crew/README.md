@@ -204,7 +204,9 @@ deliberate:
   crashed job
 - `CREW_CODEX_NO_JOB_BROKER=1` opts out
 
-**Both need the codex plugin patched.** Stock, the plugin refuses on two
+**Both need the codex plugin patched.** (Skill and network flags use a second,
+independent patch, `codex-plugin-turn-capabilities.patch`, applied and reverted by
+the same `crew-codex patch` commands; each patch applies on its own.) Stock, the plugin refuses on two
 counts: its broker forwards only `turn/interrupt` while a turn is streaming, so
 `turn/steer` and `thread/queue/add` come back `-32001 Shared Codex broker is
 busy`, and its client declares `experimentalApi: false`, which the server
@@ -272,8 +274,83 @@ are announced on stderr, never silent. Any other failure passes through
 untouched on the first attempt, and there is no automatic tier fallback —
 substituting a cheaper model is an orchestrator decision, made in the open.
 
+## Native skill invocation and capabilities
+
+A Codex worker inherits no Claude skills. Two launch flags give a `task` the two
+things a governing review needs without a second orchestration layer:
+
+```
+crew-codex task --background --skill <name> [--skill <name> ...] [--network] [--write] "<brief>"
+```
+
+**Native skill invocation (`--skill`).** Codex's own mechanism: the app-server
+takes `{type:"skill", name, path}` input items on `turn/start`
+([documented](https://learn.chatgpt.com/docs/app-server#start-a-turn-invoke-a-skill)).
+The companion's task route sends text only, so the
+`patches/codex-plugin-turn-capabilities.patch` patch adds the items. Before a job
+exists, `crew-codex` asks the real app-server (`skills/list`, forced reload) what
+it discovers **at the worker cwd** and requires exactly one enabled match per
+name. A missing, disabled or ambiguous skill, or one whose author reserved
+invocation for the user (`disable-model-invocation: true`), stops the launch with
+`no job was started`; the dependent action is held. Reading the `SKILL.md` is
+source inspection, never a substitute, and a launch or discovery alone is not
+success: the worker's return or transcript must show the accepted native input
+and result plus the full source and reference reads. A plugin-qualified
+`<plugin>:<name>` separates same-named skills and stays qualified across resume
+and redirect. Codex discovers repository skills from its own
+locations (for example `.agents/skills`), so a skill present only under
+`.claude/skills` is "not discovered" until it is mirrored there.
+
+**Network is not write authority (`--network`).** The thread sandbox stays what
+the launch chose: `read-only`, or `workspace-write` with `--write`. `--network`
+adds `sandboxPolicy` on `turn/start`: `readOnly` with `networkAccess: true`, or
+`workspaceWrite` with `networkAccess: true` when `--write` is also present, with
+no extra writable roots. That is the least scope that lets a reviewer run
+authenticated `gh` reads and tests. `approvalPolicy` stays `never` (host approval
+is neither bypassed nor widened) and nothing grants `danger-full-access`.
+`networkAccess` permits any authenticated request, mutations included; the
+review authorizes reads, and "no GitHub mutation or production repair" is an
+instruction fence, not something the sandbox enforces.
+Authentication is the host's: `gh` reads its own login or environment inside the
+worker. The spec records only skill names, discovered paths and one boolean, never a
+credential. If the sandbox hides the credential (a keyring, or an environment
+variable Codex filters), the read fails inside the worker and that exact error is
+the capability gap to report; the primary repairs the lane or routes a capable
+reviewer instead of finishing the proof itself.
+
+**Requirements follow the thread.** `redirect` re-validates the skills at the cwd
+*before* it interrupts anything and relaunches with the same requirements.
+`task --resume-last` continues the requirements of the job the companion itself
+resumes (it asks `task-resume-candidate`, so session preference and
+thread-less failed jobs follow the official rule) and says so on stderr;
+restating `--skill`/`--network` replaces them and `--no-requirements` drops
+them. Inherited requirements are bound to the thread they were validated for:
+if the companion's own resume selection then names another thread (a task
+finished meanwhile), the run holds before resuming anything; relaunch it. A foreground task records its requirements against the job on the thread
+the patched companion reports it ran on, so concurrent launches cannot swap
+them. An unreadable recorded requirement refuses the launch. `--` ends the
+options, so a literal `--network` in prompt text grants nothing, and a
+`CREW_CODEX_TURN_SPEC` inherited from a calling worker is ignored. `steer`, `queue`, per-job brokers and `await` are unchanged.
+
+**Native review cannot carry either.** `review` and `adversarial-review`
+(`review/start`) take no skill input and run read-only without network, so they
+refuse both flags. Launch a governing review as a `task`.
+
+An instruction fence in a brief ("write only these test paths") is a request the
+worker may not honor. The enforced restrictions are the sandbox mode and
+`networkAccess`; `task --write` is workspace-wide, so use an isolated checkout.
+
 ## Tests
 
 ```bash
 bash tests/run.sh
 ```
+
+`run.sh` includes `tests/capabilities.test.mjs` (skill discovery decisions, and
+the real patched companion driven against a fake app-server socket). Those and
+the fake-companion cases prove crew routing and the params sent; they do not
+prove Codex honors them. `tests/live-capabilities.test.mjs` is the opt-in check
+against real Codex: `CREW_LIVE=1` runs the no-model stage on an isolated plugin
+copy; add `CREW_LIVE_TURNS=1` to run real turns (skill injection with a control,
+authenticated GitHub read with a no-network control, read-only versus
+authorized write).

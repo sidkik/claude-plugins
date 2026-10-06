@@ -43,6 +43,13 @@ export CLAUDE_PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-$CLAUDE_DIR/plugins/data/codex-
 # a session's jobs at SessionEnd, so results are copied somewhere it can't reap.
 CREW_ARCHIVE_DIR="${CREW_CODEX_ARCHIVE_DIR:-$CLAUDE_DIR/plugins/data/codex-crew/jobs}"
 
+# CREW_CODEX_TURN_SPEC is launcher-internal: this script sets it for the one
+# companion process it starts. A value arriving from the environment belongs to
+# the calling worker's own turn, so it must never decide this invocation's
+# skills or network. Requirements come only from this invocation's flags or the
+# job it resumes.
+unset CREW_CODEX_TURN_SPEC
+
 # ---- per-job brokers -------------------------------------------------------
 # A broker carries ONE streaming turn per cwd. The companion's answer to a busy
 # broker (lib/codex.mjs, withAppServer) is to run the whole job on a private
@@ -406,12 +413,17 @@ fi
 # under the patch fails loudly instead of half-applying.
 CREW_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 CREW_PATCH_FILE="${CREW_CODEX_PATCH_FILE:-$CREW_ROOT/patches/codex-plugin-queue-passthrough.patch}"
+# A second, independent patch: native skill input and network-capable sandbox
+# policy on turn/start. It touches a different file, so a release that moves one
+# seam still takes the other.
+CREW_TURN_PATCH_FILE="${CREW_CODEX_TURN_PATCH_FILE:-$CREW_ROOT/patches/codex-plugin-turn-capabilities.patch}"
+CREW_PATCH_FILES=("$CREW_PATCH_FILE" "$CREW_TURN_PATCH_FILE")
 
-crew_patch_state() {
+crew_patch_state_of() {
   # applied | appliable | stale
-  if patch -p1 -R --dry-run -s -F3 -d "$COMPANION_ROOT" <"$CREW_PATCH_FILE" >/dev/null 2>&1; then
+  if patch -p1 -R --dry-run -s -F3 -d "$COMPANION_ROOT" <"$1" >/dev/null 2>&1; then
     echo applied
-  elif patch -p1 --dry-run -s -F3 -d "$COMPANION_ROOT" <"$CREW_PATCH_FILE" >/dev/null 2>&1; then
+  elif patch -p1 --dry-run -s -F3 -d "$COMPANION_ROOT" <"$1" >/dev/null 2>&1; then
     echo appliable
   else
     echo stale
@@ -434,56 +446,202 @@ if [[ "${1:-}" == "patch" ]]; then
     echo "crew-codex: GNU patch is required to manage the codex plugin patch" >&2
     exit 1
   fi
-  if [[ ! -f "$CREW_PATCH_FILE" ]]; then
-    echo "crew-codex: patch file missing at $CREW_PATCH_FILE" >&2
-    exit 1
-  fi
+  for pf in "${CREW_PATCH_FILES[@]}"; do
+    if [[ ! -f "$pf" ]]; then
+      echo "crew-codex: patch file missing at $pf" >&2
+      exit 1
+    fi
+  done
 
   PLUGIN_VERSION="$(basename "$COMPANION_ROOT")"
-  state="$(crew_patch_state)"
+  n_applied=0 n_appliable=0 n_stale=0 stale_names=""
+  for pf in "${CREW_PATCH_FILES[@]}"; do
+    case "$(crew_patch_state_of "$pf")" in
+      applied)   n_applied=$((n_applied + 1)) ;;
+      appliable) n_appliable=$((n_appliable + 1)) ;;
+      *)         n_stale=$((n_stale + 1)); stale_names="$stale_names $(basename "$pf")" ;;
+    esac
+  done
 
   case "$ACTION" in
     status)
-      case "$state" in
-        applied)   echo "PATCHED | codex plugin $PLUGIN_VERSION at $COMPANION_ROOT"; exit 0 ;;
-        appliable) echo "UNPATCHED | codex plugin $PLUGIN_VERSION applies cleanly; run: crew-codex patch --apply"; exit 10 ;;
-        *)         echo "crew-codex: patch does not apply to codex plugin $PLUGIN_VERSION at $COMPANION_ROOT — the upstream code moved; re-cut patches/codex-plugin-queue-passthrough.patch" >&2; exit 1 ;;
-      esac
+      if [[ $n_stale -gt 0 ]]; then
+        echo "crew-codex: patch does not apply to codex plugin $PLUGIN_VERSION at $COMPANION_ROOT (stale:$stale_names) — the upstream code moved; re-cut the named patch in patches/" >&2
+        exit 1
+      elif [[ $n_appliable -gt 0 ]]; then
+        echo "UNPATCHED | codex plugin $PLUGIN_VERSION applies cleanly; run: crew-codex patch --apply"
+        exit 10
+      fi
+      echo "PATCHED | codex plugin $PLUGIN_VERSION at $COMPANION_ROOT"
+      exit 0
       ;;
     apply)
-      if [[ "$state" == "applied" ]]; then
+      if [[ $n_appliable -eq 0 && $n_stale -eq 0 ]]; then
         echo "PATCHED | codex plugin $PLUGIN_VERSION was already patched; nothing to do"
         exit 0
       fi
-      if [[ "$state" != "appliable" ]]; then
-        echo "crew-codex: patch does not apply to codex plugin $PLUGIN_VERSION at $COMPANION_ROOT — refusing to half-apply; re-cut the patch against this version" >&2
-        exit 1
-      fi
-      if ! patch -p1 -s -F3 -b --suffix=.crew-orig -d "$COMPANION_ROOT" <"$CREW_PATCH_FILE"; then
-        echo "crew-codex: applying the patch failed partway; restore from the .crew-orig backups in $COMPANION_ROOT" >&2
-        exit 1
-      fi
-      if [[ "$(crew_patch_state)" != "applied" ]]; then
-        echo "crew-codex: patch reported success but verification failed; inspect $COMPANION_ROOT" >&2
+      # Each patch stands alone: apply every one that fits, then fail loudly for
+      # any that does not, so one moved seam never blocks the other fix.
+      for pf in "${CREW_PATCH_FILES[@]}"; do
+        [[ "$(crew_patch_state_of "$pf")" == "appliable" ]] || continue
+        if ! patch -p1 -s -F3 -b --suffix=.crew-orig -d "$COMPANION_ROOT" <"$pf"; then
+          echo "crew-codex: applying $(basename "$pf") failed partway; restore from the .crew-orig backups in $COMPANION_ROOT" >&2
+          exit 1
+        fi
+        if [[ "$(crew_patch_state_of "$pf")" != "applied" ]]; then
+          echo "crew-codex: $(basename "$pf") reported success but verification failed; inspect $COMPANION_ROOT" >&2
+          exit 1
+        fi
+      done
+      if [[ $n_stale -gt 0 ]]; then
+        echo "crew-codex: patch does not apply to codex plugin $PLUGIN_VERSION at $COMPANION_ROOT (stale:$stale_names) — refusing to half-apply; re-cut the named patch against this version" >&2
         exit 1
       fi
       echo "PATCHED | codex plugin $PLUGIN_VERSION | backups: *.crew-orig | brokers already running keep the old code until their job ends"
       exit 0
       ;;
     revert)
-      if [[ "$state" != "applied" ]]; then
+      if [[ $n_applied -eq 0 ]]; then
         echo "UNPATCHED | codex plugin $PLUGIN_VERSION is not patched; nothing to revert"
         exit 0
       fi
-      if ! patch -p1 -R -s -F3 -d "$COMPANION_ROOT" <"$CREW_PATCH_FILE"; then
-        echo "crew-codex: reverting the patch failed; restore from the .crew-orig backups in $COMPANION_ROOT" >&2
-        exit 1
-      fi
+      for pf in "${CREW_PATCH_FILES[@]}"; do
+        [[ "$(crew_patch_state_of "$pf")" == "applied" ]] || continue
+        if ! patch -p1 -R -s -F3 -d "$COMPANION_ROOT" <"$pf"; then
+          echo "crew-codex: reverting $(basename "$pf") failed; restore from the .crew-orig backups in $COMPANION_ROOT" >&2
+          exit 1
+        fi
+      done
       echo "UNPATCHED | codex plugin $PLUGIN_VERSION restored"
       exit 0
       ;;
   esac
 fi
+
+# ---- turn requirements: native skills and network capability ---------------
+# `task --skill <name>` (repeatable) invokes the skill through Codex's native
+# structured skill input; `task --network` lets the worker's sandbox reach the
+# network (authenticated GitHub reads, package fetches) without granting file
+# writes. File-write authority stays with `--write`. Both ride a per-job spec
+# file named by CREW_CODEX_TURN_SPEC, read by the turn-capabilities patch.
+# The spec holds skill names, discovered paths and one boolean; no secrets.
+#
+# Native `review`/`adversarial-review` (review/start) take no skill input, so
+# they refuse these flags rather than run without the requirement.
+crew_turn_sidecar() { printf '%s/%s.turn' "$CREW_ARCHIVE_DIR" "$1"; }
+
+crew_turn_patch_ready() {
+  [[ "$(crew_patch_state_of "$CREW_TURN_PATCH_FILE")" == "applied" ]]
+}
+
+# Fields of a spec file. A spec that cannot be read is an error, never "no
+# requirements": the caller is continuing a thread that required something.
+# Names print as REQUESTED (plugin-qualified when the launch qualified them), so
+# a continuation resolves the same source again instead of whatever matches the
+# bare name today.
+crew_spec_names() {
+  node -e '
+    const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    for (const k of s.skills || []) console.log(k.requested || k.name);
+  ' "$1"
+}
+crew_spec_network() {
+  node -e '
+    const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    console.log(s.network === true ? "true" : "false");
+  ' "$1"
+}
+
+# The task job the companion recorded for a thread: the newest by updatedAt (a
+# resume adds a job to its thread; the one just finished is the latest).
+crew_thread_job() {
+  node -e '
+    const fs = require("fs"), path = require("path");
+    const [dataDir, thread] = process.argv.slice(1);
+    const stateRoot = path.join(dataDir, "state");
+    let best = null, bestAt = "";
+    let dirs = []; try { dirs = fs.readdirSync(stateRoot); } catch {}
+    for (const d of dirs) {
+      const jobsDir = path.join(stateRoot, d, "jobs");
+      let files = []; try { files = fs.readdirSync(jobsDir); } catch {}
+      for (const f of files) {
+        if (!f.endsWith(".json")) continue;
+        let j; try { j = JSON.parse(fs.readFileSync(path.join(jobsDir, f), "utf8")); } catch { continue; }
+        if (!j || j.jobClass !== "task" || j.threadId !== thread) continue;
+        const at = String(j.updatedAt || j.createdAt || "");
+        if (best === null || at > bestAt) { best = j.id; bestAt = at; }
+      }
+    }
+    if (best) process.stdout.write(best);
+  ' "$CLAUDE_PLUGIN_DATA" "$1" 2>/dev/null || true
+}
+
+# The job a --resume-last launch will continue. The companion owns that choice
+# (session preference, failed jobs without a thread skipped), so ask its own
+# resume-candidate command rather than re-deriving it. Prints the job id, or
+# and thread id (tab separated), or nothing when the companion has no tracked task to resume. A companion that
+# cannot answer is an error: guessing could continue under the wrong requirements.
+crew_resume_job() {
+  local answer
+  if ! answer="$(node "$COMPANION" task-resume-candidate --json --cwd "$1" 2>&1)"; then
+    echo "crew-codex: cannot determine which task --resume-last continues: $answer" >&2
+    return 1
+  fi
+  printf '%s' "$answer" | node -e '
+    let j; try { j = JSON.parse(require("fs").readFileSync(0, "utf8")); } catch { process.exit(3); }
+    if (!j || typeof j.available !== "boolean") process.exit(3);
+    if (j.available) process.stdout.write(String(j.candidate && j.candidate.id || "") + "\t" + String(j.candidate && j.candidate.threadId || ""));
+  ' || { echo "crew-codex: task-resume-candidate gave an unreadable answer: $answer" >&2; return 1; }
+}
+
+# The spec file a job was launched with. Prints its path; nothing when the job
+# carried no requirements. A recorded spec that is missing or unreadable is an
+# error rather than a silent drop of the requirements.
+crew_job_spec() {
+  local side spec
+  side="$(crew_turn_sidecar "$1")"
+  [[ -f "$side" ]] || return 0
+  spec="$(cat "$side")"
+  if [[ -z "$spec" || ! -f "$spec" ]] || ! node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$spec" 2>/dev/null; then
+    echo "crew-codex: job $1 recorded required skills/capabilities in $side, but the spec ${spec:-<empty>} is missing or unreadable; refusing to continue without them (relaunch with explicit --skill/--network, or --no-requirements to drop them)" >&2
+    return 1
+  fi
+  printf '%s' "$spec"
+}
+
+# Validate the skills at the worker cwd and write the spec. Sets CREW_TURN_SPEC_FILE.
+#   crew_prepare_turn_spec <cwd> <network true|false> [skill ...]
+# Any problem is printed and returns 1 BEFORE a job exists, so nothing dependent
+# on the requirement runs.
+crew_prepare_turn_spec() {
+  local cwd="$1" network="$2" resolved names_json; shift 2
+  CREW_TURN_SPEC_FILE=""
+  if ! crew_turn_patch_ready; then
+    echo "crew-codex: --skill/--network need the turn-capabilities patch on the codex plugin, which is not applied; run: crew-codex patch --apply" >&2
+    return 1
+  fi
+  resolved="[]"
+  if [[ $# -gt 0 ]]; then
+    names_json="$(printf '%s\n' "$@" | node -e '
+      const lines = require("fs").readFileSync(0, "utf8").split("\n").filter(Boolean);
+      process.stdout.write(JSON.stringify(lines));
+    ')"
+    if ! resolved="$(printf '%s' "$names_json" | node "$CREW_ROOT/lib/appserver-cli.mjs" \
+        skills-resolve "$COMPANION_ROOT" "$cwd" 2>&1)"; then
+      echo "crew-codex: required skills cannot be invoked natively at $cwd; no job was started:" >&2
+      echo "$resolved" >&2
+      return 1
+    fi
+  fi
+  mkdir -p "$CREW_ARCHIVE_DIR" || return 1
+  CREW_TURN_SPEC_FILE="$(umask 077; mktemp "$CREW_ARCHIVE_DIR/spec-XXXXXXXX.turn.json")" || return 1
+  if [[ -n "${CREW_SPEC_RESUME_THREAD:-}" ]]; then
+    printf '{"skills":%s,"network":%s,"resumeThread":"%s"}\n' "$resolved" "$network" "$CREW_SPEC_RESUME_THREAD" >"$CREW_TURN_SPEC_FILE"
+  else
+    printf '{"skills":%s,"network":%s}\n' "$resolved" "$network" >"$CREW_TURN_SPEC_FILE"
+  fi
+  return 0
+}
 
 # ---- steer: interject into the turn a job is running right now --------------
 # The primary way to correct a job in flight. Unlike interrupt, this stops
@@ -671,6 +829,23 @@ if [[ "${1:-}" == "redirect" ]]; then
     exit 2
   fi
 
+  # The successor keeps the old job's skill and network requirements. Validate
+  # them again here, before the destructive step: a skill that vanished since
+  # launch must stop the redirect, not the relaunched turn.
+  RED_SPEC_FILE=""
+  old_spec="$(crew_job_spec "$JOB_ID")" || { echo "crew-codex: not redirecting $JOB_ID" >&2; exit 1; }
+  if [[ -n "$old_spec" ]]; then
+    red_names_out="$(crew_spec_names "$old_spec")" && red_net="$(crew_spec_network "$old_spec")" \
+      || { echo "crew-codex: not redirecting $JOB_ID; its recorded requirements are unreadable" >&2; exit 1; }
+    red_names=(); [[ -n "$red_names_out" ]] && mapfile -t red_names <<<"$red_names_out"
+    [[ "$jthread" =~ ^[A-Za-z0-9._-]+$ ]] && CREW_SPEC_RESUME_THREAD="$jthread"
+    if ! crew_prepare_turn_spec "$PWD" "$red_net" "${red_names[@]}"; then
+      echo "crew-codex: not redirecting $JOB_ID; its required skills/capabilities cannot be re-established" >&2
+      exit 1
+    fi
+    RED_SPEC_FILE="$CREW_TURN_SPEC_FILE"
+  fi
+
   # Order matters. Cancelling destroys the old turn, so nothing irreversible
   # happens until the successor's broker exists: allocating it afterwards meant
   # an allocation failure left the turn destroyed AND the successor on an
@@ -728,6 +903,7 @@ if [[ "${1:-}" == "redirect" ]]; then
     export CODEX_COMPANION_APP_SERVER_ENDPOINT="$RED_EP"
   fi
 
+  [[ -n "$RED_SPEC_FILE" ]] && export CREW_CODEX_TURN_SPEC="$RED_SPEC_FILE"
   relaunch=(task --background --resume-last)
   [[ "$jwrite" == "true" ]] && relaunch+=(--write)
   use_model="${R_MODEL:-$jmodel}"
@@ -745,6 +921,13 @@ if [[ "${1:-}" == "redirect" ]]; then
   fi
 
   NEW_ID="$(grep -oE '\b(task|review)-[a-z0-9]+-[a-z0-9]+\b' <<<"$relaunch_out" | head -1 || true)"
+  if [[ -n "$RED_SPEC_FILE" ]]; then
+    if [[ -n "$NEW_ID" ]]; then
+      printf '%s\n' "$RED_SPEC_FILE" >"$(crew_turn_sidecar "$NEW_ID")"
+    else
+      rm -f "$RED_SPEC_FILE" 2>/dev/null || true
+    fi
+  fi
   if [[ -n "$RED_PID" ]]; then
     if [[ -n "$NEW_ID" ]]; then
       if ! crew_publish_sidecar "$NEW_ID"; then
@@ -936,6 +1119,86 @@ if [[ "${1:-}" == "reap" ]]; then
   exit 0
 fi
 
+# ---- launch flags: --skill <name>, --network, --no-requirements -------------
+# Stripped before forwarding; the companion has no such flags. Validated here,
+# at the cwd the worker will actually run in, before a job or broker exists.
+# Parsing follows the companion's own: `--` ends the options, and the value of a
+# value option (--model, --cwd ...) is that value even when it looks like a flag,
+# so prompt text such as "--network" grants nothing.
+CREW_SKILLS=() CREW_NETWORK="false" CREW_NO_REQ="" CREW_SPEC_RESUME_THREAD="" CREW_TURN_SPEC_FILE="" CREW_TURN_SPEC_OWNED=""
+CREW_FOREGROUND=""
+case "${1:-}" in
+  task|review|adversarial-review)
+    fwd=("$1") want_cwd="$PWD" resuming="" asked="" stripped="" background="" cmd="$1"; shift
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --) fwd+=("$@"); break ;;
+        --skill)
+          if [[ -z "${2:-}" || "$2" == --* ]]; then
+            echo "crew-codex: --skill needs a skill name" >&2; exit 2
+          fi
+          CREW_SKILLS+=("$2"); asked=1; stripped=1; shift 2 ;;
+        --skill=*) CREW_SKILLS+=("${1#--skill=}"); asked=1; stripped=1; shift ;;
+        --network) CREW_NETWORK="true"; asked=1; stripped=1; shift ;;
+        --no-requirements) CREW_NO_REQ=1; stripped=1; shift ;;
+        --cwd|-C) want_cwd="${2:-$PWD}"; fwd+=("$1"); [[ $# -gt 1 ]] && { fwd+=("$2"); shift; }; shift ;;
+        --cwd=*) want_cwd="${1#--cwd=}"; fwd+=("$1"); shift ;;
+        --model|-m|--effort|--prompt-file) fwd+=("$1"); [[ $# -gt 1 ]] && { fwd+=("$2"); shift; }; shift ;;
+        --resume-last|--resume) resuming=1; fwd+=("$1"); shift ;;
+        --resume-last=*|--resume=*) [[ "${1#*=}" == "false" ]] || resuming=1; fwd+=("$1"); shift ;;
+        --background|--background=*) [[ "$1" == "--background=false" ]] || background=1; fwd+=("$1"); shift ;;
+        *) fwd+=("$1"); shift ;;
+      esac
+    done
+    # The companion splits a lone argument as a raw command line. Once a flag of
+    # ours is stripped, a prompt left alone would be reparsed and a flag-shaped
+    # word in it honored, so mark it as text.
+    if [[ -n "$stripped" && ${#fwd[@]} -eq 2 && "${fwd[1]}" != -* ]]; then
+      fwd=("${fwd[0]}" -- "${fwd[1]}")
+    fi
+    set -- "${fwd[@]}"
+    if [[ -n "$asked" && "$cmd" != "task" ]]; then
+      echo "crew-codex: --skill/--network apply to \`task\` only. Native $cmd (review/start) accepts no skill input and runs read-only without network, so it cannot carry them; launch the governing review as a \`task\` instead." >&2
+      exit 2
+    fi
+    # A resumed thread keeps the requirements of the job the companion will
+    # resume unless this launch restates them (a restated set replaces them) or
+    # --no-requirements drops them.
+    if [[ -n "$resuming" && -z "$asked" && -z "$CREW_NO_REQ" && "$cmd" == "task" ]]; then
+      resume_pair="$(crew_resume_job "$want_cwd")" || exit 1
+      resume_job="${resume_pair%%$'\t'*}" resume_thread="${resume_pair#*$'\t'}"
+      if [[ -n "$resume_job" ]]; then
+        # The companion selects its resume target again at run time. Bind what is
+        # validated here to this thread so a changed target holds instead of
+        # running under another thread's skill and network.
+        if [[ "$resume_thread" =~ ^[A-Za-z0-9._-]+$ ]]; then
+          CREW_SPEC_RESUME_THREAD="$resume_thread"; asked=1
+        else
+          echo "crew-codex: cannot bind $resume_job's requirements to a thread (companion reported '${resume_thread}'); refusing to resume" >&2; exit 1
+        fi
+        inherited="$(crew_job_spec "$resume_job")" || exit 1
+        if [[ -n "$inherited" ]]; then
+          names_out="$(crew_spec_names "$inherited")" && CREW_NETWORK="$(crew_spec_network "$inherited")" \
+            || { echo "crew-codex: requirements of $resume_job are unreadable; refusing to resume without them" >&2; exit 1; }
+          CREW_SKILLS=(); [[ -n "$names_out" ]] && mapfile -t CREW_SKILLS <<<"$names_out"
+          asked=1
+          echo "crew-codex: resuming with $resume_job's requirements (skills: ${CREW_SKILLS[*]:-none}; network: $CREW_NETWORK); pass --no-requirements to drop them" >&2
+        fi
+      fi
+    fi
+    if [[ -n "$asked" ]]; then
+      if ! crew_prepare_turn_spec "$want_cwd" "$CREW_NETWORK" "${CREW_SKILLS[@]}"; then
+        exit 1
+      fi
+      CREW_TURN_SPEC_OWNED=1
+      export CREW_CODEX_TURN_SPEC="$CREW_TURN_SPEC_FILE"
+      # A foreground run prints the model's answer, not a job id; the patched
+      # companion names the thread it ran on instead.
+      if [[ -z "$background" ]]; then CREW_FOREGROUND=1; fi
+    fi
+    ;;
+esac
+
 TMP_OUT="$(mktemp)" TMP_ERR="$(mktemp)"
 crew_arm_cleanup
 
@@ -1004,6 +1267,32 @@ done
 
 cat "$TMP_OUT"
 cat "$TMP_ERR" >&2
+
+# Tie the spec to the job id so redirect and --resume-last can continue it. A
+# launch that never produced a job leaves nothing worth keeping.
+if [[ -n "$CREW_TURN_SPEC_OWNED" ]]; then
+  spec_job=""
+  if [[ -n "$CREW_FOREGROUND" ]]; then
+    # The companion recorded the job's thread; the job that owns that thread is
+    # this run's. Neither stdout nor a count of new jobs is consulted.
+    run_thread="$(cat "$CREW_TURN_SPEC_FILE.thread" 2>/dev/null || true)"
+    [[ -n "$run_thread" ]] && spec_job="$(crew_thread_job "$run_thread")"
+    # A turn that ended failed or interrupted still left a resumable thread. Only
+    # a run that never reached a thread (admission failure) has nothing to record.
+    if [[ -n "$run_thread" && -z "$spec_job" ]]; then
+      echo "crew-codex: could not match this foreground task to its recorded job (thread ${run_thread:-unknown}), so its skill/network requirements are not recorded for --resume-last; restate --skill/--network when resuming" >&2
+    fi
+  else
+    spec_job="$(grep -oE '\b(task|review|adversarial-review)-[a-z0-9]+-[a-z0-9]+\b' "$TMP_OUT" | head -1 || true)"
+  fi
+  if [[ -n "$spec_job" && ( $rc -eq 0 || -n "$CREW_FOREGROUND" ) ]]; then
+    printf '%s\n' "$CREW_TURN_SPEC_FILE" >"$(crew_turn_sidecar "$spec_job")"
+  else
+    rm -f "$CREW_TURN_SPEC_FILE" 2>/dev/null || true
+  fi
+  rm -f "$CREW_TURN_SPEC_FILE.thread" 2>/dev/null || true
+  CREW_TURN_SPEC_OWNED=""
+fi
 
 # Tie the broker we started to the job id the launch just printed. No job id
 # means the launch failed, and an unreferenced broker is exactly the leak we

@@ -44,8 +44,13 @@ still build your anti-pattern if your brief dictates one.
   ordered list of skill names and `.claude/skills/<name>/SKILL.md`
   (+PATTERNS etc.) source paths covering every layer
   the task touches. Invoke each required skill through the available native
-  mechanism and read its source; if unavailable, report the scoped load gap
-  and hold the governed action. Route that action to an authorized capable
+  mechanism and read its full source and directed references. Native evidence
+  is the Claude `Skill` call with its success, or for a Codex worker an accepted
+  structured skill input with its result (crew: `task --skill <name>`); a file
+  read substitutes for neither. The worker's return or transcript carries both
+  the native-invocation evidence and the full source/reference reads; a job
+  launch or skill discovery alone is not success. If unavailable,
+  report the scoped load gap and hold the governed action. Route that action to an authorized capable
   worker when available; a source read alone cannot clear the hold.
   The lane's report must state, per file changed,
   which skill rules it was verified against. An inlined convention
@@ -195,6 +200,20 @@ test selection and test-writing skills.
   unverified, the exact missing observation or capability, its owner and next
   check. Use existing scenario seams where feasible; do not manufacture a new
   integration harness merely to turn a review suspicion into a red test.
+
+The reviewer fetches its own GitHub context (PR, issue, checks) and runs the
+execution its evidence needs. Tool, network and authentication capability is
+distinct from file-write authority: a read-only reviewer may still read GitHub
+and run read-only commands. Crew's `task --network` technically permits any
+authenticated network request, mutations included; the review authorizes reads
+only. "No GitHub mutation, no production repair" is an authority and
+instruction fence the reviewer follows, not a guarantee the sandbox enforces.
+The primary arranges the capability in the reviewer's lane but does not fetch
+for it or finish its proof; the reviewer owns its context and evidence. A
+capability the lane cannot supply is reported with its exact reason; the primary
+repairs the lane or routes a capable reviewer, and never does the held
+review's work. A path fence in a brief is likewise an instruction; the sandbox
+settings are what enforce.
 
 The reviewer owns producing the proof, including correcting an invalid test.
 The implementer verifies transfer of the same regression and reviewed candidate,
