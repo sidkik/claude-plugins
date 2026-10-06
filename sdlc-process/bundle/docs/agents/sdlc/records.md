@@ -26,6 +26,10 @@ Disposition: <next authorized action; affected hold/reassessment only when appli
 
 The placeholders are structure, not a required multi-field comment for every reply. A clear agreement can be recorded in one sentence with its source and scope. Recording it needs no separate assessment; apply the checkpoint contract to any dependent advancement. A receipt does not claim reassessment or execution already happened.
 
+## Retain local environment custody
+
+When work allocates a live local runtime environment, its rules live in the [local environment process](../../work/agent-orchestration/process/orchestration.process.md#local-runtime-environments-select-own-validate-and-clean-up). Keep one entry in the existing work record: owner, checkout and revision, environment name, target and namespace, services, the immutable ownership identifiers the tool reports, and status (running, stopped, retained). Take the values from the tool's inspection output rather than memory, and update the entry at create, pause/resume, handoff and cleanup. The entry is a recovery pointer, not authority to delete: the recipient of a handoff inspects the environment and acknowledges custody before acting on it, and a session exit leaves the resource and its entry in place.
+
 ## Retain waits and uncertain delivery
 
 Track a request/report as prepared, sent, awaiting acknowledgment, accepted or refused as actually observed. Sending a message, writing a handoff or posting a file is not receipt by another session. Before retrying an uncertain send, read the durable record using the same request/report identity; reconcile a prior result or resend under that identity, preserving the uncertainty if lookup is unavailable.
@@ -36,7 +40,7 @@ Report milestones, changed plans, blockers and results with evidence and the nex
 
 ## Transfer an existing writer
 
-Follow the full planning convention for sender and receiver, including policy review before publication and writer transfer. Retain the change's existing branch; hand off the repository, full commit, PR/base, document IDs/paths, source/decision revisions, current action, open questions/findings, sender release and intended recipient. The portable pointer is the issue and exact receipt, not an absolute filesystem path.
+Follow the full planning convention for sender and receiver, including policy review before publication and writer transfer. Retain the change's existing branch; hand off the repository, full commit, PR/base, document IDs/paths, source/decision revisions, current action, open questions/findings, any local environment custody entries, sender release and intended recipient. The portable pointer is the issue and exact receipt, not an absolute filesystem path.
 
 The recipient fetches and checks the offered content against current branch/issue disposition, reads the governing sources, reconciles relevant changes and records acknowledgment of the exact receipt before editing. Reuse an applicable current handoff assessment. Without clear writer release/exclusion, read/review or prepare a separately isolated proposal; do not silently reclaim the shared candidate. A disappeared writer requires the convention's explicit coordinator takeover procedure.
 
@@ -55,7 +59,12 @@ fast-forward after preserving all required work. Remove disposable task worktree
 and local/remote task branches once their work is integrated (including a verified
 squash merge) or the investigation needed no retained changes, and they have no
 remaining owner or continuation use. Keep the established runtime source checkout;
-it is not a disposable worktree.
+it is not a disposable worktree. For each local runtime environment the session
+owns, run the supported owned removal, which releases its resources and capacity,
+or record it as retained with owner, reason and next action, which satisfies this
+obligation under the [environment closeout rule](../../work/agent-orchestration/process/orchestration.process.md#local-runtime-environments-select-own-validate-and-clean-up);
+`stop` alone leaves both resources and capacity held. Keep the checkout an
+environment was created from until it is removed, since recovery needs it.
 
 Preserve dirty files, unpublished/unmerged work, another session's checkout and
 branches needed for an open PR or ongoing implementation. Retain any ref still
