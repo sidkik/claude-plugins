@@ -128,6 +128,24 @@ remained; the architecture violation sat until Q found it himself.
   checks for added code. Missing earlier coverage still needs assessment before
   overall approval. A brief listing prior findings cannot suppress new supported
   findings within that affected surface or erase unresolved earlier findings.
+  **Recurrence consolidates.** When a re-review finds another instance of a
+  defect class an attempted correction already targeted, the primary and
+  reviewer record in the existing review return/brief, BEFORE another repair
+  dispatch: the governing accepted behavior and standards; the affected real
+  callers and input classes, with unknown or default behavior stated; observed
+  failures; representative regression coverage; and a finite completion
+  boundary. Broader alternatives and exhaustive catalogs are not required.
+  Each blocker records the evidence for realistic reachability and impact and
+  the contract it violates; a failing synthetic or mock case alone proves
+  neither, though a static standards finding can block without a behavioral test.
+  Missing required proof holds its dependent gate. The revision keeps unchanged
+  prior coverage, rechecks the fix and affected surface, and stays open to new
+  supported findings and to the reviewer's challenge of the author's proposed
+  boundary; the author's assertion alone does not establish that boundary's correctness.
+  A review-count cap cannot waive required checks. An unresolved authority choice goes to
+  the human, holding only its dependent actions. Once the agreed affected
+  criteria and proof pass and prior unresolved findings are dispositioned, the
+  review concludes without a redundant fresh full review.
 - **Adversarial reviews for complex/money areas**: independent skeptics
   briefed to REFUTE — concurrency envelopes, idempotency under retry,
   race windows, orphaned-state paths. *Paid for by:* the orphaned-PENDING
