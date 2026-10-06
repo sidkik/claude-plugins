@@ -8,3 +8,6 @@ Plugins are independent CLI tooling. Use their existing runtime conventions,
 run affected plugin tests, and validate changed manifests/skills. Settings
 examples are instructions for explicit setup, not permission to alter user
 configuration. Preserve existing marketplace entries.
+
+When changing agent instructions, skills or observer behavior, follow the
+[agent testing procedure](docs/agents/agent-testing.md).

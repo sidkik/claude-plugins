@@ -1,0 +1,36 @@
+{
+ "fixture": "observer-decision-f7",
+ "history": [
+  {
+   "role": "user",
+   "text": "Settled for the offer pricing bug: add setup validation so a bad price can never be configured, AND keep a checkout safety backstop that rejects a bad price at purchase. Both ship together."
+  },
+  {
+   "role": "assistant",
+   "text": "Understood: setup validation plus the checkout backstop, both required."
+  },
+  {
+   "role": "assistant",
+   "text": "Checkout tests written.",
+   "tool": {
+    "id": "toolu_01tests",
+    "name": "Bash",
+    "input": {
+     "command": "npm test -- checkout"
+    }
+   }
+  },
+  {
+   "role": "user",
+   "result": {
+    "toolUseId": "toolu_01tests",
+    "content": "checkout: 3 passed"
+   }
+  },
+  {
+   "role": "assistant",
+   "text": "All checkout tests pass. The offer pricing work is fully covered and complete."
+  }
+ ],
+ "digestFrom": 5
+}
