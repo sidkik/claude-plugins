@@ -108,8 +108,10 @@ installed process plugin, updates through the registered marketplace and verifie
 with the current installed runtime. It will tell you if a client restart/reload
 is required. It does not require the original release checkout.
 
-Maintainers change canonical planning documents, review them, regenerate the
-pinned bundle and publish a new plugin version. The setup skill and runtime are
+Maintainers follow the [source adapter's contribution routing](../sdlc-process/SOURCE-ADAPTER.md)
+to change instructions in their configured canonical owner. For this plugin's
+pinned shared-process bundle, review canonical Planning changes, regenerate the
+bundle and publish a new plugin version. The setup skill and runtime are
 maintained in `tools/setup` and copied by the same checked generator. Generated
 copies are not an independent source of instructions.
 
