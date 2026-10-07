@@ -21,7 +21,7 @@ function fixture(t){
  const state={markets:[{name:'sidkik-plugins',path:'/existing/native/marketplace'}],plugins:[{id:'sdlc-process@sidkik-plugins',enabled:true,scope:'user',installPath:plugin,version:'0.1.1'}]};write(path.join(home,'fake.json'),JSON.stringify(state));
  const fake=`#!${process.execPath}
 const fs=require('fs'),path=require('path');const a=process.argv.slice(2),file=path.join(process.env.HOME,'fake.json'),s=JSON.parse(fs.readFileSync(file));fs.appendFileSync(path.join(process.env.HOME,'calls'),JSON.stringify(a)+'\\n');const save=()=>fs.writeFileSync(file,JSON.stringify(s));
-if(a[0]==='--version'){console.log(process.env.FAKE_CLAUDE_VERSION??'2.1.285 (Claude Code)');process.exit()}
+if(a[0]==='--version'){console.log(process.env.FAKE_CLAUDE_VERSION??'2.1.293 (Claude Code)');process.exit()}
 if(a[0]==='auth'){console.log('{"loggedIn":true}');process.exit()}
 if(a[0]==='login')process.exit();
 if(a[1]==='marketplace'){if(a[2]==='list')console.log(JSON.stringify(s.markets));if(a[2]==='add'){s.markets.push({name:'openai-codex'});save()}process.exit()}
@@ -70,24 +70,42 @@ test('native repair reuses registry, installs named plugins, configures footer a
 test('disabled companions repaired, unrelated disabled plugin preserved',t=>{const f=fixture(t);assert.equal(f.run('repair').status,0);const file=path.join(f.home,'fake.json'),s=JSON.parse(fs.readFileSync(file));s.plugins.find(p=>p.id.startsWith('grok-crew')).enabled=false;s.plugins.push({id:'unrelated@other',enabled:false});write(file,JSON.stringify(s));assert.equal(f.run('repair').status,0);const after=JSON.parse(fs.readFileSync(file));assert.equal(after.plugins.find(p=>p.id.startsWith('grok-crew')).enabled,true);assert.equal(after.plugins.find(p=>p.id==='unrelated@other').enabled,false)});
 test('bad settings schema is a blocker and preserves bytes',t=>{const f=fixture(t),config=path.join(f.home,'.claude/settings.json');write(config,'[]');const r=f.run('repair');assert.notEqual(r.status,0);assert.match(r.stderr,/settings|object/i);assert.equal(fs.readFileSync(config,'utf8'),'[]');metadataOnly(f.hook())});
 test('observer setup preserves permissions and unrelated environment',t=>{const f=fixture(t),config=path.join(f.home,'.claude/settings.json');write(config,JSON.stringify({permissions:{allow:['Read']},env:{EXISTING:'yes'}}));assert.equal(f.run('repair').status,0);const settings=JSON.parse(fs.readFileSync(config));assert.deepEqual(settings.permissions,{allow:['Read']});assert.equal(settings.env.EXISTING,'yes');assert.equal(settings.env.CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS,'1');assert.equal(settings.agent,'sidkik-sdlc-observed-main');assert.equal(fs.readFileSync(path.join(f.home,'.claude/agents/sidkik-sdlc-observed-main.md'),'utf8'),fs.readFileSync(path.join(f.plugin,'agents/sidkik-sdlc-observed-main.md'),'utf8'))});
-test('ready setup reports the known first interactive turn defect without repair or activation claims',t=>{
- const f=fixture(t);assert.equal(f.run('repair').status,0);
+test('observer repair installs the exact Haiku model without changing the chosen MAIN model',t=>{
+ const f=fixture(t),config=path.join(f.home,'.claude/settings.json');
+ write(config,JSON.stringify({model:'claude-sonnet-5-5',effortLevel:'high'}));
+ assert.equal(f.run('repair').status,0);
+ const observer=fs.readFileSync(path.join(f.home,'.claude/agents/sidkik-sdlc-observer.md'),'utf8');
+ assert.match(observer,/^model: claude-haiku-5-5$/m);
+ const settings=JSON.parse(fs.readFileSync(config));assert.equal(settings.model,'claude-sonnet-5-5');assert.equal(settings.effortLevel,'high');
+ assert.equal(f.run('doctor').status,0);
+});
+test('unsupported setup retains the known first interactive turn defect without activation claims',t=>{
+ const f=fixture(t);assert.equal(f.run('repair').status,0);f.env.FAKE_CLAUDE_VERSION='2.1.285 (Claude Code)';
  const config=path.join(f.home,'.claude/settings.json'),before=fs.readFileSync(config,'utf8');
- const result=f.run('doctor');assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
- assert.equal(report.ready,true);assert.equal(report.readyScope,'installation-and-configuration');assert.deepEqual(report.gaps,[]);
- assert.equal(report.observer.configurationReady,true);assert.equal(report.observer.runtimeVersion,'2.1.285');
+ const result=f.run('doctor');assert.equal(result.status,1,result.stderr);const report=JSON.parse(result.stdout);
+ assert.equal(report.ready,false);assert.equal(report.readyScope,'installation-and-configuration');assert.deepEqual(report.gaps.map(gap=>gap.code),['observer-version']);
+ assert.match(report.gaps[0].detail,/requires Claude Code 2\.1\.293 or newer/);
+ assert.equal(report.observer.configurationReady,false);assert.equal(report.observer.runtimeVersion,'2.1.285');
  assert.equal(report.observer.firstInteractiveTurn,'known-missing');assert.equal(report.observer.runtimeActivity,'not-checked');
  assert.match(report.observer.detail,/first interactive MAIN turn/);assert.match(report.observer.nextAction,/continue independent work/i);
  assert.match(report.observer.nextAction,/setup repair cannot/i);
  metadataOnly(f.hook());
  assert.equal(fs.readFileSync(config,'utf8'),before);
 });
-for(const version of ['2.1.284 (Claude Code)','2.1.286 (Claude Code)','3.0.0 (Claude Code)'])test(`observer first-turn coverage stays unverified on ${version}`,t=>{
+for(const version of ['2.1.293 (Claude Code)','2.1.294 (Claude Code)','3.0.0 (Claude Code)'])test(`observer first-turn coverage stays unverified on ${version}`,t=>{
  const f=fixture(t);f.env.FAKE_CLAUDE_VERSION=version;assert.equal(f.run('repair').status,0);
  const result=f.run('doctor');assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
  assert.equal(report.ready,true);assert.deepEqual(report.gaps,[]);assert.equal(report.observer.configurationReady,true);
  assert.equal(report.observer.firstInteractiveTurn,'unverified');assert.equal(report.observer.runtimeActivity,'not-checked');
  assert.match(report.observer.nextAction,/first real interactive MAIN turn/);
+});
+for(const version of ['2.1.284 (Claude Code)','2.1.286 (Claude Code)','2.1.292 (Claude Code)'])test(`observer model is unsupported on ${version}`,t=>{
+ const f=fixture(t);assert.equal(f.run('repair').status,0);f.env.FAKE_CLAUDE_VERSION=version;
+ const result=f.run('doctor');assert.equal(result.status,1,result.stderr);const report=JSON.parse(result.stdout);
+ assert.equal(report.ready,false);assert.deepEqual(report.gaps.map(gap=>gap.code),['observer-version']);
+ assert.match(report.gaps[0].detail,/requires Claude Code 2\.1\.293 or newer/);
+ assert.equal(report.observer.configurationReady,false);assert.equal(report.observer.firstInteractiveTurn,'unverified');
+ assert.equal(report.observer.runtimeActivity,'not-checked');
 });
 test('unrecognized runtime version remains unverified with an explicit setup version gap',t=>{
  const f=fixture(t);assert.equal(f.run('repair').status,0);f.env.FAKE_CLAUDE_VERSION='unknown build';

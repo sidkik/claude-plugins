@@ -1,6 +1,6 @@
 {
   "name": "sdlc-process",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "Portable Sidkik SDLC process, Pocock flows and independent review instructions",
   "author": {
     "name": "Sidkik"

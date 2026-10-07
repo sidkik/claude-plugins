@@ -13,7 +13,7 @@ const receiptFile=path.join(root,'native-setup.json');
 const json=p=>JSON.parse(fs.readFileSync(p,'utf8'));
 const read=p=>fs.existsSync(p)?fs.readFileSync(p,'utf8'):'';
 const purposes={'sdlc-process':'required SDLC process and orchestrator','sdlc-status':'stage checklist and terminal status','grok-crew':'launch and supervise Grok agents','codex-crew':'launch and supervise Codex agents',codex:'official Codex runtime for codex-crew'};
-const observerAgent='sidkik-sdlc-observed-main', observerEnv='CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS', minimumObserver=[2,1,284];
+const observerAgent='sidkik-sdlc-observed-main', observerEnv='CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS', minimumObserver=[2,1,293];
 function observerVersion(text){const m=String(text).match(/(?:^|\s)(\d+)\.(\d+)\.(\d+)(?:\s|$)/);return m&&m.slice(1).map(Number)}
 function observerCapable(text){const v=observerVersion(text);if(!v)return false;for(let i=0;i<3;i++){if(v[i]!==minimumObserver[i])return v[i]>minimumObserver[i]}return true}
 // Installation support is separate from verified first-turn runtime coverage.

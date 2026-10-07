@@ -61,13 +61,14 @@ Native observer evidence can still be pending during this preparation turn.
 The agent checks again on the next user work turn before claiming observation.
 Session preparation does not fix the runtime limitation described below.
 
-On Claude Code 2.1.284 or newer, agent-owned setup installs managed local
+On Claude Code 2.1.293 or newer, agent-owned setup installs managed local
 agent definitions from the process plugin and enables the native observer
 experiment. Claude's current plugin-agent loader does not preserve observer
 attachment fields, so setup handles that local adapter for you. The main agent's
 body stays empty to preserve Claude's normal coding instructions, chosen model
-and permissions; the observer uses Haiku. Existing custom-agent selections and
-unmanaged files are preserved and reported as scoped conflicts.
+and permissions; the observer uses the explicit `claude-haiku-5-5` model. Existing
+custom-agent selections and unmanaged files are preserved and reported as scoped
+conflicts.
 
 Start a fresh Claude session after setup. A plugin reload does not establish
 attachment to an already-running main session. In the SDLC footer:

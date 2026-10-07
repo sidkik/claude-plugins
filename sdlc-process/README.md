@@ -31,14 +31,15 @@ than supporting an unassigned session. Pending observer evidence remains explici
 and is checked again on the next work turn; preparation does not establish
 first-turn coverage or fix the native observer defect.
 
-On supported Claude Code versions, agent-owned setup enables native observation
+On Claude Code 2.1.293 or newer, agent-owned setup enables native observation
 of future foreground MAIN sessions. It installs managed local agent definitions
 because Claude's plugin-agent loader does not retain the experimental observer
 fields, selects the observed MAIN only when no custom default agent conflicts,
 and preserves the user's model, tools, permissions, authentication and unrelated
 settings. The MAIN definition has an empty body so Claude retains its normal
-system prompt; the observer uses Haiku and can only read and send native advisory
-reports. Observation is scoped to MAIN, with worker delegation unchanged.
+system prompt; the observer uses the explicit `claude-haiku-5-5` model and can
+only read and send native advisory reports. Observation is scoped to MAIN, with
+worker delegation unchanged.
 A narrowly matched `SubagentStart` hook passes native MAIN identity and a bounded
 public-record baseline to the observer, excluding internal metadata and reasoning.
 It reads snapshots up to 32 MiB and supplies up to 256 KiB of public records at
