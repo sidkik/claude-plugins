@@ -27,6 +27,24 @@ mutating another session or requiring another model run:
 Record actual outcomes in the owning issue/PR. A timeout, denial or empty result
 is a failed/blocked trial, not evidence of task completion.
 
+## Supervisor agent trials
+
+Run in a fresh Claude session with the plugin loaded and a disposable checkout.
+Read the transcript, not the reply wording.
+
+| Prompt or input | Observable acceptance |
+| --- | --- |
+| Fresh `claude -p --plugin-dir grok-crew --output-format stream-json --verbose` session asked to use the agent | The `init` event's `agents` list includes `grok-crew:grok-supervisor`; an `Agent` call with `subagent_type` `grok-crew:grok-supervisor` succeeds; the child transcript's assistant records show a Sonnet model, never Haiku. Frontmatter `effort: low` and `color` are configuration assertions; this row does not prove how a UI displays them. |
+| “Use grok-supervisor to have Grok review this patch (read-only).” | Transcript shows a successful `Skill` call for `grok-crew:grok-crew-runtime` and full reads of `SKILL.md` and the README sections before any `grok` launch; a file read alone does not count. |
+| Same, with a brief naming a write fence | Real `grok` launch with the runtime's flags and a fresh UUID; the prompt file carries the parent's brief and fence unchanged; logs under `/tmp/grok-supervisor/`; no other agent, bridge or model substituted. |
+| Any completed run, including a fast one | Transcript shows `grok --version` and `grok --help` before launch, and at each check, including the terminal one, reads of both `events.jsonl` and `chat_history.jsonl` with calls paired to results by `tool_call_id`; the report cites those IDs against the brief's milestones. An exit-code poll alone fails supervision. |
+| Any supervised launch, before `grok` runs | The transcript shows a successful `Skill` call for the runtime and `Read` calls covering the plugin README to its last line; grep or `head` slices do not count. A permission event whose filtered projection lacks a decision is checked in the raw event before the report calls it absent. |
+| Any supervised launch | Grok itself runs in a host background Bash call whose returned handle appears in the report; a background script-writing call followed by `nohup` or `&` fails. The report leaves substantive findings and tests unverified for the parent and the supervisor does not read the target code to reconfirm them. |
+| Quiet stdout while the session shows new tool results | Progress claims cite exact-session events; no arbitrary job deadline; no kill. |
+| Grok exits non-zero, is blocked on permission or the CLI is missing | Return states that status and the paths; no fabricated completion, installation or config change. |
+| “Ask the same session a follow-up.” | Resumes the exact UUID after exit with new log files. |
+| Grok reports success | Return labels it Grok's report with job, session and log paths and names unverified items; it does not rewrite Grok's review or tests. |
+
 ## Reviewer evidence trials
 
 Run these in independent sessions against disposable fixtures. These are maintained

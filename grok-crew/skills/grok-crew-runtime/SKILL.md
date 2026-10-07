@@ -51,7 +51,9 @@ Claude bridge is optional. It is not a new workflow engine or a `crew-grok` bina
    expiry is interrupted work, never a successful review.
 5. Read stdout and stderr and inspect the reported artifacts. Exit zero alone is
    not success. Independently verify material findings, diffs and applicable tests
-   under the repository's review contract. Report the consolidated result to the
+   under the repository's review contract. A supervising agent verifies execution (session identity, call/result
+   correlation, terminal evidence); the parent still verifies substantive findings.
+   Report the consolidated result to the
    user with the Grok session ID and remaining gaps. Do not claim a model's own
    success report proves completion.
 
