@@ -116,8 +116,16 @@ hashes. Historical evidence stays linked to immutable upstream GitHub revisions.
 
 ## Maintain and release
 
-Change governing documents in their canonical planning repository and obtain the
-applicable review. Commit those source changes first. Deliberately update the full
+Route contributions by canonical ownership in the [source adapter](SOURCE-ADAPTER.md).
+Shared SDLC governing documents belong in Planning; engineering instructions and
+maintained governing references belong to their configured owner, including an
+engineering plugin where explicitly adopted. Edit plugin-owned sources in that
+owner's authorized checkout even when starting in a delivery repository. This
+plugin's source adapter is maintained here; its generated wrappers are not editable
+authority. Obtain the applicable review for source changes.
+
+For changes to this plugin's pinned bundle, commit the upstream source changes
+first. Deliberately update the full
 commit in `tools/process-sources.json`; fetch that exact commit into the source
 checkout. Core supplies the two explicitly pinned Pocock resources missing from
 planning's selected import. Working-tree changes are never packaged.

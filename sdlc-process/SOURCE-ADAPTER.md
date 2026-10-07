@@ -25,10 +25,27 @@ and become provenance-bearing snapshots in this distribution.
    retain their delivery owner; a sufficient small repair brief can remain
    issue-owned. This does not reassign implementation issues to planning.
    Discover the actual configured owner before creating work.
-4. Keep repository-specific architecture, tests, local environment, tools and
-   write boundaries in that repository. Runtime commands come from the installed
-   crew runtime documentation and skills. Report missing capabilities for the
-   affected action; a plugin does not grant permissions or authenticate a CLI.
+4. Resolve engineering instructions through their configured canonical owner.
+   Follow the working repository's explicit ownership/migration configuration
+   and applicable user decisions for architecture, testing and local-development
+   rules, specialist briefs and maintained governing references. When that owner
+   is an engineering plugin, use its canonical sources or exact installed bundle
+   for those instructions. From any starting repository, route contributions to
+   the plugin-owned sources to the owner's authorized checkout; generated bundles,
+   wrappers and agents remain distribution outputs.
+   For Core's explicitly adopted migration, `sidkik/core-plugins` owns these
+   engineering instructions under `core-engineering/source`. Legacy Core copies
+   of migrated instructions cannot silently override that authority; report
+   conflicts before dependent work. This scoped migration preserves unrelated
+   repository instructions and does not require other repositories to depend on
+   the private plugin.
+   The working delivery repository retains implementation code and tests,
+   runtime/configuration and live environment, tool and operational facts.
+   Observe its write boundaries and the source owner's separate write boundaries;
+   a starting directory does not authorize writes to another checkout. Runtime
+   commands come from the installed crew runtime documentation and skills.
+   Report missing source access or capabilities for the affected action; a plugin
+   does not grant permissions or authenticate a CLI.
 5. Preserve Pocock's pinned sources and Sidkik's deliberate invocation-only
    adaptation: the Pocock workflows are model-invocable, so invoke the selected
    flow natively from the user's ordinary request; loading grants no authority
