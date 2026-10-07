@@ -3,7 +3,7 @@
   "sources": {
     "planning": {
       "repository": "https://github.com/sidkik/planning",
-      "revision": "56283b026a0c02b4c7ee63eecf59e6945e969e27",
+      "revision": "2a8e857d44d49f2cca29de9ea9bca12b4283e8ca",
       "files": [
         ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
         ".agents/skills/ask-matt/SKILL.md",
