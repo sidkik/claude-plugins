@@ -13,6 +13,15 @@ Claude users can install `grok-crew@sidkik-plugins` from the existing Sidkik
 marketplace. In Codex, load this package through the configured plugin mechanism,
 or read the skill's source when native discovery is unavailable.
 
+## Supervisor agent
+
+In Claude Code the plugin also supplies the visible `grok-crew:grok-supervisor`
+agent (Sonnet, low effort, orange). It natively loads the runtime skill, launches
+the real Grok CLI from the parent's brief, supervises the exact session until it
+exits and returns the job, session and log paths with observed evidence. It adds
+no broker: the skill remains the single source for flags, polling, resume and
+stop rules, and the parent still verifies Grok's findings.
+
 ## Launch recipes
 
 The accountable agent fills these values from the task and writes the actual
