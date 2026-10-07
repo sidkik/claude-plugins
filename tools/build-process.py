@@ -102,7 +102,7 @@ def outputs(selection, checkouts):
             if path.endswith('/SKILL.md'):
                 name = path.split('/')[-2]
                 # Native wrappers preserve frontmatter/invocation restrictions; policy remains in bundled source.
-                body = frontmatter(original.decode()) + '\nRead and follow [the packaged source](../../bundle/' + path + ') in full. '
+                body = frontmatter(original.decode()) + '\nRead and follow [the packaged source](../../bundle/' + path + ') in full, and read the references it directs for the current action before performing the flow; report an unavailable required source as a scoped load gap. '
                 body += 'Before applying it, read [the source adapter](../../SOURCE-ADAPTER.md) for working-repository ownership and source precedence. '
                 body += 'This wrapper supplies discovery; it does not replace the source instructions.\n'
                 folder = 'claude-skills' if re.search(r'^disable-model-invocation: true$', original.decode(), re.M) else 'skills'
