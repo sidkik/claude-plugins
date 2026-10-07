@@ -29,6 +29,22 @@ Run `--check` when the change touches generated bundle files.
 
 ## Behavioral replay
 
+For Claude model comparisons, select full model IDs and record the model in actual
+assistant responses; aliases can resolve differently by provider or client version.
+Anthropic released [Haiku 5.5](https://www.anthropic.com/claude-haiku-5-5) on
+2026-10-07 as `claude-haiku-5-5`. The
+[Claude Code model docs](https://code.claude.com/docs/en/model-config) require
+2.1.293 or newer for it; `claude-sonnet-5-5` is the explicit Sonnet comparator.
+Keep the maintained agent model until the affected behavioral comparison supports
+a change. A replay result establishes only the tested cases, not live observation
+or another agent's fitness.
+
+The maintained observer selects `claude-haiku-5-5` following the accepted matched
+ten-case replay comparison. Both models met the existing acceptance table, but
+both skipped the native delivery-identity read before the f3 assessment. That
+shared instruction-conformance gap remains; replay acceptance does not qualify
+live MAIN delivery. Grok supervisors and Codex forwarding agents retain Sonnet.
+
 Cases and acceptance live in
 [observer-behavioral-prompts.md](../../sdlc-process/tests/observer-behavioral-prompts.md);
 add or change cases there, not here.

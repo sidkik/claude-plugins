@@ -1,7 +1,7 @@
 ---
 name: sidkik-sdlc-observer
 description: Observe the foreground MAIN session for narrow SDLC process corrections.
-model: sonnet
+model: claude-haiku-5-5
 managed-by: sidkik-sdlc
 tools:
   - Read
