@@ -16,9 +16,15 @@ and become provenance-bearing snapshots in this distribution.
    identify that conflict and its effect before the dependent action; installing
    a plugin does not silently revoke the repository's instructions.
 3. The bundled tracker supplies Sidkik's GitHub mechanics. Resolve the owning
-   delivery issue from its full URL and actual work scope. Shared planning
-   belongs to `sidkik/planning`; this does not assign implementation issues to
-   that repository. Discover the actual configured owner before creating work.
+   delivery issue from its full URL and actual work scope. Planning documents
+   belong to `sidkik/planning`, including single-repository work launched in a
+   delivery checkout. Before writing them, natively invoke
+   [work-artifacts](skills/work-artifacts/SKILL.md) and read its linked planning
+   storage/publication convention. Delivery implementation, maintained technical
+   documentation, implementation evidence and implementation-session continuity
+   retain their delivery owner; a sufficient small repair brief can remain
+   issue-owned. This does not reassign implementation issues to planning.
+   Discover the actual configured owner before creating work.
 4. Keep repository-specific architecture, tests, local environment, tools and
    write boundaries in that repository. Runtime commands come from the installed
    crew runtime documentation and skills. Report missing capabilities for the

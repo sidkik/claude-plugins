@@ -11,7 +11,11 @@ Apply this convention to new managed work documents under `docs/work`. For exist
 
 Read the effort's index, canonical tracker/work record and active session registry. Locate existing records for the same subject and purpose. Update the owning record if one exists; create another only for a distinct purpose or observation. Do not create a summary that independently restates governing requirements.
 
-Identify the canonical location and owner of each logical record. A tracker issue can own a spec or Wayfinder map. Local files then point to it or preserve a frozen snapshot. A locally owned draft can transfer authority to the tracker explicitly on publication; convert its old location to a reference or snapshot. Neither location silently becomes a second editable authority.
+Identify the canonical repository, location and owner of each logical record before choosing a folder. Starting in a delivery repository is valid; cwd and existing delivery `docs/work` files do not choose authority for a new artifact. Before writing planning documents, read the [planning convention's storage and publication rules](../../../docs/work/agent-orchestration/process/planning-repository.process.md). Planning intent, proposed architecture, specifications, delivery plans, planning research and their planning review/handoff records belong in `sidkik/planning`, including standalone, single-repository and Core-only work. Delivery code, tests, maintained technical documentation, implementation evidence and implementation-session continuity remain delivery-owned, including useful records under delivery `docs/work`.
+
+Discover or acquire an appropriate isolated planning checkout within existing authorization, applying the linked convention's ownership, branch and continuation rules. Keep the delivery checkout used for code context independent. If the planning checkout or required access is unavailable, hold document publication and report that scoped gap; do not silently write the planning spec in the delivery repository. This placement check adds no approval gate and authorizes no relocation of another owner's active records.
+
+A sufficient small repair brief or Wayfinder map can remain issue-owned. Local files then point to it or preserve a frozen snapshot. A locally owned draft can transfer authority to the tracker explicitly on publication; convert its old location to a reference or snapshot. Neither location silently becomes a second editable authority.
 
 ## Keep working material out of Git
 
@@ -59,11 +63,11 @@ Use lowercase kebab-case `<topic>.<type>.md`. Dates or run IDs precede the suffi
 
 ### Choose the work container
 
-Folder hierarchy expresses ownership and scope; the filename suffix expresses the document's purpose. Choose the smallest container that fits:
+Folder hierarchy expresses ownership and scope within the repository established above; the filename suffix expresses the document's purpose. The layouts below do not select a repository. Choose the smallest container that fits:
 
 | Container | When to use it | Location for new work |
 | --- | --- | --- |
-| Initiative | A durable outcome spanning related decisions or independently delivered blocks, potentially across repositories. Its map links the owning tracker and participating repositories. | `docs/work/initiatives/<initiative>/` in one designated coordination repository. |
+| Initiative | A durable outcome spanning related decisions or independently delivered blocks, potentially across repositories. Its map links the owning tracker and participating repositories. | `docs/work/initiatives/<initiative>/` in the established owning repository. |
 | Workstream | An initiative area with distinct ownership or a continuing sequence of work, such as chat or context infrastructure. Optional; avoid a workstream for every task. | `<initiative-root>/workstreams/<workstream>/` |
 | Work item | One tracked feature block, regression, spike or enabling task with a completion contract. | `<owning-container>/items/<tracker-key>-<slug>/` |
 | Standalone work item | Bounded work that belongs to no initiative; reuse existing approved behavior for regressions. | `docs/work/items/<tracker-key>-<slug>/` |
