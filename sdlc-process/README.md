@@ -4,9 +4,13 @@ This plugin packages the shared Sidkik process, selected Pocock skills, orchestr
 work-artifacts and independent policy-review brief. Claude discovers the skills,
 review agent and a silent SessionStart metadata hook. Codex can discover native skill
 wrappers through its manifest or the portable setup's configured source pointers.
-Claude also discovers user-invoked Pocock wrappers under `claude-skills/`,
-preserving their invocation restrictions. Codex exposes common model-invocable
-wrappers. A user-only flow requires an explicit handoff with its installed
+Both hosts expose the same model-invocable wrappers under `skills/`, including
+the Pocock workflows (ask-matt, grill-with-docs, handoff, implement, to-spec,
+to-tickets, triage, wayfinder), so the orchestrator invokes the selected flow
+from an ordinary request without a user slash command. Loading a flow grants no
+authority and answers no human decision. A skill the generator finds restricted
+to the user (`disable-model-invocation: true` in its source) is routed to
+`claude-skills/` instead and needs an explicit handoff with its installed
 invocation command; reading its source does not authorize execution. A host
 without a valid invocation reports the capability gap. The hook
 only supplies native session identity and transcript metadata. It does not run

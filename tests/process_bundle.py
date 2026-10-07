@@ -31,15 +31,22 @@ class ProcessBundleTests(unittest.TestCase):
                 if 'version' in entry:
                     self.assertEqual(entry['version'], claude['version'])
 
-    def test_claude_compatible_manifest_explicitly_includes_both_skill_surfaces(self):
+    def test_claude_manifest_points_only_at_existing_skill_surfaces_and_workflows_are_model_invocable(self):
         manifest = json.loads((ROOT / 'sdlc-process/.claude-plugin/plugin.json').read_text())
-        self.assertEqual(manifest['skills'], ['./skills/', './claude-skills/'])
+        self.assertEqual(manifest['skills'], ['./skills/'])
+        for entry in manifest['skills']:
+            self.assertTrue((ROOT / 'sdlc-process' / entry).is_dir(), entry)
         common = {p.parent.name for p in (ROOT / 'sdlc-process/skills').glob('*/SKILL.md')}
         user_only = {p.parent.name for p in (ROOT / 'sdlc-process/claude-skills').glob('*/SKILL.md')}
         self.assertIn('sdlc-process', common)
         self.assertIn('orchestrator', common)
-        self.assertIn('triage', user_only)
-        self.assertFalse(common & user_only)
+        workflows = {'ask-matt', 'grill-with-docs', 'handoff', 'implement', 'to-spec', 'to-tickets', 'triage', 'wayfinder'}
+        self.assertLessEqual(workflows, common)
+        self.assertFalse(workflows & user_only)
+        self.assertEqual(user_only, set())
+        for name in workflows:
+            frontmatter = (ROOT / 'sdlc-process/skills' / name / 'SKILL.md').read_text().split('---')[1]
+            self.assertNotIn('disable-model-invocation', frontmatter, name)
         self.assertIn('sdlc-observer', common)
         self.assertIn('session-start', common)
         self.assertEqual(len(common | user_only), 25)
@@ -62,7 +69,8 @@ class ProcessBundleTests(unittest.TestCase):
         build.validate_links(files)
         for name in ('sdlc-process', 'orchestrator', 'sdlc-policy-review', 'work-artifacts', 'resolving-merge-conflicts'):
             self.assertIn('skills/' + name + '/SKILL.md', files)
-        self.assertIn(b'disable-model-invocation: true', files['claude-skills/ask-matt/SKILL.md'])
+        self.assertIn('skills/ask-matt/SKILL.md', files)
+        self.assertNotIn('claude-skills/ask-matt/SKILL.md', files)
 
     def test_missing_required_fragment_is_rejected(self):
         files = {'a.md': b'[required](b.md#missing)', 'b.md': b'# Present', 'bundle/.agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh': b''}

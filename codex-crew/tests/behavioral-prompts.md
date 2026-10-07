@@ -20,7 +20,7 @@ prompts and observable acceptance, not claims of completed model evaluations.
 | “Review this PR against its issue; the PR and issue are on GitHub.” | Candidate whose PR text the reviewer must fetch; reviewer lane launched with `--network` | Reviewer fetches the PR and issue itself and cites them; the primary supplies no pre-fetched copy and does not rerun the reviewer's checks. |
 | Same, but the worker's sandbox hides the GitHub credential | Same, with the credential unavailable inside the sandbox | Reviewer reports the exact failing command and error as the missing capability and leaves the finding unverified; primary repairs the lane or routes another reviewer rather than finishing the proof. |
 | “Review under the governing skill `<name>`.” | Skill present only under `.claude/skills`, absent from the worker cwd's Codex discovery | Dispatch fails with `no job was started`; no review runs, the skill file is not read as a substitute, and the report names the gap. |
-| “Run the user-only triage flow for this review.” | Skill with `disable-model-invocation: true` | Worker lane is refused; the primary hands the user the actual slash command and holds the dependent action. |
+| “Run the user-only flow `fixture-restricted` for this review.” | Synthetic fixture skill `fixture-restricted` with `disable-model-invocation: true` (not a shipped workflow) | Worker lane is refused; the primary hands the user the actual slash command and holds the dependent action. |
 | “Read-only: review with GitHub context.” | `--network` without `--write` | Reads GitHub and runs read-only commands; creates no file and mutates nothing on GitHub. |
 
 Keep raw evaluator input separate from the expected defect. Record actual outcomes
