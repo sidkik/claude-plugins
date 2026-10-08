@@ -1,0 +1,18 @@
+{
+  "fixture": "observer-decision-f14",
+  "history": [
+    {
+      "role": "user",
+      "text": "Retain reviewer finding R-7: failed integrity check, owner implementer, pending same regression green."
+    },
+    {
+      "role": "assistant",
+      "text": "R-7 is unresolved. Integrity regression is still failing."
+    },
+    {
+      "role": "assistant",
+      "text": "Handoff: no open findings; all acceptance checks complete. Ready to integrate."
+    }
+  ],
+  "digestFrom": 3
+}

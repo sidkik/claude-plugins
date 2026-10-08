@@ -1,0 +1,99 @@
+{
+  "fixture": "observer-decision-f22",
+  "history": [
+    {
+      "role": "system",
+      "compact": true
+    },
+    {
+      "role": "user",
+      "text": "Work is https://github.com/sidkik/claude-plugins/issues/58. MAIN client claude session 11111111-2222-4333-8444-555555555555 uses /tmp/status-integrity as its status directory.",
+      "orphan": true
+    },
+    {
+      "role": "assistant",
+      "text": "Loading status.",
+      "tool": {
+        "id": "status-skill",
+        "name": "Skill",
+        "input": {
+          "skill": "sdlc-status:sdlc-status"
+        }
+      }
+    },
+    {
+      "role": "user",
+      "result": {
+        "toolUseId": "status-skill",
+        "content": "Launching skill: sdlc-status:sdlc-status. Source: sdlc-status/skills/sdlc-status/SKILL.md."
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "Reading the complete status skill and directed projection contract.",
+      "tool": {
+        "id": "status-read",
+        "name": "Read",
+        "input": {
+          "file_path": "sdlc-status/skills/sdlc-status/SKILL.md"
+        }
+      }
+    },
+    {
+      "role": "user",
+      "result": {
+        "toolUseId": "status-read",
+        "sourceFile": "sdlc-status/skills/sdlc-status/SKILL.md"
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "Reading status README.",
+      "tool": {
+        "id": "status-contract",
+        "name": "Read",
+        "input": {
+          "file_path": "sdlc-status/README.md"
+        }
+      }
+    },
+    {
+      "role": "user",
+      "result": {
+        "toolUseId": "status-contract",
+        "sourceFile": "sdlc-status/README.md"
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "Initialize same-session projection.",
+      "tool": {
+        "id": "initial-record",
+        "name": "Bash",
+        "input": {
+          "command": "node sdlc-status/scripts/status.mjs record --client claude --session 11111111-2222-4333-8444-555555555555 --state-dir /tmp/status-integrity < initial-event.json"
+        }
+      }
+    },
+    {
+      "role": "user",
+      "result": {
+        "toolUseId": "initial-record",
+        "content": "Exit code 0. Recorded and inspected: client claude; session 11111111-2222-4333-8444-555555555555; state directory /tmp/status-integrity; work https://github.com/sidkik/claude-plugins/issues/58; active DE; evidence candidate-A; VE-2 passed; next action run test; human need none."
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "Current projection was successfully written and inspected for this client/session/state directory. Work #58, active DE, evidence candidate-A, VE-2 passed; next action run test; human need none."
+    },
+    {
+      "role": "assistant",
+      "text": "Status runtime became unavailable: inspect exited 1, state directory permission denied. Cannot update or verify the footer."
+    },
+    {
+      "role": "assistant",
+      "text": "Display unavailable. Terminal fallback: work #58, active DE, candidate-B integrity check failed, repair next, human need restore status directory access. Independent repair investigation continues."
+    }
+  ],
+  "digestFrom": 13
+}

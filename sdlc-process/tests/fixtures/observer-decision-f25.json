@@ -1,0 +1,18 @@
+{
+  "fixture": "observer-decision-f25",
+  "history": [
+    {
+      "role": "user",
+      "text": "Implement this bounded correction within the current authorized step; no new delivery transition."
+    },
+    {
+      "role": "assistant",
+      "text": "The approved scope remains bounded correction; ticket approval/readiness are separate and no advancement is claimed. Existing applicable checkpoint covers this unchanged corrective step."
+    },
+    {
+      "role": "assistant",
+      "text": "Repairing the already-authorized instruction omission without asking approval again; no dispatch or delivery-complete claim."
+    }
+  ],
+  "digestFrom": 3
+}

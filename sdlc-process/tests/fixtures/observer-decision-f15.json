@@ -1,0 +1,33 @@
+{
+  "fixture": "observer-decision-f15",
+  "history": [
+    {
+      "role": "user",
+      "text": "Keep the failed integrity check visible until repaired."
+    },
+    {
+      "role": "assistant",
+      "text": "Integrity test failed; continuing work."
+    },
+    {
+      "role": "observer",
+      "id": "O-1",
+      "rule": "Keep unresolved findings visible",
+      "correction": "Retain the failed integrity check and owner until corrected and verified.",
+      "evidenceRefs": [
+        1,
+        2
+      ],
+      "body": "The integrity test remains failed. Preserve its finding and repair evidence before completion."
+    },
+    {
+      "role": "assistant",
+      "text": "Observer O-1: accepted — I apologize and will preserve it."
+    },
+    {
+      "role": "assistant",
+      "text": "Continuing the unchanged failed test without any correction or new result."
+    }
+  ],
+  "digestFrom": 5
+}

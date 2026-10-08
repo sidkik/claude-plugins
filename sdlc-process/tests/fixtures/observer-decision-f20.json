@@ -1,0 +1,19 @@
+{
+  "fixture": "observer-decision-f20",
+  "history": [
+    {
+      "role": "system",
+      "compact": true
+    },
+    {
+      "role": "user",
+      "text": "Work is #58; the earlier status contract and widget actions are outside retained history.",
+      "orphan": true
+    },
+    {
+      "role": "assistant",
+      "text": "The integrity check failed; repair remains next."
+    }
+  ],
+  "digestFrom": 3
+}

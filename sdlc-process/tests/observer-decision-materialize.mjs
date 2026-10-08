@@ -8,6 +8,7 @@ const scripts=path.resolve(import.meta.dirname,'../scripts');
 const session='11111111-2222-4333-8444-555555555555',task='a1b2c3d4e5f6a7b8c',agent='sidkik-sdlc-observed-main';
 const uuid=n=>`aaaaaaaa-0000-4000-8000-${String(n).padStart(12,'0')}`;
 const prompt='Observe the next MAIN activity under your installed instructions.';
+export const replayFallback='ObserverReport is unavailable: return any report body as text. Preserve private SDLC_ASSESSMENT/SDLC_MISS markers independently as ordinary text; absence of a report does not suppress due private annotations. Return bare NO_REPORT only when neither a report nor a new private assessment is due.';
 function raw(item,n,parent){
  const base={parentUuid:item.orphan?'bbbbbbbb-0000-4000-8000-000000000000':parent,isSidechain:false,uuid:uuid(n),timestamp:`2026-10-01T10:${String(n).padStart(2,'0')}:00.000Z`,sessionId:session};
  if(item.compact)return {...base,type:'system',subtype:'compact_boundary'};
@@ -32,6 +33,10 @@ function digest(items){
 export function materialize(fixtureFile,dir=fs.mkdtempSync(path.join(os.tmpdir(),'observer-decision-'))){
  fs.mkdirSync(dir,{recursive:true});
  const fixture=JSON.parse(fs.readFileSync(fixtureFile,"utf8")),transcript=path.join(dir,`${session}.jsonl`);
+ // Reuse the exact maintained contract bytes without copying them into each fixture.
+ for(const item of fixture.history)if(item.result?.sourceFile){
+  item.result.content=fs.readFileSync(path.resolve(import.meta.dirname,'../..',item.result.sourceFile),'utf8');
+ }
  let parent=null;
  const records=fixture.history.map((item,index)=>{const record=raw(item,index+1,parent);parent=record.uuid;return record});
  const through=fixture.digestFrom-1,text=records.map(r=>JSON.stringify(r)+'\n');
