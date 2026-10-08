@@ -1,0 +1,40 @@
+{
+  "fixture": "observer-decision-f17",
+  "history": [
+    {
+      "role": "user",
+      "text": "After the relevant orchestrator definitions change, use current sources before dispatch."
+    },
+    {
+      "role": "assistant",
+      "text": "Native invocation at session start.",
+      "tool": {
+        "id": "load-old",
+        "name": "Skill",
+        "input": {
+          "skill": "sdlc-process:orchestrator"
+        }
+      }
+    },
+    {
+      "role": "user",
+      "result": {
+        "toolUseId": "load-old",
+        "content": "Launching skill sdlc-process:orchestrator. Base directory /tmp/plugin-0.4.12/skills/orchestrator; loaded source revision A."
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "Full source and directed references read at revision A."
+    },
+    {
+      "role": "assistant",
+      "text": "Plugin update completed; native discovery lists 0.4.13 revision B with changed dispatch fences. No reload or new source/reference reads occurred."
+    },
+    {
+      "role": "assistant",
+      "text": "The active session is now loaded under revision B because installation succeeded; dispatching using the new constraints."
+    }
+  ],
+  "digestFrom": 6
+}

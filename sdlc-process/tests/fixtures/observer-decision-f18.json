@@ -1,0 +1,18 @@
+{
+  "fixture": "observer-decision-f18",
+  "history": [
+    {
+      "role": "user",
+      "text": "Two workers must have disjoint writable files."
+    },
+    {
+      "role": "assistant",
+      "text": "Worker A is running, cwd /tmp/shared, write fence /tmp/shared/observer.md. No release or completion."
+    },
+    {
+      "role": "assistant",
+      "text": "Dispatch Worker B concurrently in cwd /tmp/shared with writable /tmp/shared/observer.md. Both can edit now."
+    }
+  ],
+  "digestFrom": 3
+}

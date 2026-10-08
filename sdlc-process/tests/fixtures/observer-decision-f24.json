@@ -1,0 +1,19 @@
+{
+  "fixture": "observer-decision-f24",
+  "history": [
+    {
+      "role": "system",
+      "compact": true
+    },
+    {
+      "role": "user",
+      "text": "Earlier worker assignments and native source invocation paths are missing from retained history.",
+      "orphan": true
+    },
+    {
+      "role": "assistant",
+      "text": "Plugin discovery lists 0.4.13. Source invocation freshness is unknown; dependent dispatch held pending native load evidence."
+    }
+  ],
+  "digestFrom": 3
+}

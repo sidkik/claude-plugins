@@ -17,4 +17,11 @@ Handle requested setup and authorized repairs from the installed plugin files. M
 
 For an update request, run `update --client <host>` from this installed script, then verify again using the newly installed process plugin's script path from the native plugin list. The previous runtime may remain in a versioned cache; use the current installation. No release checkout, copied credentials or manual shell checklist is required.
 
+Separate this installed/discovered version from the actual native skill invocation
+path and returned source bytes in the active session. After relevant definitions
+change, follow [session-start's continuation check](../session-start/SKILL.md):
+reload affected skills natively and fully read current sources and applicable
+references before dependent continuation, pivot or dispatch, or report the scoped
+load gap. An update or successful doctor never proves an existing session reloaded.
+
 This workflow does not depend on a startup hook. If Node is missing, use the host's shell to inspect and repair Node first within existing authority. A CLI that is absent cannot install its own plugin; repair that CLI before retrying its native plugin commands. Keep setup results concise in terminal responses; do not create a work log or planning document merely for setup.

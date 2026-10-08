@@ -28,3 +28,17 @@ activity only as of that record; it does not prove this initialization turn or
 every later work turn was observed. Preserve the doctor's known first-turn
 limitation. Session preparation is not a native observer fix or a guaranteed
 warm-up sequence.
+
+On continuation, pivot or dispatch when a relevant source changed, reconcile the
+installed/discovered revision with the actual path and source bytes returned by
+the successful native skill invocation. Retain that invocation's result and the
+full source/applicable reference reads as separate evidence. A plugin list,
+update, doctor result or source read alone cannot establish that this session
+reloaded. Reinvoke affected skills and read their current sources/references,
+or state the exact load gap and hold only dependent activity. Reuse unchanged
+loads with their identified evidence. Reconcile affected criteria before the
+next dependent recommendation; build authority, ticket acceptance and readiness
+remain separate. Maintain the widget at substantive events under the loaded
+status contract, verifying a successful same-session update and inspection before
+the next normal reply or dependent action. Report actual display failures and
+capability gaps honestly; unchanged turns and pending tools need no heartbeat.

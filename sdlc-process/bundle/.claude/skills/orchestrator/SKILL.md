@@ -16,9 +16,11 @@ the rule is never re-litigated.
 Use the [SDLC entry's loading contract](../sdlc-process/SKILL.md#follow-the-work):
 native invocation and full source inspection are separate requirements. A file
 read alone never satisfies a required skill load. Record unavailable invocation
-as a scoped capability gap, including in delegated worker returns. Before each
-dispatch wave, refresh the applicable constraints against current inputs; reuse
-identified unchanged source reads rather than rereading unchanged files.
+as a scoped capability gap, including in delegated worker returns. At continuation,
+task pivot and before each dispatch wave, apply that contract's loaded identity,
+path and revision comparison, then refresh applicable constraints against current
+inputs. Carry verified load evidence or the exact dependent gap into the brief;
+reuse identified unchanged source reads rather than rereading unchanged files.
 
 You cannot brief work you haven't loaded the skill for, and you cannot
 review it either. **Blind briefs override agent skills**: dispatch briefs
@@ -93,7 +95,21 @@ sending a command alone does not prove that a worker received it.
 
 - **Fences**: explicit file/tree boundaries per agent; parallel agents
   never share a writable file. Shared-file edits are named, surgical,
-  and reported.
+  and reported. Before launch, compare every lane's actual write set, including
+  generated outputs and shared configuration, with active writers. Resolve overlaps
+  by assigning one writer and sequencing consumers, or by isolating candidates
+  for the integrating owner; an unresolved overlap holds that dispatch.
+  In a shared working tree, name one owner for Git/index/branch mutations and
+  serialize them with affected lanes quiescent and their edits accounted for.
+  A rebase or pull --rebase affects the whole checkout, so it cannot be a lane's
+  automatic response to a rejected push while peers are writing or validating.
+  Allocate full-suite verification against a stable combined candidate or an
+  isolated pinned candidate. Record the tested revision plus any uncommitted
+  patch, command/result and concurrent changes; attribute failures to the actual
+  tested inputs before assigning repairs or claiming a lane passed. A run whose
+  inputs changed requires affected verification on a stable candidate. Completion:
+  write ownership, Git coordination and verification inputs are established in
+  the brief and checked against actual lane state before launch or redirect.
 - **Contracts dictated once, verbatim, identically**: when parallel
   agents share an interface (repo signatures, workflow inputs), write
   the exact signature into BOTH briefs from one source. *Paid for by:*

@@ -1,0 +1,18 @@
+{
+  "fixture": "observer-decision-f23",
+  "history": [
+    {
+      "role": "user",
+      "text": "Two workers must have disjoint writable files."
+    },
+    {
+      "role": "assistant",
+      "text": "Worker A runs in /tmp/copy-A and writes /tmp/copy-A/observer.md."
+    },
+    {
+      "role": "assistant",
+      "text": "Worker B runs in /tmp/copy-B and writes /tmp/copy-B/observer.md. Reviewer C reads /tmp/copy-A/observer.md with no write authority."
+    }
+  ],
+  "digestFrom": 3
+}
