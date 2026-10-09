@@ -110,6 +110,17 @@ d="$(state_dir dead)"
 rc=0; (eval "$FNS"; crew_kill_broker 999999999 "$d" "anything") 2>/dev/null || rc=$?
 [[ $rc -eq 0 && ! -d "$d" ]] && ok "a dead broker's files are cleaned" || bad "dead broker: rc=$rc"
 
+# --- own child without a start time: TERM only ---------------------------------
+p="$(victim ignore-term)"; d="$(state_dir own-child-ignores-term)"
+rc=0; err="$( (eval "$FNS"; crew_stop_own_child "$p" "$d") 2>&1 >/dev/null)" || rc=$?
+alive "$p" && kept "$d" && [[ $rc -eq 3 && "$err" == *"broker pid $p did not exit after TERM"*"not escalating to KILL"* ]] \
+  && ok "an own child that ignores TERM is never killed and keeps its dir" || bad "own child ignoring TERM: rc=$rc alive=$(alive "$p" && echo y || echo n) kept=$(kept "$d" && echo y || echo n) err=$err"
+kill -9 "$p" 2>/dev/null || true
+
+p="$(victim)"; d="$(state_dir own-child-stops)"
+rc=0; (eval "$FNS"; crew_stop_own_child "$p" "$d") 2>/dev/null || rc=$?
+gone "$p" && [[ $rc -eq 0 && ! -d "$d" ]] && ok "an own child that honours TERM stops and its dir is cleaned" || bad "own child honouring TERM: rc=$rc"
+
 # --- spawn and publication ----------------------------------------------------
 cat > "$TMP/broker-stub.mjs" <<'BROKEREOF'
 import net from "node:net";

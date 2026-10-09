@@ -183,8 +183,13 @@ crew_kill_broker() {
   return 0
 }
 
-# Stop a broker that is still this shell's own unreaped child, before any start
-# time exists: $! cannot name a recycled process while we still own it.
+# Ask a just-spawned broker with no recorded start time to stop. TERM goes out
+# immediately after $!, before it can plausibly have exited. Bash reaps exited
+# background children on its own, though, so once the grace period starts the
+# pid could be recycled, and with no start time nothing can prove otherwise.
+# TERM is therefore the only signal sent: no KILL. A broker that ignores TERM
+# keeps its dir, which the crewb-* dead-pid sweep removes after it exits.
+# Returns 0 once it is gone, CREW_BROKER_DEFERRED while it is still alive.
 crew_stop_own_child() {
   local pid="$1" dir="$2" i=0
   kill "$pid" 2>/dev/null || true
@@ -192,8 +197,12 @@ crew_stop_own_child() {
     sleep 0.1
     i=$((i + 1))
   done
-  kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "crew-codex: broker pid $pid did not exit after TERM and its identity cannot be verified; not escalating to KILL - stop it by hand" >&2
+    return "$CREW_BROKER_DEFERRED"
+  fi
   crew_broker_clean "$dir"
+  return 0
 }
 
 # Sweep: any recorded broker whose job is no longer running, plus any of our
@@ -276,8 +285,9 @@ crew_cleanup() {
     local p="$CREW_CLEANUP_PID" d="$CREW_CLEANUP_DIR" st="$CREW_CLEANUP_START" own="${CREW_CLEANUP_CHILD:-}"
     CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START="" CREW_CLEANUP_CHILD=""
     if [[ -z "$st" && -n "$own" ]]; then
-      # Interrupted between $! and recording its start time.
-      crew_stop_own_child "$p" "$d"
+      # Interrupted between $! and recording its start time. A broker that
+      # outlives TERM has already been reported.
+      crew_stop_own_child "$p" "$d" || true
     else
       # A deferral has already said why the broker was left running.
       crew_kill_broker "$p" "$d" "$st" || true
@@ -319,10 +329,10 @@ crew_spawn_job_broker() {
   CREW_CLEANUP_START="$(crew_pid_starttime "$pid")"
   if [[ -z "$CREW_CLEANUP_START" ]]; then
     # Without a start time the broker could never be verified, so it is never
-    # published; stop it while it is still provably our own child.
-    crew_stop_own_child "$pid" "$dir"
+    # published; it gets TERM only (see crew_stop_own_child).
+    crew_stop_own_child "$pid" "$dir" || true
     CREW_CLEANUP_CHILD="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR=""
-    echo "crew-codex: broker pid $pid has no readable start time, so it could not be recorded safely; stopped it and refused the spawn" >&2
+    echo "crew-codex: broker pid $pid has no readable start time, so it could not be recorded safely; sent it TERM and refused the spawn" >&2
     return 1
   fi
   CREW_CLEANUP_CHILD=""
