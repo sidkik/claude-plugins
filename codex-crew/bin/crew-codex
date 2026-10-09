@@ -81,51 +81,119 @@ crew_job_endpoint() {
 # its broker by hours. Field 22 of /proc/<pid>/stat is the process start time in
 # clock ticks, which together with the pid is stable and unforgeable enough to
 # prove we are signalling the same process we started. Without /proc (macOS),
-# fall back to ps's start time, trimmed with spaces turned into '_' so the value
-# stays one token in the tab-separated sidecar. It has one-second resolution.
+# fall back to ps's start time, pinned to UTC and the C locale so spawn and reap
+# agree whatever their environment, trimmed with spaces turned into '_' so the
+# value stays one token in the tab-separated sidecar. It has one-second resolution.
 crew_pid_starttime() {
   local pid="$1" start
   [[ "$pid" =~ ^[0-9]+$ ]] || return 0
   start="$(awk '{ n = split($0, a, ") "); print a[n] }' "/proc/$pid/stat" 2>/dev/null \
     | awk '{ print $20 }' 2>/dev/null || true)"
   if [[ -z "$start" ]]; then
-    start="$(LC_ALL=C ps -o lstart= -p "$pid" 2>/dev/null \
+    start="$(TZ=UTC LC_ALL=C ps -o lstart= -p "$pid" 2>/dev/null \
       | awk 'NF { $1 = $1; gsub(/ /, "_"); print; exit }' 2>/dev/null || true)"
   fi
   [[ -z "$start" ]] || printf '%s\n' "$start"
 }
 
-# Stop one broker and remove everything it left behind. Refuses to signal a pid
-# whose start time no longer matches the one recorded at spawn, and fails closed
-# when a recorded start time can no longer be checked.
-crew_kill_broker() {
-  local pid="$1" dir="$2" expect_start="${3:-}"
-  if [[ -n "$expect_start" && "$pid" =~ ^[0-9]+$ ]]; then
-    local now_start
-    now_start="$(crew_pid_starttime "$pid")"
-    if [[ "$now_start" != "$expect_start" ]]; then
-      # Same pid, different (or unverifiable) process: the broker died and
-      # something else may have its number. Clean the files, never signal it.
-      if [[ -n "$dir" && -d "$dir" ]]; then
-        rm -f "$dir/broker.sock" "$dir/broker.pid" "$dir/broker.log" 2>/dev/null || true
-        rmdir "$dir" 2>/dev/null || true
-      fi
-      return 0
-    fi
+# Liveness without locale-dependent kill messages: "ours" answers kill -0,
+# "foreign" is alive but refuses it (EPERM, so not a broker we started), and
+# "dead" is gone from the process table.
+crew_pid_state() {
+  if kill -0 "$1" 2>/dev/null; then
+    echo ours
+  elif [[ -n "$(ps -o pid= -p "$1" 2>/dev/null || true)" ]]; then
+    echo foreign
+  else
+    echo dead
   fi
-  if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
-    kill "$pid" 2>/dev/null || true
-    local i=0
-    while [[ $i -lt 20 ]] && kill -0 "$pid" 2>/dev/null; do
-      sleep 0.1
-      i=$((i + 1))
-    done
-    kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
-  fi
+}
+
+crew_broker_clean() {
+  local dir="$1"
   if [[ -n "$dir" && -d "$dir" ]]; then
     rm -f "$dir/broker.sock" "$dir/broker.pid" "$dir/broker.log" 2>/dev/null || true
     rmdir "$dir" 2>/dev/null || true
   fi
+}
+
+# Return code for a broker that is alive but cannot be proven to be ours.
+CREW_BROKER_DEFERRED=3
+
+# Stop one broker and remove everything it left behind, but only after proving
+# the pid is still the process recorded at spawn. Outcomes:
+#   0  stopped, already dead, or confirmed to be another process (files
+#      cleaned; another process is never signalled)
+#   3  alive but unverifiable: no recorded start time, or the current one is
+#      unreadable. Nothing is signalled or deleted, so the record survives for a
+#      later sweep or a manual stop; callers must keep their sidecar.
+# The identity is checked again before escalating TERM to KILL, because the pid
+# can be recycled during the grace period.
+crew_kill_broker() {
+  local pid="$1" dir="$2" expect_start="${3:-}" state now_start i=0
+  if ! [[ "$pid" =~ ^[0-9]+$ ]]; then
+    crew_broker_clean "$dir"
+    return 0
+  fi
+  state="$(crew_pid_state "$pid")"
+  if [[ "$state" == dead ]]; then
+    crew_broker_clean "$dir"
+    return 0
+  fi
+  if [[ "$state" == foreign ]]; then
+    echo "crew-codex: broker pid $pid now belongs to another user's process; cleaned its files without signalling" >&2
+    crew_broker_clean "$dir"
+    return 0
+  fi
+  if [[ -z "$expect_start" ]]; then
+    echo "crew-codex: broker pid $pid left running: no start time was recorded, so it cannot be proven to be ours; its files and record are kept (stop it by hand once confirmed)" >&2
+    return "$CREW_BROKER_DEFERRED"
+  fi
+  while :; do
+    now_start="$(crew_pid_starttime "$pid")"
+    if [[ -z "$now_start" ]]; then
+      if [[ "$(crew_pid_state "$pid")" == dead ]]; then
+        crew_broker_clean "$dir"
+        return 0
+      fi
+      echo "crew-codex: broker pid $pid left running: its start time cannot be read, so it cannot be proven to be ours; its files and record are kept" >&2
+      return "$CREW_BROKER_DEFERRED"
+    fi
+    if [[ "$now_start" != "$expect_start" ]]; then
+      echo "crew-codex: broker pid $pid is now a different process (start $now_start, recorded $expect_start); cleaned its files without signalling" >&2
+      crew_broker_clean "$dir"
+      return 0
+    fi
+    # Verified. The first pass sends TERM; the second, after the grace period,
+    # is the only route to KILL.
+    if [[ $i -eq 0 ]]; then
+      kill "$pid" 2>/dev/null || true
+      while [[ $i -lt 20 ]] && kill -0 "$pid" 2>/dev/null; do
+        sleep 0.1
+        i=$((i + 1))
+      done
+      i=20
+      kill -0 "$pid" 2>/dev/null || break
+      continue
+    fi
+    kill -9 "$pid" 2>/dev/null || true
+    break
+  done
+  crew_broker_clean "$dir"
+  return 0
+}
+
+# Stop a broker that is still this shell's own unreaped child, before any start
+# time exists: $! cannot name a recycled process while we still own it.
+crew_stop_own_child() {
+  local pid="$1" dir="$2" i=0
+  kill "$pid" 2>/dev/null || true
+  while [[ $i -lt 20 ]] && kill -0 "$pid" 2>/dev/null; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+  kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+  crew_broker_clean "$dir"
 }
 
 # Sweep: any recorded broker whose job is no longer running, plus any of our
@@ -175,8 +243,10 @@ crew_reap_brokers() {
         continue
       fi
     fi
-    crew_kill_broker "$pid" "$dir" "$startt"
-    rm -f "$f" "$f.unreadable" 2>/dev/null || true
+    # A deferred (unverifiable) broker keeps its sidecar for a later sweep.
+    if crew_kill_broker "$pid" "$dir" "$startt"; then
+      rm -f "$f" "$f.unreadable" 2>/dev/null || true
+    fi
   done
   local d
   for d in "${CREW_CODEX_BROKER_TMPDIR:-${TMPDIR:-/tmp}}"/crewb-*; do
@@ -199,13 +269,19 @@ crew_reap_brokers() {
 # so there is exactly one EXIT trap and it consults state instead of capturing
 # it; and a signal handler that does not exit lets bash resume, which could
 # publish a sidecar naming the broker it just killed.
-CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
+CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START="" CREW_CLEANUP_CHILD=""
 
 crew_cleanup() {
   if [[ -n "${CREW_CLEANUP_PID:-}" ]]; then
-    local p="$CREW_CLEANUP_PID" d="$CREW_CLEANUP_DIR" st="$CREW_CLEANUP_START"
-    CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
-    crew_kill_broker "$p" "$d" "$st"
+    local p="$CREW_CLEANUP_PID" d="$CREW_CLEANUP_DIR" st="$CREW_CLEANUP_START" own="${CREW_CLEANUP_CHILD:-}"
+    CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START="" CREW_CLEANUP_CHILD=""
+    if [[ -z "$st" && -n "$own" ]]; then
+      # Interrupted between $! and recording its start time.
+      crew_stop_own_child "$p" "$d"
+    else
+      # A deferral has already said why the broker was left running.
+      crew_kill_broker "$p" "$d" "$st" || true
+    fi
   fi
   rm -f "${TMP_OUT:-}" "${TMP_ERR:-}" 2>/dev/null || true
 }
@@ -239,7 +315,17 @@ crew_spawn_job_broker() {
   node "$CREW_BROKER_SCRIPT" serve --endpoint "unix:$sock" --cwd "$cwd" \
     --pid-file "$dir/broker.pid" >"$dir/broker.log" 2>&1 &
   pid=$!
-  CREW_CLEANUP_PID="$pid" CREW_CLEANUP_DIR="$dir" CREW_CLEANUP_START="$(crew_pid_starttime "$pid")"
+  CREW_CLEANUP_CHILD=1 CREW_CLEANUP_PID="$pid" CREW_CLEANUP_DIR="$dir" CREW_CLEANUP_START=""
+  CREW_CLEANUP_START="$(crew_pid_starttime "$pid")"
+  if [[ -z "$CREW_CLEANUP_START" ]]; then
+    # Without a start time the broker could never be verified, so it is never
+    # published; stop it while it is still provably our own child.
+    crew_stop_own_child "$pid" "$dir"
+    CREW_CLEANUP_CHILD="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR=""
+    echo "crew-codex: broker pid $pid has no readable start time, so it could not be recorded safely; stopped it and refused the spawn" >&2
+    return 1
+  fi
+  CREW_CLEANUP_CHILD=""
   disown "$pid" 2>/dev/null || true
   while [[ $i -lt 100 ]]; do
     [[ -S "$sock" ]] && break
@@ -248,7 +334,7 @@ crew_spawn_job_broker() {
     i=$((i + 1))
   done
   if [[ ! -S "$sock" ]]; then
-    crew_kill_broker "$pid" "$dir" "$CREW_CLEANUP_START"
+    crew_kill_broker "$pid" "$dir" "$CREW_CLEANUP_START" || true
     CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
     return 1
   fi
@@ -261,6 +347,8 @@ crew_spawn_job_broker() {
 # concurrent sweep; a rename cannot.
 crew_publish_sidecar() {
   local job="$1" side tmp
+  # A record without a start time could never authorise a signal.
+  [[ -n "${CREW_SPAWNED_START:-}" ]] || return 1
   side="$(crew_sidecar "$job")"
   mkdir -p "$CREW_ARCHIVE_DIR" || return 1
   tmp="$side.tmp.$$"
@@ -903,8 +991,10 @@ if [[ "${1:-}" == "redirect" ]]; then
   old_side="$(crew_sidecar "$JOB_ID")"
   if [[ -f "$old_side" ]]; then
     IFS=$'\t' read -r _oe obpid obdir _ocwd obstart _orest <"$old_side" || true
-    crew_kill_broker "$obpid" "$obdir" "$obstart"
-    crew_drop_sidecar "$JOB_ID"
+    # Deferred: keep the old record; the successor still gets its own broker.
+    if crew_kill_broker "$obpid" "$obdir" "$obstart"; then
+      crew_drop_sidecar "$JOB_ID"
+    fi
   fi
   unset CODEX_COMPANION_APP_SERVER_ENDPOINT
   if [[ -n "$RED_EP" ]]; then
@@ -944,7 +1034,7 @@ if [[ "${1:-}" == "redirect" ]]; then
       fi
       RED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
     else
-      crew_kill_broker "$RED_PID" "$RED_DIR" "$RED_START"
+      crew_kill_broker "$RED_PID" "$RED_DIR" "$RED_START" || true
       RED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
     fi
   fi
@@ -1071,8 +1161,9 @@ print("\t".join([
         side="$(crew_sidecar "$JOB_ID")"
         if [[ -f "$side" ]]; then
           IFS=$'\t' read -r _ep bpid bdir _bcwd bstart _brest <"$side" || true
-          crew_kill_broker "$bpid" "$bdir" "$bstart"
-          crew_drop_sidecar "$JOB_ID"
+          if crew_kill_broker "$bpid" "$bdir" "$bstart"; then
+            crew_drop_sidecar "$JOB_ID"
+          fi
         fi
 
         echo "DONE $jstatus | ${jelapsed} | archived: $CREW_ARCHIVE_DIR/$JOB_ID.result.txt"
@@ -1325,11 +1416,12 @@ if [[ -n "$CREW_SPAWNED_PID" ]]; then
     if [[ " $* " != *" --background "* ]]; then
       side="$(crew_sidecar "$launched_id")"
       IFS=$'\t' read -r _fe fbpid fbdir _fcwd fbstart _frest <"$side" || true
-      crew_kill_broker "$fbpid" "$fbdir" "$fbstart"
-      crew_drop_sidecar "$launched_id"
+      if crew_kill_broker "$fbpid" "$fbdir" "$fbstart"; then
+        crew_drop_sidecar "$launched_id"
+      fi
     fi
   else
-    crew_kill_broker "$CREW_SPAWNED_PID" "$CREW_SPAWNED_DIR" "$CREW_SPAWNED_START"
+    crew_kill_broker "$CREW_SPAWNED_PID" "$CREW_SPAWNED_DIR" "$CREW_SPAWNED_START" || true
     CREW_SPAWNED_PID="" CREW_CLEANUP_PID="" CREW_CLEANUP_DIR="" CREW_CLEANUP_START=""
     if [[ -n "$CREW_HELD_LOCK" ]]; then crew_lock_release; CREW_HELD_LOCK=""; fi
   fi
@@ -1344,8 +1436,9 @@ if [[ "${1:-}" == "cancel" && $rc -eq 0 ]]; then
       side="$(crew_sidecar "$arg")"
       if [[ -f "$side" ]]; then
         IFS=$'\t' read -r _ep bpid bdir _bcwd bstart _brest <"$side" || true
-        crew_kill_broker "$bpid" "$bdir" "$bstart"
-        crew_drop_sidecar "$arg"
+        if crew_kill_broker "$bpid" "$bdir" "$bstart"; then
+          crew_drop_sidecar "$arg"
+        fi
       fi
       break
     fi

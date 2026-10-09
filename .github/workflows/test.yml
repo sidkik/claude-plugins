@@ -27,3 +27,5 @@ jobs:
         run: node --test tests/*.test.mjs sdlc-process/tests/*.test.mjs sdlc-status/tests/*.test.mjs
       - name: Process bundle tests
         run: python3 -m unittest discover -s tests -p 'process*.py' -v
+      - name: codex-crew broker identity tests
+        run: bash codex-crew/tests/identity.sh
