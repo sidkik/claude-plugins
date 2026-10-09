@@ -1,11 +1,14 @@
 // Fake codex-crew prerequisites with GNU-capable defaults. FAKE_<TOOL> overrides
 // the reported version; a leading "!" prints the rest to stderr and exits 1.
+// bash --version always succeeds with a modern banner, so only the BASH_VERSINFO
+// probe (FAKE_BASH) can reject an old bash: a presence or --version check cannot.
 import fs from 'node:fs';
 import path from 'node:path';
 const fake=`#!${process.execPath}
 const name=require('path').basename(process.argv[1]),a=process.argv.slice(2),v=process.env['FAKE_'+name.toUpperCase()];
 const versions={bash:'5.2',timeout:'timeout (GNU coreutils) 9.4',tail:'tail (GNU coreutils) 9.4',patch:'GNU patch 2.7.6',python3:'Python 3.11.9'};
 if(v&&v.startsWith('!')){process.stderr.write(v.slice(1)+'\\n');process.exit(1)}
+if(name==='bash'&&a[0]==='--version'){console.log('GNU bash, version 5.2.15(1)-release');process.exit()}
 if(name==='bash'&&a[0]==='-c'){console.log(v||versions.bash);process.exit()}
 if(name==='readlink'&&a[0]==='-f'){console.log('/');process.exit()}
 if(a[0]==='--version'&&versions[name]){console.log(v||versions[name]);process.exit()}

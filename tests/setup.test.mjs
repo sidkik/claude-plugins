@@ -157,17 +157,21 @@ test('unqualified platforms are refused with the supported platforms named',t=>{
  const r=spawnSync(process.execPath,['--require',preload,script,'install','--source',f.source],{env:f.env,encoding:'utf8'});
  assert.equal(r.status,1);assert.match(r.stderr,/^Setup failed: This setup supports Linux\/WSL and macOS; win32 is not qualified\./);assert.equal(fs.existsSync(f.managed),false);
 });
-test('codex-crew capabilities: a full GNU set is accepted and bash 3 is rejected',t=>{
+test('codex-crew capabilities: a full GNU set and bash 4.4+ are accepted; bash 3.2 and 4.3 are rejected',t=>{
  const f=fixture(t),bin=path.join(f.root,'bin');fs.copyFileSync(path.join(bin,'gh'),path.join(bin,'git'));
  for(const name of CREW_TOOLS)assert.doesNotThrow(()=>crewCapability(name,{env:{PATH:bin}}),name);
- assert.throws(()=>crewCapability('bash',{env:{PATH:bin,FAKE_BASH:'3.2'},platform:'linux'}),/^Error: bash 4\+ required by codex-crew \(found 3\.2\)$/);
+ for(const version of ['4.4','5.0','5.3'])assert.doesNotThrow(()=>crewCapability('bash',{env:{PATH:bin,FAKE_BASH:version}}),version);
+ assert.throws(()=>crewCapability('bash',{env:{PATH:bin,FAKE_BASH:'4.3'},platform:'linux'}),/^Error: bash 4\.4\+ required by codex-crew \(found 4\.3\)$/);
+ assert.equal(spawnSync(path.join(bin,'bash'),['--version'],{encoding:'utf8'}).status,0,'fake bash --version succeeds, so only BASH_VERSINFO can reject it');
+ assert.throws(()=>crewCapability('bash',{env:{PATH:bin,FAKE_BASH:'3.2'},platform:'linux'}),/^Error: bash 4\.4\+ required by codex-crew \(found 3\.2\)$/);
  f.env.PATH=bin;let r=f.run('install');assert.equal(r.status,0,r.stderr);
- f.env.FAKE_BASH='3.2';r=f.run('doctor');assert.notEqual(r.status,0);assert.match(r.stderr,/bash 4\+ required by codex-crew \(found 3\.2\)/);
+ f.env.FAKE_BASH='3.2';r=f.run('doctor');assert.notEqual(r.status,0);assert.match(r.stderr,/bash 4\.4\+ required by codex-crew \(found 3\.2\)/);
  delete f.env.FAKE_BASH;fs.unlinkSync(path.join(bin,'timeout'));r=f.run('doctor');assert.notEqual(r.status,0);assert.match(r.stderr,/GNU coreutils timeout required by codex-crew \(found none on PATH\)/);
 });
-test('BSD-style tail and patch are rejected with Homebrew remediation on macOS',t=>{
+test('BSD and BusyBox tail and BSD patch are rejected, with Homebrew remediation on macOS',t=>{
  const f=fixture(t),bin=path.join(f.root,'bin'),bsdTail="!tail: unrecognized option `--version'",bsdPatch='patch 2.0-12u11-Apple',remedy=/On macOS: brew install bash coreutils gpatch, then put .*opt\/coreutils\/libexec\/gnubin.*opt\/gpatch\/libexec\/gnubin" ahead of \/usr\/bin/;
  assert.throws(()=>crewCapability('tail',{env:{PATH:bin,FAKE_TAIL:bsdTail},platform:'darwin'}),e=>/GNU coreutils tail \(--pid\) required by codex-crew \(found tail: unrecognized option/.test(e.message)&&remedy.test(e.message));
+ assert.throws(()=>crewCapability('tail',{env:{PATH:bin,FAKE_TAIL:'tail (BusyBox) 1.36.1'},platform:'linux'}),/GNU coreutils tail \(--pid\) required by codex-crew \(found tail \(BusyBox\) 1\.36\.1\)/);
  assert.throws(()=>crewCapability('patch',{env:{PATH:bin,FAKE_PATCH:bsdPatch},platform:'darwin'}),e=>/GNU patch \(--suffix\) required by codex-crew \(found patch 2\.0-12u11-Apple\)/.test(e.message)&&remedy.test(e.message));
  assert.throws(()=>crewCapability('patch',{env:{PATH:bin,FAKE_PATCH:bsdPatch},platform:'linux'}),e=>!/brew/.test(e.message));
  const preload=path.join(f.root,'darwin.cjs');write(preload,"Object.defineProperty(process,'platform',{value:'darwin'});");

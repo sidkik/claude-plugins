@@ -163,7 +163,7 @@ test('doctor reports codex-crew capability gaps by executable and accepts a full
  const result=spawnSync(process.execPath,['--require',preload,path.join(f.plugin,'scripts/setup/agent-setup.mjs'),'doctor','--client','claude'],{env:f.env,cwd:f.repo,encoding:'utf8'});
  assert.equal(result.status,1);const gaps=JSON.parse(result.stdout).gaps;
  assert.deepEqual(gaps.map(gap=>gap.code),['bash','timeout','tail','patch']);
- for(const [gap,pattern] of [[gaps[0],/^bash 4\+ required by codex-crew \(found 3\.2\)/],[gaps[1],/^GNU coreutils timeout required by codex-crew \(found none on PATH\)/],[gaps[2],/^GNU coreutils tail \(--pid\) required by codex-crew/],[gaps[3],/^GNU patch \(--suffix\) required by codex-crew \(found patch 2\.0-12u11-Apple\)/]]){
+ for(const [gap,pattern] of [[gaps[0],/^bash 4\.4\+ required by codex-crew \(found 3\.2\)/],[gaps[1],/^GNU coreutils timeout required by codex-crew \(found none on PATH\)/],[gaps[2],/^GNU coreutils tail \(--pid\) required by codex-crew/],[gaps[3],/^GNU patch \(--suffix\) required by codex-crew \(found patch 2\.0-12u11-Apple\)/]]){
   assert.deepEqual(Object.keys(gap),['code','detail']);assert.match(gap.detail,pattern);assert.match(gap.detail,/brew install bash coreutils gpatch/);assert.doesNotMatch(gap.detail,/WSL/);
  }
 });

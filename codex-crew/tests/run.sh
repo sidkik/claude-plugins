@@ -991,6 +991,47 @@ else
 fi
 kill -9 "$innocent" 2>/dev/null || true
 
+# Broker identity, exercised on the real functions lifted out of the wrapper.
+# The /proc path is rewritten to force the ps fallback that macOS always takes.
+crew_fn() { sed -n "/^$1() {/,/^}/p" "$CREW"; }
+ident_fns="$(crew_fn crew_pid_starttime; crew_fn crew_kill_broker)"
+noproc_fns="$(crew_fn crew_pid_starttime | sed 's#"/proc/#"/nonexistent-proc/#')"
+sleep 300 >/dev/null 2>&1 & ident_pid=$!
+disown "$ident_pid" 2>/dev/null || true
+STUB_PIDS="$STUB_PIDS $ident_pid"
+for variant in native fallback; do
+  fns="$ident_fns"; [[ "$variant" == fallback ]] && fns="$noproc_fns"
+  out="$(eval "$fns"; a="$(crew_pid_starttime "$ident_pid")"; sleep 1; b="$(crew_pid_starttime "$ident_pid")"
+    [[ -n "$a" && "$a" == "$b" && "$a" != *[[:space:]]* ]] && echo "stable:$a"
+    [[ -z "$(crew_pid_starttime 999999999)" ]] && echo "dead-empty")" || true
+  check "$variant start-time identity is stable, non-empty and one token" 0 "^stable:" 0 "$out"
+  check "$variant start-time identity is empty for a dead pid" 0 "^dead-empty" 0 "$out"
+done
+ident_dir="$TMP/ident-mismatch"; mkdir -p "$ident_dir"; : > "$ident_dir/broker.pid"
+(eval "$ident_fns"; crew_kill_broker "$ident_pid" "$ident_dir" "Thu_Jan_1_00:00:00_1970") || true
+if kill -0 "$ident_pid" 2>/dev/null && [[ ! -d "$ident_dir" ]]; then
+  echo "PASS: a pid whose start time differs from the record is never signalled"; pass=$((pass + 1))
+else
+  echo "FAIL: a mismatched start time was signalled or its files were kept"; fail=$((fail + 1))
+fi
+ident_dir="$TMP/ident-unknown"; mkdir -p "$ident_dir"; : > "$ident_dir/broker.pid"
+(eval "$ident_fns"; recorded="$(crew_pid_starttime "$ident_pid")"; crew_pid_starttime() { :; }
+  crew_kill_broker "$ident_pid" "$ident_dir" "$recorded") || true
+if kill -0 "$ident_pid" 2>/dev/null && [[ ! -d "$ident_dir" ]]; then
+  echo "PASS: an unverifiable start time fails closed"; pass=$((pass + 1))
+else
+  echo "FAIL: a live pid with an unverifiable start time was signalled"; fail=$((fail + 1))
+fi
+ident_dir="$TMP/ident-match"; mkdir -p "$ident_dir"
+(eval "$ident_fns"; crew_kill_broker "$ident_pid" "$ident_dir" "$(crew_pid_starttime "$ident_pid")") || true
+sleep 0.2
+if ! kill -0 "$ident_pid" 2>/dev/null && [[ ! -d "$ident_dir" ]]; then
+  echo "PASS: a matching start time still stops the broker"; pass=$((pass + 1))
+else
+  echo "FAIL: a broker with a matching start time survived"; fail=$((fail + 1))
+fi
+kill -9 "$ident_pid" 2>/dev/null || true
+
 # Packaging must expose exactly the supported dedicated lanes and reviewer.
 # Explicit older model ids remain covered by the argv and redirect tests above.
 packaged_agents="$(find "$AGENT_DIR" -maxdepth 1 -type f -name '*.md' -printf '%f\n' | sort)"

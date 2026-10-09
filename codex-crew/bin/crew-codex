@@ -80,24 +80,32 @@ crew_job_endpoint() {
 # A pid alone is not an identity: pids get recycled, and a sidecar can outlive
 # its broker by hours. Field 22 of /proc/<pid>/stat is the process start time in
 # clock ticks, which together with the pid is stable and unforgeable enough to
-# prove we are signalling the same process we started.
+# prove we are signalling the same process we started. Without /proc (macOS),
+# fall back to ps's start time, trimmed with spaces turned into '_' so the value
+# stays one token in the tab-separated sidecar. It has one-second resolution.
 crew_pid_starttime() {
-  local pid="$1"
+  local pid="$1" start
   [[ "$pid" =~ ^[0-9]+$ ]] || return 0
-  awk '{ n = split($0, a, ") "); print a[n] }' "/proc/$pid/stat" 2>/dev/null \
-    | awk '{ print $20 }' 2>/dev/null || true
+  start="$(awk '{ n = split($0, a, ") "); print a[n] }' "/proc/$pid/stat" 2>/dev/null \
+    | awk '{ print $20 }' 2>/dev/null || true)"
+  if [[ -z "$start" ]]; then
+    start="$(LC_ALL=C ps -o lstart= -p "$pid" 2>/dev/null \
+      | awk 'NF { $1 = $1; gsub(/ /, "_"); print; exit }' 2>/dev/null || true)"
+  fi
+  [[ -z "$start" ]] || printf '%s\n' "$start"
 }
 
 # Stop one broker and remove everything it left behind. Refuses to signal a pid
-# whose start time no longer matches the one recorded at spawn.
+# whose start time no longer matches the one recorded at spawn, and fails closed
+# when a recorded start time can no longer be checked.
 crew_kill_broker() {
   local pid="$1" dir="$2" expect_start="${3:-}"
   if [[ -n "$expect_start" && "$pid" =~ ^[0-9]+$ ]]; then
     local now_start
     now_start="$(crew_pid_starttime "$pid")"
-    if [[ -n "$now_start" && "$now_start" != "$expect_start" ]]; then
-      # Same pid, different process: the broker died and something else took
-      # its number. Clean the files, never signal the stranger.
+    if [[ "$now_start" != "$expect_start" ]]; then
+      # Same pid, different (or unverifiable) process: the broker died and
+      # something else may have its number. Clean the files, never signal it.
       if [[ -n "$dir" && -d "$dir" ]]; then
         rm -f "$dir/broker.sock" "$dir/broker.pid" "$dir/broker.log" 2>/dev/null || true
         rmdir "$dir" 2>/dev/null || true

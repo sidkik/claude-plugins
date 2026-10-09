@@ -71,9 +71,10 @@ const PLATFORMS = ['linux', 'darwin'];
 export function assertPlatform(platform = process.platform) {
   if (!PLATFORMS.includes(platform)) throw new Error(`This setup supports Linux/WSL and macOS; ${platform} is not qualified.`);
 }
-// codex-crew's crew-codex (installed for Claude) uses mapfile, `timeout N tail --pid`, `patch --suffix` and `readlink -f`.
+// codex-crew's crew-codex (installed for Claude) uses mapfile and empty-array expansion under `set -u` (bash 4.4+),
+// `timeout N tail --pid`, `patch --suffix` and `readlink -f`.
 const CREW_CAPABILITIES = {
-  bash: ['bash 4+', ['-c','echo "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"'], out => parseInt(out, 10) >= 4],
+  bash: ['bash 4.4+', ['-c','echo "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"'], out => { const [major, minor] = out.trim().split('.').map(Number); return major > 4 || (major === 4 && minor >= 4); }],
   timeout: ['GNU coreutils timeout', ['--version'], () => true],
   tail: ['GNU coreutils tail (--pid)', ['--version'], out => out.includes('GNU coreutils')],
   patch: ['GNU patch (--suffix)', ['--version'], out => out.includes('GNU patch')],

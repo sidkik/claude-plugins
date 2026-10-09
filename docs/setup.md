@@ -137,7 +137,7 @@ Windows is not qualified; setup refuses it and names the supported platforms.
 - For Claude, setup also installs codex-crew. Until codex-crew gains native
   macOS support, its runtime needs GNU-capable tools that stock macOS lacks, and
   setup and doctor check these capabilities, not just presence:
-  - bash 4 or newer (`/bin/bash` is 3.2);
+  - bash 4.4 or newer (`/bin/bash` is 3.2);
   - GNU coreutils `timeout` and `tail` (`tail --pid`);
   - GNU `patch` (`--suffix`); the bundled BSD `patch` is rejected;
   - `readlink -f` and `python3`.
