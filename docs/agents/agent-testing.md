@@ -39,15 +39,35 @@ Keep the maintained agent model until the affected behavioral comparison support
 a change. A replay result establishes only the tested cases, not live observation
 or another agent's fitness.
 
-The maintained observer selects `claude-haiku-5-5` following the accepted matched
-ten-case replay comparison. Both models met the existing acceptance table, but
-both skipped the native delivery-identity read before the f3 assessment. That
-shared instruction-conformance gap remains; replay acceptance does not qualify
-live MAIN delivery. Grok supervisors and Codex forwarding agents retain Sonnet.
+The installed 0.4.13 observer remains configured for `claude-haiku-5-5` under
+the historical matched ten-case replay decision. Both models achieved 10/10
+original acceptance but 9/10 full instruction conformance: each omitted the
+native delivery-identity Read before the f3 assessment. That historical decision
+does not establish current qualification or live MAIN delivery. The immutable candidate-v4 baseline campaign is consolidated with the production
+prompt unchanged; both models retain held quality gates in development and
+synthetic validation. Corrected r4 was scored separately. These historical results
+supply neither current live qualification nor a model recommendation; preserve
+their exact identities and limitations in the maintained history. Grok supervisors and Codex
+forwarding agents retain Sonnet.
 
 Cases and acceptance live in
 [observer-behavioral-prompts.md](../../sdlc-process/tests/observer-behavioral-prompts.md);
 add or change cases there, not here.
+
+Before defining a comparison, write and inspect the
+[general evaluation contract](evaluation-contract.md), then its role specialization.
+For the explicitly bounded six-sequence/two-repeat Observer pilot, use
+[the short profile](../../sdlc-process/tests/observer-short-profile.md) and its hidden-rubric
+case definitions. For explicit model+effort comparisons, use the
+[effort profile](../../sdlc-process/tests/observer-effort-profile.md) and
+[maintained effort results](../../sdlc-process/tests/observer-effort-results.md); earlier model-only
+results have uncontrolled/unverified effort. For reproducible observer comparisons, follow the maintained
+[evaluation procedure](../../sdlc-process/tests/observer-evaluation.md). It fixes
+parameters and source identities before trials, separates detection from private
+lifecycle grading, and preserves concise outcomes in
+[the evaluation history](../../sdlc-process/tests/observer-evaluation-history.json).
+Independent contract review and semantic adjudication remain required; historical
+acceptance does not qualify revised prompts or live delivery.
 
 1. Fix the subject. Record the source revision, the exact instruction bytes the
    evaluator runs under (the installed or copied agent file, not a paraphrase),

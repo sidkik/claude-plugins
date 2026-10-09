@@ -1,0 +1,15 @@
+{
+  "configurations": [
+    {
+      "model": "claude-haiku-5-5",
+      "effort": "low"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "effort": "low"
+    }
+  ],
+  "repeats": 2,
+  "split": "development",
+  "agentFile": "sdlc-process/tests/observer-revision-candidate.md"
+}
