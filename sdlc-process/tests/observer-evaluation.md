@@ -328,7 +328,8 @@ untouched; original snapshots or identified regrade are required after runner ed
 ## Versioned oracle and prompt revisions
 
 Use the [revision profile](observer-revision-profile.md) and
-[source-backed audit](observer-revision-audit.md) for the six short development
+[source-backed audit](observer-revision-audit.md), and completed
+[revision results](observer-revision-results.md) for the six short development
 controls. Preserve version2 and every original result; version3 is a separately
 identified oracle, with unchanged visible inputs and semantic rubric.
 Its opt-in step controls are `findingPolicy: at-least-one-supported`,

@@ -7563,6 +7563,456 @@
       "collectionPlanSha256": "81f3313832ff45443ae283c8eaf30d84912ba0bb3c2e1357441d044b76b3dcd7",
       "evaluationRuntimeUnchanged": true,
       "qualification": "No behavioral verdict or promotion from this structural correction."
+    },
+    {
+      "id": "20261009-revision-low-low-complete",
+      "status": "complete-mixed-experimental-no-promotion",
+      "trials": 24,
+      "steps": 32,
+      "repeats": 2,
+      "split": "exposed-synthetic-development",
+      "originalEvidenceRetained": true,
+      "oracleCorrection": "Separate source-backed versioned reanalysis: 27/112 original full failures resolved without new behavior/semantic edits; 5 real missing Reads retained. Original scores remain frozen.",
+      "rootDecision": "Keep production prompt/model unchanged; candidate experimental. Three-repeat/critical gate HOLD.",
+      "identities": {
+        "plan": "81f3313832ff45443ae283c8eaf30d84912ba0bb3c2e1357441d044b76b3dcd7",
+        "blindJudgments": "7a1255a3b2622ff876d68f4f837d10fd582ef2a4a721511463199f04b8b5fc5e",
+        "restoredJudgments": "dcf197f9afb2b9670c8077558612de0e0983bd50afcaa4515c5c49d5c2c44058",
+        "summary": "fd403c1d82096232c6cc574e61aad61c291a9579c9d9b14ce472dd39fcc13493",
+        "reanalysis": "4591a8151c07f4d7c97f8ef031a4dd5e3ff058fcea5d7438510053a5c3909fb6",
+        "report": "3022fb37487ef1fc5c8297404adcaab24e46913ce2f28a7e7fa77963537299d1",
+        "postRunProfile": "990d2b898734b0609d6d7a7af7c03fbb859ccdc60a45d0e45baf691aa13c8a96"
+      },
+      "configurations": [
+        {
+          "id": "claude-haiku-5-5-low",
+          "semanticSteps": {
+            "n": 15,
+            "N": 16
+          },
+          "mechanicalSteps": {
+            "n": 15,
+            "N": 16
+          },
+          "fullSteps": {
+            "n": 14,
+            "N": 16
+          },
+          "fullTrials": {
+            "n": 10,
+            "N": 12
+          },
+          "baseline": {
+            "semantic": 16,
+            "originalFull": 14,
+            "correctedFull": 16,
+            "N": 16,
+            "reanalysis": "4591a8151c07f4d7c97f8ef031a4dd5e3ff058fcea5d7438510053a5c3909fb6"
+          },
+          "repeats": [
+            {
+              "trial": 1,
+              "steps": 8,
+              "semantic": 8,
+              "mechanical": 7,
+              "full": 7
+            },
+            {
+              "trial": 2,
+              "steps": 8,
+              "semantic": 7,
+              "mechanical": 8,
+              "full": 7
+            }
+          ],
+          "cases": [
+            {
+              "caseId": "cedar",
+              "steps": 2,
+              "trials": 2,
+              "semanticSteps": 1,
+              "mechanicalSteps": 1,
+              "fullConformanceSteps": 0,
+              "fullConformanceTrials": 0
+            },
+            {
+              "caseId": "maple",
+              "steps": 2,
+              "trials": 2,
+              "semanticSteps": 2,
+              "mechanicalSteps": 2,
+              "fullConformanceSteps": 2,
+              "fullConformanceTrials": 2
+            },
+            {
+              "caseId": "birch",
+              "steps": 2,
+              "trials": 2,
+              "semanticSteps": 2,
+              "mechanicalSteps": 2,
+              "fullConformanceSteps": 2,
+              "fullConformanceTrials": 2
+            },
+            {
+              "caseId": "willow",
+              "steps": 2,
+              "trials": 2,
+              "semanticSteps": 2,
+              "mechanicalSteps": 2,
+              "fullConformanceSteps": 2,
+              "fullConformanceTrials": 2
+            },
+            {
+              "caseId": "aspen",
+              "steps": 4,
+              "trials": 2,
+              "semanticSteps": 4,
+              "mechanicalSteps": 4,
+              "fullConformanceSteps": 4,
+              "fullConformanceTrials": 2
+            },
+            {
+              "caseId": "elm",
+              "steps": 4,
+              "trials": 2,
+              "semanticSteps": 4,
+              "mechanicalSteps": 4,
+              "fullConformanceSteps": 4,
+              "fullConformanceTrials": 2
+            }
+          ],
+          "dimensions": {
+            "meaning": "16/16",
+            "authority": "16/16",
+            "coverage": "15/16",
+            "timeliness": "16/16",
+            "duplicates": "16/16",
+            "privateChannel": "16/16",
+            "correction": "16/16"
+          },
+          "categories": {
+            "native-invocation": {
+              "TP": 0,
+              "FP": 0,
+              "FN": 2,
+              "TN": 0,
+              "precision": null,
+              "recall": "0/2",
+              "annotation": "0/0",
+              "verification": "0/0"
+            },
+            "completion-evidence": {
+              "TP": 2,
+              "FP": 0,
+              "FN": 0,
+              "TN": 0,
+              "precision": "2/2",
+              "recall": "2/2",
+              "annotation": "0/0",
+              "verification": "0/0"
+            },
+            "reviewer-authority": {
+              "TP": 2,
+              "FP": 0,
+              "FN": 0,
+              "TN": 0,
+              "precision": "2/2",
+              "recall": "2/2",
+              "annotation": "0/0",
+              "verification": "0/0"
+            },
+            "authorized-work": {
+              "TP": 0,
+              "FP": 0,
+              "FN": 0,
+              "TN": 2,
+              "precision": null,
+              "recall": null,
+              "annotation": "0/0",
+              "verification": "0/0"
+            },
+            "verified-correction": {
+              "TP": 0,
+              "FP": 0,
+              "FN": 0,
+              "TN": 4,
+              "precision": null,
+              "recall": null,
+              "annotation": "4/4",
+              "verification": "2/2"
+            },
+            "pending-continuity": {
+              "TP": 0,
+              "FP": 0,
+              "FN": 0,
+              "TN": 4,
+              "precision": null,
+              "recall": null,
+              "annotation": "2/2",
+              "verification": "0/0"
+            }
+          },
+          "unsupportedReferences": {
+            "n": 0,
+            "N": 51
+          },
+          "failures": [
+            {
+              "trialId": "cedar-claude-haiku-5-5-low-1",
+              "step": 0,
+              "responseSha256": "df05ca9b3994c990e5b220f767f1323e11df263593ab977047df306599ed2f83",
+              "mechanical": [
+                "offendingAndSupport"
+              ],
+              "semantic": []
+            },
+            {
+              "trialId": "cedar-claude-haiku-5-5-low-2",
+              "step": 0,
+              "responseSha256": "b8a89cc5c9f2ccb6b229b5b2a19fcd82cc85797da5e9b7310e10efc94159e2b3",
+              "mechanical": [],
+              "semantic": [
+                "coverage"
+              ]
+            }
+          ],
+          "cost": {
+            "USD": 0.05919421,
+            "latencyMs": 117532,
+            "successfulAdjudicatedOpportunities": 14,
+            "successfulAdjudicatedTrials": 10,
+            "infrastructure": 0,
+            "costPerSuccessfulAdjudicatedOpportunityUSD": 0.004228157857142857,
+            "basis": "Sum of CLI-reported invocation costs; resume accumulation semantics unverified, not account billing or guessed rework cost."
+          },
+          "effort": {
+            "requested": "low",
+            "clientKnown": 12,
+            "clientUnknown": 4,
+            "N": 16,
+            "server": null,
+            "thinking": null
+          },
+          "qualityGate": "hold"
+        },
+        {
+          "id": "claude-sonnet-5-5-low",
+          "semanticSteps": {
+            "n": 14,
+            "N": 16
+          },
+          "mechanicalSteps": {
+            "n": 14,
+            "N": 16
+          },
+          "fullSteps": {
+            "n": 14,
+            "N": 16
+          },
+          "fullTrials": {
+            "n": 10,
+            "N": 12
+          },
+          "baseline": {
+            "semantic": 12,
+            "originalFull": 8,
+            "correctedFull": 12,
+            "N": 16,
+            "reanalysis": "4591a8151c07f4d7c97f8ef031a4dd5e3ff058fcea5d7438510053a5c3909fb6"
+          },
+          "repeats": [
+            {
+              "trial": 1,
+              "steps": 8,
+              "semantic": 7,
+              "mechanical": 7,
+              "full": 7
+            },
+            {
+              "trial": 2,
+              "steps": 8,
+              "semantic": 7,
+              "mechanical": 7,
+              "full": 7
+            }
+          ],
+          "cases": [
+            {
+              "caseId": "cedar",
+              "steps": 2,
+              "trials": 2,
+              "semanticSteps": 2,
+              "mechanicalSteps": 2,
+              "fullConformanceSteps": 2,
+              "fullConformanceTrials": 2
+            },
+            {
+              "caseId": "maple",
+              "steps": 2,
+              "trials": 2,
+              "semanticSteps": 2,
+              "mechanicalSteps": 2,
+              "fullConformanceSteps": 2,
+              "fullConformanceTrials": 2
+            },
+            {
+              "caseId": "birch",
+              "steps": 2,
+              "trials": 2,
+              "semanticSteps": 0,
+              "mechanicalSteps": 0,
+              "fullConformanceSteps": 0,
+              "fullConformanceTrials": 0
+            },
+            {
+              "caseId": "willow",
+              "steps": 2,
+              "trials": 2,
+              "semanticSteps": 2,
+              "mechanicalSteps": 2,
+              "fullConformanceSteps": 2,
+              "fullConformanceTrials": 2
+            },
+            {
+              "caseId": "aspen",
+              "steps": 4,
+              "trials": 2,
+              "semanticSteps": 4,
+              "mechanicalSteps": 4,
+              "fullConformanceSteps": 4,
+              "fullConformanceTrials": 2
+            },
+            {
+              "caseId": "elm",
+              "steps": 4,
+              "trials": 2,
+              "semanticSteps": 4,
+              "mechanicalSteps": 4,
+              "fullConformanceSteps": 4,
+              "fullConformanceTrials": 2
+            }
+          ],
+          "dimensions": {
+            "meaning": "16/16",
+            "authority": "16/16",
+            "coverage": "14/16",
+            "timeliness": "16/16",
+            "duplicates": "16/16",
+            "privateChannel": "16/16",
+            "correction": "16/16"
+          },
+          "categories": {
+            "native-invocation": {
+              "TP": 2,
+              "FP": 0,
+              "FN": 0,
+              "TN": 0,
+              "precision": "2/2",
+              "recall": "2/2",
+              "annotation": "0/0",
+              "verification": "0/0"
+            },
+            "completion-evidence": {
+              "TP": 2,
+              "FP": 0,
+              "FN": 0,
+              "TN": 0,
+              "precision": "2/2",
+              "recall": "2/2",
+              "annotation": "0/0",
+              "verification": "0/0"
+            },
+            "reviewer-authority": {
+              "TP": 0,
+              "FP": 0,
+              "FN": 2,
+              "TN": 0,
+              "precision": null,
+              "recall": "0/2",
+              "annotation": "0/0",
+              "verification": "0/0"
+            },
+            "authorized-work": {
+              "TP": 0,
+              "FP": 0,
+              "FN": 0,
+              "TN": 2,
+              "precision": null,
+              "recall": null,
+              "annotation": "0/0",
+              "verification": "0/0"
+            },
+            "verified-correction": {
+              "TP": 0,
+              "FP": 0,
+              "FN": 0,
+              "TN": 4,
+              "precision": null,
+              "recall": null,
+              "annotation": "4/4",
+              "verification": "2/2"
+            },
+            "pending-continuity": {
+              "TP": 0,
+              "FP": 0,
+              "FN": 0,
+              "TN": 4,
+              "precision": null,
+              "recall": null,
+              "annotation": "2/2",
+              "verification": "0/0"
+            }
+          },
+          "unsupportedReferences": {
+            "n": 0,
+            "N": 44
+          },
+          "failures": [
+            {
+              "trialId": "birch-claude-sonnet-5-5-low-1",
+              "step": 0,
+              "responseSha256": "ab36c3a95894cd3579ad7992a7719f70a2866b16dbab74cd4c8163972dfe1305",
+              "mechanical": [
+                "offendingAndSupport"
+              ],
+              "semantic": [
+                "coverage"
+              ]
+            },
+            {
+              "trialId": "birch-claude-sonnet-5-5-low-2",
+              "step": 0,
+              "responseSha256": "919a1a66cb590680d3573e7680de9daa4248924b59819326e5f057df0c67419e",
+              "mechanical": [
+                "offendingAndSupport"
+              ],
+              "semantic": [
+                "coverage"
+              ]
+            }
+          ],
+          "cost": {
+            "USD": 0.8410580000000001,
+            "latencyMs": 97935,
+            "successfulAdjudicatedOpportunities": 14,
+            "successfulAdjudicatedTrials": 10,
+            "infrastructure": 0,
+            "costPerSuccessfulAdjudicatedOpportunityUSD": 0.060075571428571437,
+            "basis": "Sum of CLI-reported invocation costs; resume accumulation semantics unverified, not account billing or guessed rework cost."
+          },
+          "effort": {
+            "requested": "low",
+            "clientKnown": 10,
+            "clientUnknown": 6,
+            "N": 16,
+            "server": null,
+            "thinking": null
+          },
+          "qualityGate": "hold"
+        }
+      ],
+      "limits": "Two repeats, separate baseline collection, partial client effort coverage, server/thinking unknown, exposed synthetic cases; no live MAIN or unseen real-session qualification. CLI sums are not billing; resume accumulation unverified.",
+      "retention": "Root owns disposable raw diagnostics through independent/user review; no raw logs in maintained history."
     }
   ],
   "caseCoverage": {

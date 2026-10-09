@@ -2,8 +2,10 @@
 
 Read the [general evaluation contract](../../docs/agents/evaluation-contract.md) first.
 This development experiment separates evaluation defects from prompt defects before
-collecting new evidence. Status: preparation; independent preflight required before
-paid collection. Production instructions, model/configuration and all original
+collecting new evidence. Status: complete; independently cleared collection and judging finished.
+See [revision results](observer-revision-results.md) for the mixed outcome and root
+disposition to retain the candidate experimentally. This post-run status does not
+change the frozen pre-run profile in the stage receipt. Production instructions, model/configuration and all original
 plans, responses, judgments and results remain unchanged.
 
 ## Write → observe → execute → check
@@ -87,7 +89,7 @@ node sdlc-process/tests/observer-evaluation.mjs run \
 # After completed independent anonymous judging and exact restoration:
 node sdlc-process/tests/observer-evaluation.mjs summarize \
   /tmp/observer-evaluation-20261009/revision-run/candidate-final-plan.json \
-  /tmp/observer-evaluation-20261009/revision-run/candidate-restored-adjudications.json
+  /tmp/observer-evaluation-20261009/revision-run/restored-adjudications.json
 ```
 
 Reuse the existing projection/restoration approach with anonymous prompt+model+effort

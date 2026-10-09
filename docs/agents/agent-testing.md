@@ -66,6 +66,8 @@ results have uncontrolled/unverified effort. For reproducible observer compariso
 parameters and source identities before trials, separates detection from private
 lifecycle grading, and preserves concise outcomes in
 [the evaluation history](../../sdlc-process/tests/observer-evaluation-history.json).
+The [revision results](../../sdlc-process/tests/observer-revision-results.md) distinguish
+source-backed oracle repairs from mixed candidate behavior; production remains unchanged.
 Independent contract review and semantic adjudication remain required; historical
 acceptance does not qualify revised prompts or live delivery.
 

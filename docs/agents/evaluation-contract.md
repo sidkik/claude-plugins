@@ -150,5 +150,6 @@ controlled model+effort pilot; all qualification gates remain HOLD.
 The [Observer revision profile](../../sdlc-process/tests/observer-revision-profile.md)
 and [source-backed oracle audit](../../sdlc-process/tests/observer-revision-audit.md)
 separate corrected evaluation assumptions from candidate prompt behavior. Original
-outcomes remain frozen; preparation and diagnostic reanalysis await independent
-preflight before bounded new collection.
+outcomes remain frozen. The [revision results](../../sdlc-process/tests/observer-revision-results.md)
+record the completed, independently cleared low/low experiment and versioned
+reanalysis; mixed behavior keeps the candidate experimental and production unchanged.
