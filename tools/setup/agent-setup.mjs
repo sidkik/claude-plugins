@@ -6,7 +6,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {shellQuote, put, required, claudePlugins, codexPlugins, configureClaude, configureGrok} from './setup.mjs';
+import {shellQuote, put, required, claudePlugins, codexPlugins, configureClaude, configureGrok, assertPlatform, CREW_TOOLS, crewCapability} from './setup.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.join(os.homedir(),'.local/share/sidkik');
 const receiptFile=path.join(root,'native-setup.json');
@@ -66,7 +66,7 @@ export function diagnose(client='claude',repo=process.cwd(),{full=false}={}){
  const adopted=entryFiles(client).some(name=>read(path.join(repo,name)).includes('<!-- sidkik-sdlc:begin -->'));
  if(adopted&&entryFiles(client).some(name=>!read(path.join(repo,name)).includes(entry(client))))add('repo-entry','Existing managed repository entry needs migration; agent repair --repo replaces only its marked block.');
  if(full){
-  for(const executable of ['git','gh',...(client==='claude'?['codex','grok','bash','python3','patch','timeout','readlink','tail']:client==='codex'?['grok']:[])]){try{command(executable,['--version'],repo)}catch(e){add(executable,`${e.message}. Agent: inspect WSL environment and install or repair this prerequisite through its supported installation method; ask the human only for unavailable privileges/authentication.`)}}
+  for(const executable of ['git','gh',...(client==='claude'?['codex','grok','python3',...CREW_TOOLS]:client==='codex'?['grok']:[])]){try{CREW_TOOLS.includes(executable)?crewCapability(executable,{cwd:repo}):command(executable,['--version'],repo)}catch(e){add(executable,`${e.message}. Agent: inspect this host's environment and install or repair this prerequisite through its supported installation method; ask the human only for unavailable privileges/authentication.`)}}
   for(const [exe,args,login] of [['gh',['auth','status'],'gh auth login'],...(client==='claude'?[['claude',['auth','status','--json'],'claude auth login']]:[]),...(['claude','codex'].includes(client)?[['codex',['login','status'],'codex login']]:[])]){try{const result=command(exe,args,repo);if(exe==='claude'&&!JSON.parse(result).loggedIn)throw new Error('not logged in')}catch(e){add('auth',`${e.message}. Human authentication required: ${login}`)}}
  }
  if(observer)observer.configurationReady=Boolean(plugins['sdlc-process'])&&!gaps.some(gap=>gap.code.startsWith('observer-')||gap.code==='settings');
@@ -93,9 +93,10 @@ export function main(argv=process.argv.slice(2)){
  while(argv.length){const flag=argv.shift(),value=argv.shift();if(!value)throw new Error(`Missing value for ${flag}`);if(flag==='--client')client=value;else if(flag==='--repo'){repo=fs.realpathSync(value);adopt=true}else throw new Error(`Unknown option ${flag}`)}
  if(!['claude','codex','grok'].includes(client))throw new Error('Expected --client claude|codex|grok');
  if(!['doctor','repair','update'].includes(action))throw new Error('Expected doctor, repair or update');
- if(process.platform!=='linux')throw new Error('This runtime is qualified for Linux/WSL');
+ assertPlatform();
  if(Number(process.versions.node.split('.')[0])<18)throw new Error('Node.js 18 or newer required');
  if(action!=='doctor')repair(client,repo,adopt,action==='update');
  const result=diagnose(client,repo,{full:true});console.log(JSON.stringify(result,null,2));if(!result.ready)process.exitCode=1;
 }
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){try{main()}catch(e){console.error(`SDLC setup blocked: ${e.message}`);process.exitCode=1}}
+function invokedDirectly(){try{return Boolean(process.argv[1])&&fs.realpathSync(process.argv[1])===fs.realpathSync(fileURLToPath(import.meta.url))}catch{return false}}
+if(invokedDirectly()){try{main()}catch(e){console.error(`SDLC setup blocked: ${e.message}`);process.exitCode=1}}

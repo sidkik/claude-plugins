@@ -5,14 +5,16 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {isDirectSdlcStatus, mergeEntry, shellQuote} from '../tools/setup/setup.mjs';
+import {isDirectSdlcStatus, mergeEntry, shellQuote, crewCapability, CREW_TOOLS, assertPlatform} from '../tools/setup/setup.mjs';
+import {installCrewTools} from './crew-tools.mjs';
 const script=fileURLToPath(new URL('../tools/setup/setup.mjs',import.meta.url));
 const launcher=fileURLToPath(new URL('../tools/setup/status.mjs',import.meta.url));
 const write=(p,s)=>{fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,s);};
 const read=p=>fs.readFileSync(p,'utf8');
 const names=['sdlc-process','sdlc-status','grok-crew','codex-crew'];
 function fixture(t) {
- const root=fs.mkdtempSync(path.join(os.tmpdir(),"sidkik setup's "));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ // The stable launcher compares its real module path with HOME; macOS tmpdir is behind /var -> /private/var.
+ const root=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),"sidkik setup's "));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
  const home=path.join(root,'home'), source=path.join(root,'source'), repo=path.join(root,'repo');
  fs.mkdirSync(home);fs.mkdirSync(repo);write(path.join(repo,'CLAUDE.md'),'Existing project rules\n');
  for(const name of names){for(const type of ['.claude-plugin','.codex-plugin'])write(path.join(source,name,type,'plugin.json'),JSON.stringify({name,version:'1.0.0'}));}
@@ -44,6 +46,7 @@ if(args[1]==='enable'){const p=state.plugins.find(p=>p.name===args[2]||p.id===ar
 process.exit(2);
 `;
  for(const cli of ['claude','codex','grok','gh']){write(path.join(bin,cli),fake);fs.chmodSync(path.join(bin,cli),0o755);}
+ installCrewTools(bin);
  const env={...process.env,HOME:home,PATH:bin+path.delimiter+process.env.PATH};delete env.CLAUDE_CONFIG_DIR;delete env.GROK_HOME;delete env.CODEX_HOME;
  const run=(...args)=>spawnSync(process.execPath,[script,...args,'--source',source],{env,encoding:'utf8'});
  return {root,home,source,repo,env,run,managed:path.join(home,'.local/share/sidkik')};
@@ -145,4 +148,31 @@ test('nonzero auth status points to the concrete login command',t=>{
 test('installer invoked inside a locally disabled repo still reports the effective conflict',t=>{
  const f=fixture(t);assert.equal(f.run('install').status,0);const local=path.join(f.repo,'.claude/settings.json');const value=JSON.stringify({enabledPlugins:{'sdlc-process@sidkik-plugins':false}});write(local,value);
  const r=spawnSync(process.execPath,[script,'install','--repo',f.repo,'--source',f.source],{env:f.env,cwd:f.repo,encoding:'utf8'});assert.notEqual(r.status,0);assert.match(r.stderr,/sdlc-process missing or disabled in/);assert.doesNotMatch(r.stderr,/already enabled/);assert.equal(read(local),value);
+});
+
+test('unqualified platforms are refused with the supported platforms named',t=>{
+ for(const platform of ['linux','darwin'])assert.doesNotThrow(()=>assertPlatform(platform));
+ assert.throws(()=>assertPlatform('win32'),/supports Linux\/WSL and macOS; win32 is not qualified/);
+ const f=fixture(t),preload=path.join(f.root,'win32.cjs');write(preload,"Object.defineProperty(process,'platform',{value:'win32'});");
+ const r=spawnSync(process.execPath,['--require',preload,script,'install','--source',f.source],{env:f.env,encoding:'utf8'});
+ assert.equal(r.status,1);assert.match(r.stderr,/^Setup failed: This setup supports Linux\/WSL and macOS; win32 is not qualified\./);assert.equal(fs.existsSync(f.managed),false);
+});
+test('codex-crew capabilities: a full GNU set is accepted and bash 3 is rejected',t=>{
+ const f=fixture(t),bin=path.join(f.root,'bin');fs.copyFileSync(path.join(bin,'gh'),path.join(bin,'git'));
+ for(const name of CREW_TOOLS)assert.doesNotThrow(()=>crewCapability(name,{env:{PATH:bin}}),name);
+ assert.throws(()=>crewCapability('bash',{env:{PATH:bin,FAKE_BASH:'3.2'},platform:'linux'}),/^Error: bash 4\+ required by codex-crew \(found 3\.2\)$/);
+ f.env.PATH=bin;let r=f.run('install');assert.equal(r.status,0,r.stderr);
+ f.env.FAKE_BASH='3.2';r=f.run('doctor');assert.notEqual(r.status,0);assert.match(r.stderr,/bash 4\+ required by codex-crew \(found 3\.2\)/);
+ delete f.env.FAKE_BASH;fs.unlinkSync(path.join(bin,'timeout'));r=f.run('doctor');assert.notEqual(r.status,0);assert.match(r.stderr,/GNU coreutils timeout required by codex-crew \(found none on PATH\)/);
+});
+test('BSD-style tail and patch are rejected with Homebrew remediation on macOS',t=>{
+ const f=fixture(t),bin=path.join(f.root,'bin'),bsdTail="!tail: unrecognized option `--version'",bsdPatch='patch 2.0-12u11-Apple',remedy=/On macOS: brew install bash coreutils gpatch, then put .*opt\/coreutils\/libexec\/gnubin.*opt\/gpatch\/libexec\/gnubin" ahead of \/usr\/bin/;
+ assert.throws(()=>crewCapability('tail',{env:{PATH:bin,FAKE_TAIL:bsdTail},platform:'darwin'}),e=>/GNU coreutils tail \(--pid\) required by codex-crew \(found tail: unrecognized option/.test(e.message)&&remedy.test(e.message));
+ assert.throws(()=>crewCapability('patch',{env:{PATH:bin,FAKE_PATCH:bsdPatch},platform:'darwin'}),e=>/GNU patch \(--suffix\) required by codex-crew \(found patch 2\.0-12u11-Apple\)/.test(e.message)&&remedy.test(e.message));
+ assert.throws(()=>crewCapability('patch',{env:{PATH:bin,FAKE_PATCH:bsdPatch},platform:'linux'}),e=>!/brew/.test(e.message));
+ const preload=path.join(f.root,'darwin.cjs');write(preload,"Object.defineProperty(process,'platform',{value:'darwin'});");
+ for(const [variable,value,pattern] of [['FAKE_TAIL',bsdTail,/GNU coreutils tail/],['FAKE_PATCH',bsdPatch,/GNU patch/]]){
+  const r=spawnSync(process.execPath,['--require',preload,script,'install','--source',f.source],{env:{...f.env,[variable]:value},encoding:'utf8'});
+  assert.equal(r.status,1);assert.match(r.stderr,pattern);assert.match(r.stderr,remedy);assert.equal(fs.existsSync(f.managed),false);
+ }
 });

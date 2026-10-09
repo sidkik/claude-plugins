@@ -5,7 +5,7 @@ Portable SDLC process, status display and agent delegation for Sidkik.
 Install **sdlc-process** and reload the client. Ask the agent to
 **“Finish SDLC setup”** when you want installation verification or repair.
 Startup is silent; the agent handles companions, verification and repairs when requested. See the
-[WSL setup guide](docs/setup.md) for the behavior and authentication boundaries.
+[setup guide](docs/setup.md) for the behavior and authentication boundaries.
 
 In Claude, **`/sdlc-process:session-start`** prepares the current session and
 returns its observer view before you assign work. It reports readiness separately

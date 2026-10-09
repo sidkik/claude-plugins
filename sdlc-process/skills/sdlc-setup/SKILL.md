@@ -1,6 +1,6 @@
 ---
 name: sdlc-setup
-description: Set up, verify, update or repair installed Sidkik SDLC plugins when requested or when authorized work encounters a concrete setup gap on Linux/WSL.
+description: Set up, verify, update or repair installed Sidkik SDLC plugins when requested or when authorized work encounters a concrete setup gap on Linux/WSL or macOS.
 ---
 
 # Agent-owned setup
