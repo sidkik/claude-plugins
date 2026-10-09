@@ -73,6 +73,10 @@ export function observation(rows,transcript){
  const text=texts.join('\n'),result=rows.findLast(r=>r.type==='result');
  return {text,findings:markers(text,'SDLC_FINDING'),assessments:markers(text,'SDLC_ASSESSMENT'),models:[...models],reads,events,result};
 }
+function sameTranscriptFile(observed,planned){
+ if(observed===planned)return true;
+ try{return fs.realpathSync(observed)===fs.realpathSync(planned)}catch{return false}
+}
 // State belongs to ONE planned job. Cache exact read records, never merely UUIDs.
 export function gradeStep(step,obs,records,transcriptPath,state={}){
  const ids=new Set(records.map(r=>r.uuid)),f=obs.findings,a=obs.assessments;
@@ -86,7 +90,7 @@ export function gradeStep(step,obs,records,transcriptPath,state={}){
  // Direct helper observations without events denote reads before markers. Production
  // observations always carry ordered events; summary replays those from raw outputs.
  for(const event of obs.events??[...obs.reads.map(r=>({kind:'read',...r})),...a.map(marker=>({kind:'assessment',marker}))]){
-  if(event.kind==='read'&&event.file===transcriptPath)for(const n of event.lines){const r=records[n-1];if(r)current[r.uuid]=sha(JSON.stringify(r))}
+  if(event.kind==='read'&&sameTranscriptFile(event.file,transcriptPath))for(const n of event.lines){const r=records[n-1];if(r)current[r.uuid]=sha(JSON.stringify(r))}
   if(event.kind==='assessment')seenBefore.push({marker:event.marker,ids:new Set(Object.keys(current))});
  }
  const readBefore=marker=>seenBefore.find(x=>JSON.stringify(x.marker)===JSON.stringify(marker))?.ids??new Set();

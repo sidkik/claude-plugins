@@ -347,3 +347,21 @@ hashes in the same plan and evaluator manifest; this option changes no installed
 agent. Independently review corrected oracle and candidate bytes before paid
 collection. A diagnostic reanalysis is an explicitly identified new observation,
 never an edited old plan/grade/summary or a retroactive qualification.
+
+## Post-evaluation portability revision
+
+PR63's macOS CI exposed a transcript path alias mismatch: a planned temporary
+ancestor may use `/var/...` while the child cwd returns `/private/var/...`.
+The grader now compares canonical existing file identity when spellings differ;
+successful exact-content Reads, event ordering, independent-trial cache isolation
+and the canonical Read boundary remain required. The focused ancestry regression
+rejects cloned outside content and symlink escapes as evidence.
+
+This is a separately identified post-evaluation runner revision, recorded in
+[history](observer-evaluation-history.json). Retained Linux plans, responses and
+summaries keep their original runtime digests; no paid replay or silent regrading
+follows. The changed CLI correctly refuses an old runtime-bound plan. Use the
+identified collection runtime to reproduce an old summary; separately identified
+regrading must retain its collection/grader identities and original results.
+Controlled Linux symlink reproduction is evidence of the cause; final macOS CI
+remains a required integration check.

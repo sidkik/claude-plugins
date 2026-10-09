@@ -8013,6 +8013,28 @@
       ],
       "limits": "Two repeats, separate baseline collection, partial client effort coverage, server/thinking unknown, exposed synthetic cases; no live MAIN or unseen real-session qualification. CLI sums are not billing; resume accumulation unverified.",
       "retention": "Root owns disposable raw diagnostics through independent/user review; no raw logs in maintained history."
+    },
+    {
+      "id": "20261009-pr63-path-portability",
+      "status": "post-evaluation-source-revision-awaiting-independent-delta-and-macos-ci",
+      "scope": "Harness portability only; no new model calls or behavioral regrading.",
+      "originalEvidenceRetained": true,
+      "ci": {
+        "commit": "ab5882f7fc1600d4318695fbe814bb09bca77efc",
+        "run": "38003773997",
+        "platform": "macos-latest",
+        "failures": 7
+      },
+      "cause": "Planned transcript retains symlink ancestor spelling, while child process.cwd() canonicalizes it. Exact string comparison discarded successful Reads, causing identity and opportunity-count failures. Controlled Linux symlink TMPDIR reproduces all seven named CI failures.",
+      "fix": "Compare canonical existing file paths when spellings differ; retain exact-content, event ordering, per-trial cache and Read fence checks. No frozen plan mutation.",
+      "runtime": {
+        "path": "sdlc-process/tests/observer-evaluation.mjs",
+        "collectionSha256": "aa3699df9da3ddeeda89d441bdea81c90568e4d2aa895ee622939ad0b80323b3",
+        "postEvaluationSha256": "02617f3d46c98be45d641e726418e9910bab7c0dc5d03649aa1d9f571422b411"
+      },
+      "regression": "observer-evaluation-paths.test.mjs: direct and symlink ancestry; resumed identity; outside/cloned content and symlink escape rejected; failed/altered Read rejected; independent trial cannot inherit identity.",
+      "validation": "Controlled ancestry suites29/29 pass after fix; original seven assertions unchanged. Full local check receipts retained outside repository. Actual macOS CI still required; Linux reproduction is not a macOS execution claim.",
+      "priorResults": "Retained Linux evaluations use their original pinned runner digest and unchanged plans/summaries. This source revision is separate, not a retroactive runtime identity replacement."
     }
   ],
   "caseCoverage": {
