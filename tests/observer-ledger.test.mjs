@@ -8,7 +8,7 @@ const sid='627631fd-9a38-4516-88af-44787f3268e8', tid='a2166e41509ef8cdd';
 const id=n=>`11111111-1111-1111-1111-${String(n).padStart(12,'0')}`;
 const stamp=n=>new Date(Date.UTC(2026,0,1,0,0,n)).toISOString();
 function fixture(t){
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'observer-ledger-'));
+ const dir=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'observer-ledger-')); // macOS tmpdir is behind /var -> /private/var
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const file=path.join(dir,`${sid}.jsonl`), sub=path.join(dir,sid,'subagents',`agent-${tid}.jsonl`);
  fs.mkdirSync(path.dirname(sub),{recursive:true});

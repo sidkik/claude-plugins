@@ -67,6 +67,29 @@ export function run(command, args, { dryRun = false, capture = false, cwd } = {}
   if (!capture && result.stdout?.trim()) console.log(result.stdout.trim());
   return result.stdout;
 }
+const PLATFORMS = ['linux', 'darwin'];
+export function assertPlatform(platform = process.platform) {
+  if (!PLATFORMS.includes(platform)) throw new Error(`This setup supports Linux/WSL and macOS; ${platform} is not qualified.`);
+}
+// codex-crew's crew-codex (installed for Claude) uses mapfile and empty-array expansion under `set -u` (bash 4.4+),
+// `timeout N tail --pid`, `patch --suffix` and `readlink -f`.
+const CREW_CAPABILITIES = {
+  bash: ['bash 4.4+', ['-c','echo "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"'], out => { const [major, minor] = out.trim().split('.').map(Number); return major > 4 || (major === 4 && minor >= 4); }],
+  timeout: ['GNU coreutils timeout', ['--version'], () => true],
+  tail: ['GNU coreutils tail (--pid)', ['--version'], out => out.includes('GNU coreutils')],
+  patch: ['GNU patch (--suffix)', ['--version'], out => out.includes('GNU patch')],
+  readlink: ['readlink -f', ['-f','/'], () => true],
+};
+export const CREW_TOOLS = Object.keys(CREW_CAPABILITIES);
+const BREW_REMEDIATION = '. On macOS: brew install bash coreutils gpatch, then put "$(brew --prefix)/bin", "$(brew --prefix)/opt/coreutils/libexec/gnubin" and "$(brew --prefix)/opt/gpatch/libexec/gnubin" ahead of /usr/bin and /bin on PATH, including the PATH GUI-launched clients see';
+export function crewCapability(name, { platform = process.platform, env = process.env, cwd } = {}) {
+  const [capability, args, accept] = CREW_CAPABILITIES[name];
+  const result = spawnSync(name, args, { encoding: 'utf8', timeout: 15000, env, cwd });
+  const stdout = result.stdout || '';
+  if (!result.error && result.status === 0 && accept(stdout)) return;
+  const found = result.error ? (result.error.code === 'ENOENT' ? 'none on PATH' : result.error.message) : name === 'bash' && result.status === 0 ? stdout.trim() || 'unknown version' : `${stdout}${result.stderr || ''}`.trim().split('\n')[0] || `exit ${result.status}`;
+  throw new Error(`${capability} required by codex-crew (found ${found})${platform === 'darwin' ? BREW_REMEDIATION : ''}`);
+}
 function parse(argv) {
   const options = { command: argv.shift() || 'help', clients: ['claude'], dryRun: false, source: path.resolve(here, '../..') };
   while (argv.length) {
@@ -239,10 +262,11 @@ export function main(argv = process.argv.slice(2)) {
   if (!['install','update','doctor'].includes(options.command)) throw new Error(`Unknown command ${options.command}`);
   if (Number(process.versions.node.split('.')[0]) < 18) throw new Error('Node.js 18 or newer is required');
   const previous = fs.existsSync(receiptFile) ? json(receiptFile) : null;
-  if (process.platform !== 'linux') throw new Error('This setup targets Linux/WSL. Native Windows and macOS are not qualified.');
+  assertPlatform();
   if (['doctor','update'].includes(options.command) && previous && !argv.includes('--clients')) options.clients = previous.clients;
-  const dependencies = new Set(['git','gh',...options.clients, ...(options.clients.includes('claude') ? ['codex','grok','bash','python3','patch','timeout','readlink','tail'] : options.clients.includes('codex') ? ['grok'] : [])]);
-  for (const dependency of dependencies) run(dependency,['--version'], { capture:true });
+  // Claude installs codex-crew, whose runtime needs python3 and the GNU-capable CREW_TOOLS.
+  const dependencies = new Set(['git','gh',...options.clients, ...(options.clients.includes('claude') ? ['codex','grok','python3',...CREW_TOOLS] : options.clients.includes('codex') ? ['grok'] : [])]);
+  for (const dependency of dependencies) CREW_TOOLS.includes(dependency) ? crewCapability(dependency) : run(dependency,['--version'], { capture:true });
   if (options.command === 'doctor') {
     if (!previous) throw new Error('No setup receipt; run install first');
     verifyReceipt(root, previous);
@@ -320,6 +344,9 @@ export function main(argv = process.argv.slice(2)) {
     console.log('Setup complete. Restart selected clients. Run doctor; log in with each CLI on this machine. No credentials or conversation history were copied.');
   }
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+function invokedDirectly() {
+  try { return Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
+}
+if (invokedDirectly()) {
   try { main(); } catch (error) { console.error(`Setup failed: ${error.message}`); process.exitCode = 1; }
 }
