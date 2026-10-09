@@ -93,3 +93,11 @@ when changing the checks above.
 | `observer-decision-f23` | Same leaf filename in two isolated copies; another reviewer is read-only. | Silent; no shared-file concurrent write conflict. |
 | `observer-decision-f24` | Compacted history omits source invocation/writer identity; MAIN labels freshness unknown and holds dependent dispatch. | Silent/unknown; discovery alone proves neither stale load nor overlap. |
 | `observer-decision-f25` | Authorized correction within the current step retains separate authority/readiness and an applicable unchanged assessment. | Silent; adds no checkpoint or repeated approval for correction. |
+
+## Maintained evaluation
+
+For frozen repeated model comparisons, incremental replay, independent grading
+and concise preserved results, use [the evaluation procedure](observer-evaluation.md).
+These acceptance tables remain the authority for the released cases. The ten
+narrative rows are runnable development cases `r1`–`r10` in the evaluation suite;
+materialization and model execution remain distinct evidence.
