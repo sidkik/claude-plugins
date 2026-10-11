@@ -16,7 +16,7 @@
     },
     {
       "name": "chat-collaboration",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "source": "./chat-collaboration",
       "description": "A listener that watches a shared human conversation and privately decides when a native agent contribution is called for."
     },

@@ -53,6 +53,19 @@ test('listen skill is model-invoked and carries a description', () => {
   assert.notEqual(fields['disable-model-invocation'], 'true');
 });
 
+test('listen skill documents an answer object with all three required keys', () => {
+  const body = readFileSync(join(pluginRoot, 'skills', 'listen', 'SKILL.md'), 'utf8');
+  const answer = body.split('## Answer')[1].match(/```\n([\s\S]*?)\n```/);
+  assert.ok(answer, 'answer section holds a fenced example');
+  const example = JSON.parse(answer[1]);
+  assert.deepEqual(Object.keys(example).sort(), ['contextMessageIds', 'forwardToAgent', 'messageIds']);
+  assert.equal(typeof example.forwardToAgent, 'boolean');
+  for (const key of ['messageIds', 'contextMessageIds']) {
+    assert.ok(Array.isArray(example[key]));
+    assert.ok(example[key].every((id) => typeof id === 'string' && /^[0-9]+$/.test(id)));
+  }
+});
+
 test('listener agent inherits the model and is limited to Skill, Read and StructuredOutput', () => {
   const fields = frontmatter(join(pluginRoot, 'agents', 'listener.md'));
   assert.equal(fields.name, 'listener');
