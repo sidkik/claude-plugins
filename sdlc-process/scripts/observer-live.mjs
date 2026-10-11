@@ -3,7 +3,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import crypto from "node:crypto";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { buildLedger, observerRecords } from "./observer-ledger.mjs";
 import { page } from "./observer-view-page.mjs";
 const AGENT = "observer:sidkik-sdlc-observer",
@@ -34,14 +34,19 @@ function action(r) {
   );
   return parts.length ? { uuid: r.uuid, timestamp: r.timestamp, parts } : null;
 }
-function hasSymlinkComponent(file) {
-  let current = path.parse(path.resolve(file)).root;
-  for (const part of path.resolve(file).slice(current.length).split(path.sep)) {
-    if (!part) continue;
+// Ancestors of `base` may be OS or user-level symlinks (macOS /var, /tmp);
+// the file itself and every component below `base` must not be.
+function symlinkEscapes(file, base = path.dirname(file)) {
+  const root = path.resolve(base),
+    relative = path.relative(root, path.resolve(file));
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative))
+    return true;
+  let current = root;
+  for (const part of relative.split(path.sep)) {
     current = path.join(current, part);
     if (fs.lstatSync(current).isSymbolicLink()) return true;
   }
-  return false;
+  return fs.realpathSync(current) !== path.join(fs.realpathSync(root), relative);
 }
 export function inspectTranscript(file, sessionId) {
   const out = {
@@ -156,7 +161,7 @@ export function inspectTranscript(file, sessionId) {
       `agent-${id}.jsonl`,
     );
     try {
-      if (hasSymlinkComponent(sub)) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: "Observer transcript symlink rejected."}); continue; }
+      if (symlinkEscapes(sub, path.dirname(file))) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: "Observer transcript symlink rejected."}); continue; }
       const stat = fs.lstatSync(sub);
       if (stat.isSymbolicLink() || stat.size > 8 * 1024 * 1024) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: "Observer transcript exceeds the 8 MiB limit or is a symlink."}); continue; }
       const raw = fs.readFileSync(sub, "utf8");
@@ -246,11 +251,9 @@ export function createViewer({ transcriptPath, sessionId }) {
     throw Error(
       "Transcript must be an absolute MAIN transcript path matching the expected session ID",
     );
-  if (hasSymlinkComponent(transcriptPath))
+  if (symlinkEscapes(transcriptPath))
     throw Error("Transcript symlinks are not accepted");
   const real = fs.realpathSync(transcriptPath);
-  if (real !== path.resolve(transcriptPath))
-    throw Error("Transcript symlinks are not accepted");
   const identity = fs.statSync(real);
   const cap = crypto.randomBytes(24).toString("hex"),
     assessments = [];
@@ -418,7 +421,18 @@ async function main(argv) {
     "Usage: observer-live.mjs serve --transcript ABSOLUTE.jsonl --session SESSION_ID | assess --url URL --report UUID --outcome corrected|continued|disputed|unresolved --assessor ID --role ROLE --rationale TEXT --refs UUID,... | stop --url URL",
   );
 }
-if (import.meta.url === pathToFileURL(process.argv[1] || "").href)
+function invokedDirectly() {
+  try {
+    return (
+      Boolean(process.argv[1]) &&
+      fs.realpathSync(process.argv[1]) ===
+        fs.realpathSync(fileURLToPath(import.meta.url))
+    );
+  } catch {
+    return false;
+  }
+}
+if (invokedDirectly())
   main(process.argv.slice(2)).catch((error) => {
     console.error(error.message);
     process.exitCode = 1;

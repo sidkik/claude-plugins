@@ -1,4 +1,4 @@
-# Portable setup on WSL
+# Portable setup on Linux/WSL and macOS
 
 Install **sdlc-process** using your agent CLI's plugin interface, then reload its
 plugins or start a new session. Ask **“Finish SDLC setup”** for installation
@@ -128,4 +128,28 @@ Per-machine configuration remains under `$HOME/.local/share/sidkik`, honoring
 preserves surrounding configuration and instruction text. Credentials, transcripts
 and private session histories are never distributed with plugins.
 
-This path targets Linux inside WSL. Native Windows and macOS are not qualified.
+This path is qualified for Linux (including Linux inside WSL) and macOS. Native
+Windows is not qualified; setup refuses it and names the supported platforms.
+
+### macOS prerequisites
+
+- Node.js 18 or newer, `git` and `gh` on `PATH` (for example via Homebrew).
+- For Claude, setup also installs codex-crew. Until codex-crew gains native
+  macOS support, its runtime needs GNU-capable tools that stock macOS lacks, and
+  setup and doctor check these capabilities, not just presence:
+  - bash 4.4 or newer (`/bin/bash` is 3.2);
+  - GNU coreutils `timeout` and `tail` (`tail --pid`);
+  - GNU `patch` (`--suffix`); the bundled BSD `patch` is rejected;
+  - `readlink -f` and `python3`.
+- Install them with Homebrew and put the GNU directories ahead of `/usr/bin` and
+  `/bin` on `PATH`:
+
+  ```sh
+  brew install bash coreutils gpatch
+  export PATH="$(brew --prefix)/opt/coreutils/libexec/gnubin:$(brew --prefix)/opt/gpatch/libexec/gnubin:$(brew --prefix)/bin:$PATH"
+  ```
+
+- Claude launched from the Dock or Finder does not read your shell profile. Make
+  sure that same `PATH`, including the Homebrew directory (`/opt/homebrew` on
+  Apple silicon, `/usr/local` on Intel), is visible to GUI-launched Claude.
+  Otherwise the plugin hooks that invoke `node` stay silent and do nothing.

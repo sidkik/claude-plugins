@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {entry} from '../tools/setup/agent-setup.mjs';
+import {installCrewTools} from './crew-tools.mjs';
 const source=path.resolve('sdlc-process');
 function metadataOnly(result){
  assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
@@ -29,10 +30,11 @@ if(a[1]==='list'){const local=path.join(process.cwd(),'.claude/settings.json');i
 if(['install','enable','update'].includes(a[1])){let p=s.plugins.find(p=>p.id===a[2]);if(!p){p={id:a[2],enabled:true,scope:'user',version:'1.0.0',installPath:path.join(process.env.HOME,'cache',a[2].split('@')[0])};s.plugins.push(p);fs.mkdirSync(p.installPath,{recursive:true});fs.mkdirSync(path.join(p.installPath,'.claude-plugin'),{recursive:true});fs.writeFileSync(path.join(p.installPath,'.claude-plugin/plugin.json'),JSON.stringify({name:a[2].split('@')[0],version:'1.0.0'}));const skill=a[2].startsWith('sdlc-status')?'sdlc-status':a[2].startsWith('grok-crew')?'grok-crew-runtime':'crew-runtime';fs.mkdirSync(path.join(p.installPath,'skills',skill),{recursive:true});fs.writeFileSync(path.join(p.installPath,'skills',skill,'SKILL.md'),'fixture');if(a[2].startsWith('sdlc-status')){fs.mkdirSync(path.join(p.installPath,'scripts'));fs.writeFileSync(path.join(p.installPath,'scripts/status.mjs'),'process.stdout.write("status")')}}p.enabled=true;save();process.exit()}
 process.exit(1)`;
  for(const name of ['claude','codex','grok','git','gh']){write(path.join(bin,name),fake);fs.chmodSync(path.join(bin,name),0o755)}
+ installCrewTools(bin);
  const env={...process.env,HOME:home,CLAUDE_PLUGIN_ROOT:plugin,SIDKIK_SDLC_CLIENT:'claude',PATH:bin+path.delimiter+process.env.PATH};delete env.CLAUDE_CONFIG_DIR;delete env.CODEX_HOME;delete env.GROK_HOME;
  const run=(...args)=>spawnSync(process.execPath,[path.join(plugin,'scripts/setup/agent-setup.mjs'),...args,'--client','claude'],{env,cwd:repo,encoding:'utf8'});
  const hook=(metadata={})=>spawnSync(process.execPath,[path.join(plugin,'scripts/session-start.mjs')],{env,cwd:repo,input:JSON.stringify({cwd:repo,...metadata}),encoding:'utf8'});
- return{home,plugin,repo,env,run,hook};
+ return{root,bin,home,plugin,repo,env,run,hook};
 }
 test('startup is metadata-only without discovering plugins or invoking subprocesses',t=>{
  const f=fixture(t),guard=path.join(f.home,'no-child-processes.cjs'),marker=path.join(f.home,'spawned');
@@ -144,3 +146,24 @@ test('drifted stable renderer never passes verification and repair restores byte
 test('shared repository entry converges across Codex and Grok',()=>assert.equal(entry('codex'),entry('grok')));
 
 test('missing setup runtime cannot manufacture a startup failure',t=>{const f=fixture(t);fs.unlinkSync(path.join(f.plugin,'scripts/setup/agent-setup.mjs'));fs.unlinkSync(path.join(f.plugin,'bundle/.claude/skills/sdlc-process/SKILL.md'));metadataOnly(f.hook());assert.equal(fs.existsSync(path.join(f.home,'calls')),false)});
+
+test('agent setup refuses unqualified platforms before diagnosis or repair',t=>{
+ const f=fixture(t),preload=path.join(f.home,'win32.cjs');write(preload,"Object.defineProperty(process,'platform',{value:'win32'});");
+ for(const action of ['doctor','repair']){
+  const r=spawnSync(process.execPath,['--require',preload,path.join(f.plugin,'scripts/setup/agent-setup.mjs'),action,'--client','claude'],{env:f.env,cwd:f.repo,encoding:'utf8'});
+  assert.equal(r.status,1);assert.equal(r.stdout,'');assert.match(r.stderr,/^SDLC setup blocked: This setup supports Linux\/WSL and macOS; win32 is not qualified\./);
+ }
+ assert.equal(fs.existsSync(path.join(f.home,'calls')),false);assert.equal(fs.existsSync(path.join(f.home,'.local/share/sidkik')),false);
+});
+test('doctor reports codex-crew capability gaps by executable and accepts a full GNU set',t=>{
+ const f=fixture(t);assert.equal(f.run('repair').status,0);f.env.PATH=f.bin;
+ assert.deepEqual(JSON.parse(f.run('doctor').stdout).gaps,[]);
+ Object.assign(f.env,{FAKE_BASH:'3.2',FAKE_TAIL:"!tail: unrecognized option `--version'",FAKE_PATCH:'patch 2.0-12u11-Apple'});fs.unlinkSync(path.join(f.bin,'timeout'));
+ const preload=path.join(f.home,'darwin.cjs');write(preload,"Object.defineProperty(process,'platform',{value:'darwin'});");
+ const result=spawnSync(process.execPath,['--require',preload,path.join(f.plugin,'scripts/setup/agent-setup.mjs'),'doctor','--client','claude'],{env:f.env,cwd:f.repo,encoding:'utf8'});
+ assert.equal(result.status,1);const gaps=JSON.parse(result.stdout).gaps;
+ assert.deepEqual(gaps.map(gap=>gap.code),['bash','timeout','tail','patch']);
+ for(const [gap,pattern] of [[gaps[0],/^bash 4\.4\+ required by codex-crew \(found 3\.2\)/],[gaps[1],/^GNU coreutils timeout required by codex-crew \(found none on PATH\)/],[gaps[2],/^GNU coreutils tail \(--pid\) required by codex-crew/],[gaps[3],/^GNU patch \(--suffix\) required by codex-crew \(found patch 2\.0-12u11-Apple\)/]]){
+  assert.deepEqual(Object.keys(gap),['code','detail']);assert.match(gap.detail,pattern);assert.match(gap.detail,/brew install bash coreutils gpatch/);assert.doesNotMatch(gap.detail,/WSL/);
+ }
+});

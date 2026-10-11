@@ -779,7 +779,7 @@ check_contains "patch still forwards interrupt" "$PATCH_FILE" "turn/interrupt"
 # A broker holds a codex app-server, so a leaked one is expensive. Stand-in
 # "brokers" are real sleep processes, which is all crew_kill_broker needs.
 fake_broker() { # $1 = job id -> writes sidecar, echoes the pid
-  local job="$1" dir pid
+  local job="$1" dir pid start
   dir="$(mktemp -d "$TMP/q/fakebroker-XXXXXX")"
   sleep 300 >/dev/null 2>&1 & pid=$!
   disown "$pid" 2>/dev/null || true
@@ -787,7 +787,9 @@ fake_broker() { # $1 = job id -> writes sidecar, echoes the pid
   # dies with the subshell. The pid file is the only channel back to cleanup.
   echo "$pid" >> "$TMP/stub_pids"
   : > "$dir/broker.sock"; echo "$pid" > "$dir/broker.pid"; : > "$dir/broker.log"
-  printf 'unix:%s/broker.sock\t%s\t%s\t%s\n' "$dir" "$pid" "$dir" "$PWD" \
+  # Real brokers always record a start time; without one a sweep defers.
+  start="$(eval "$(sed -n '/^crew_pid_starttime() {/,/^}/p' "$CREW")"; crew_pid_starttime "$pid")"
+  printf 'unix:%s/broker.sock\t%s\t%s\t%s\t%s\n' "$dir" "$pid" "$dir" "$PWD" "$start" \
     > "$TMP/q/arc/$job.broker"
   echo "$pid"
 }
@@ -990,6 +992,11 @@ else
   echo "FAIL: cleanup killed an unrelated process holding a recycled pid"; fail=$((fail + 1))
 fi
 kill -9 "$innocent" 2>/dev/null || true
+
+# Broker identity and signalling live in a portable suite that CI also runs.
+out="$(bash "$HERE/identity.sh" 2>&1)" && rc=0 || rc=$?
+check "broker identity suite passes" 0 "identity: [0-9]* passed, 0 failed" "$rc" "$out"
+[[ "$rc" -eq 0 ]] || echo "$out" | grep -E "^FAIL" || true
 
 # Packaging must expose exactly the supported dedicated lanes and reviewer.
 # Explicit older model ids remain covered by the argv and redirect tests above.

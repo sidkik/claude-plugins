@@ -4,9 +4,10 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 const cli = new URL("../scripts/status.mjs", import.meta.url);
 const invoke = (root, args, input = "", env = {}) =>
-  spawnSync(process.execPath, [cli.pathname, ...args], {
+  spawnSync(process.execPath, [fileURLToPath(cli), ...args], {
     input,
     encoding: "utf8",
     env: { ...process.env, SDLC_STATUS_DIR: root, SDLC_STATUS_SESSION: "", NO_COLOR: "1", ...env },

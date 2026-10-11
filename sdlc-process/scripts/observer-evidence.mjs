@@ -33,7 +33,10 @@ export function observerEvidence({configured=false, transcriptPath, sessionId, u
     : configured ? {state:'starting',sessionId,evidence:'launch-request'} : {state:'unavailable',sessionId,evidence:'none'};
 }
 
-if (process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
+function invokedDirectly() {
+  try { return Boolean(process.argv[1]) && fs.realpathSync(process.argv[1])===fs.realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
+}
+if (invokedDirectly()) {
   let input={};try { input=JSON.parse(fs.readFileSync(0,'utf8')||'{}'); } catch {}
   process.stdout.write(JSON.stringify(observerEvidence({configured:process.env.CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS==='1',transcriptPath:input.transcript_path,sessionId:input.session_id}))+'\n');
 }

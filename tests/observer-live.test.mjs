@@ -11,7 +11,10 @@ import {
 const sid = "627631fd-9a38-4516-88af-44787f3268e8",
   tid = "a2166e41509ef8cdd";
 function fixture(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "observer-view-"));
+  // Real path: macOS tmpdir sits behind /var -> /private/var; ancestor symlinks have their own test.
+  const dir = fs.mkdtempSync(
+    path.join(fs.realpathSync(os.tmpdir()), "observer-view-"),
+  );
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, `${sid}.jsonl`);
   return {
@@ -269,4 +272,53 @@ test("unavailable transcript, path mismatch, and symlinks are rejected", (t) => 
     observerAgentType: "sidkik-sdlc-observer",
   });
   assert.equal(inspectTranscript(f.file, sid).observerActivity, null);
+});
+test("ancestor directory symlinks are accepted; transcript and session symlinks are not", (t) => {
+  const f = fixture(t),
+    real = path.join(f.dir, "real"),
+    alias = path.join(f.dir, "alias"),
+    sub = path.join(real, sid, "subagents", `agent-${tid}.jsonl`);
+  fs.mkdirSync(path.dirname(sub), { recursive: true });
+  fs.symlinkSync(real, alias);
+  const transcript = path.join(alias, `${sid}.jsonl`);
+  fs.writeFileSync(
+    transcript,
+    JSON.stringify({
+      type: "observer-ref",
+      observerTaskId: tid,
+      observerAgentType: "sidkik-sdlc-observer",
+    }) + "\n",
+  );
+  fs.writeFileSync(
+    sub,
+    JSON.stringify({
+      type: "user",
+      timestamp: "2026-01-01T00:00:00Z",
+      message: { content: "<sidkik-sdlc-observed-main-activity>" },
+    }) + "\n",
+  );
+  const v = createViewer({ transcriptPath: transcript, sessionId: sid });
+  v.server.close();
+  const inspected = inspectTranscript(transcript, sid);
+  assert.notEqual(inspected.observerActivity, null);
+  assert.notEqual(inspected.ledger.sources[0].coverage, "unavailable");
+  const linked = path.join(f.dir, "linked", `${sid}.jsonl`);
+  fs.mkdirSync(path.dirname(linked));
+  fs.symlinkSync(transcript, linked);
+  assert.throws(
+    () => createViewer({ transcriptPath: linked, sessionId: sid }),
+    /Transcript symlinks are not accepted/,
+  );
+  const viaAlias = path.join(alias, "nested", `${sid}.jsonl`);
+  fs.mkdirSync(path.dirname(viaAlias));
+  fs.symlinkSync(transcript, viaAlias);
+  assert.throws(
+    () => createViewer({ transcriptPath: viaAlias, sessionId: sid }),
+    /Transcript symlinks are not accepted/,
+  );
+  fs.renameSync(path.join(real, sid), path.join(real, "moved"));
+  fs.symlinkSync(path.join(real, "moved"), path.join(real, sid));
+  const escaped = inspectTranscript(transcript, sid);
+  assert.equal(escaped.observerActivity, null);
+  assert.equal(escaped.ledger.sources[0].reason, "Observer transcript symlink rejected.");
 });
