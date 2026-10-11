@@ -6,6 +6,8 @@ import path from "node:path";
 import {
   createViewer,
   inspectTranscript,
+  ownerOptions,
+  resolveOwner,
 } from "../sdlc-process/scripts/observer-live.mjs";
 
 const sid = "627631fd-9a38-4516-88af-44787f3268e8",
@@ -321,4 +323,128 @@ test("ancestor directory symlinks are accepted; transcript and session symlinks 
   const escaped = inspectTranscript(transcript, sid);
   assert.equal(escaped.observerActivity, null);
   assert.equal(escaped.ledger.sources[0].reason, "Observer transcript symlink rejected.");
+});
+
+// Injected owner identity reads only: no process is started, signalled or ended.
+// A stat line carries state (field 3), parent PID (field 4) and starttime (field 22).
+function fakeProc(table) {
+  const stat = (pid) => {
+    const p = table[pid];
+    if (!p) return null;
+    const fields = [p.state || "S", String(p.ppid ?? 0)];
+    while (fields.length < 19) fields.push("0");
+    fields.push(p.ticks);
+    return `${pid} (${p.comm || "proc"}) ${fields.join(" ")}\n`;
+  };
+  return { stat, cmdline: (pid) => table[pid]?.argv ?? null };
+}
+async function closedWithin(server, ms) {
+  for (let waited = 0; server.listening && waited < ms; waited += 10)
+    await new Promise((r) => setTimeout(r, 10));
+  return !server.listening;
+}
+
+test("owned viewer closes its own server when the injected owner identity disappears", async (t) => {
+  const f = fixture(t);
+  f.append({ type: "user", sessionId: sid, message: { content: "Prepare" } });
+  const table = { 4242: { ppid: 1, ticks: "18446744073709551615" } };
+  const v = createViewer({
+    transcriptPath: f.file,
+    sessionId: sid,
+    owner: { pid: "4242", startTicks: "18446744073709551615" },
+    proc: fakeProc(table),
+    ownerCheckMs: 10,
+  });
+  await new Promise((r) => v.server.listen(0, "127.0.0.1", r));
+  t.after(() => v.server.listening && v.server.close());
+  delete table[4242];
+  assert.equal(await closedWithin(v.server, 1000), true);
+});
+
+test("owned viewer closes on PID reuse or a zombie owner, and refuses a mismatched start", async (t) => {
+  const f = fixture(t);
+  f.append({ type: "user", sessionId: sid, message: { content: "Prepare" } });
+  for (const change of [{ ticks: "901" }, { state: "Z" }]) {
+    const table = { 4242: { ppid: 1, ticks: "900" } };
+    const v = createViewer({
+      transcriptPath: f.file,
+      sessionId: sid,
+      owner: { pid: "4242", startTicks: "900" },
+      proc: fakeProc(table),
+      ownerCheckMs: 10,
+    });
+    await new Promise((r) => v.server.listen(0, "127.0.0.1", r));
+    t.after(() => v.server.listening && v.server.close());
+    Object.assign(table[4242], change);
+    assert.equal(await closedWithin(v.server, 1000), true);
+  }
+  const proc = fakeProc({ 4242: { ppid: 1, ticks: "900" } });
+  for (const owner of [
+    { pid: "4242", startTicks: "899" },
+    { pid: "1", startTicks: "900" },
+    { pid: "4242", startTicks: "0900" },
+    { pid: "4242" },
+  ])
+    assert.throws(
+      () => createViewer({ transcriptPath: f.file, sessionId: sid, owner, proc }),
+      /Owner/,
+    );
+});
+
+test("manual stop still closes an owned viewer once, and state reports the bound owner", async (t) => {
+  const f = fixture(t);
+  f.append({ type: "user", sessionId: sid, message: { content: "Prepare" } });
+  const table = { 4242: { ppid: 1, ticks: "900" } };
+  const v = createViewer({
+    transcriptPath: f.file,
+    sessionId: sid,
+    owner: { pid: "4242", startTicks: "900" },
+    proc: fakeProc(table),
+    ownerCheckMs: 10,
+  });
+  await new Promise((r) => v.server.listen(0, "127.0.0.1", r));
+  t.after(() => v.server.listening && v.server.close());
+  const base = `http://127.0.0.1:${v.server.address().port}/${v.cap}/`;
+  const state = await fetch(base + "state").then((r) => r.json());
+  assert.deepEqual(state.owner, { pid: "4242", startTicks: "900" });
+  assert.equal((await fetch(base + "stop", { method: "POST" })).status, 202);
+  assert.equal(await closedWithin(v.server, 1000), true);
+  delete table[4242];
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(v.server.listening, false);
+});
+
+test("owner discovery selects the one ancestor whose argv carries the exact session ID", () => {
+  const chain = (extra = {}) =>
+    fakeProc({
+      100: { ppid: 200, ticks: "1", argv: ["node", "observer-live.mjs", "serve", "--session", sid] },
+      200: { ppid: 300, ticks: "2", argv: ["bash", "-c", `echo --session-id ${sid}`] },
+      300: { ppid: 400, ticks: "3", argv: ["claude", "--print", "--session-id", sid] },
+      400: { ppid: 1, ticks: "4", argv: ["supervisor", `/x/${sid}`] },
+      ...extra,
+    });
+  assert.deepEqual(resolveOwner({ sessionId: sid, proc: chain(), startPid: "100" }), {
+    pid: "300",
+    startTicks: "3",
+  });
+  const resumed = chain({ 300: { ppid: 400, ticks: "3", argv: ["claude", "--resume", sid] } });
+  assert.equal(resolveOwner({ sessionId: sid, proc: resumed, startPid: "100" }).pid, "300");
+  const twice = chain({ 400: { ppid: 1, ticks: "4", argv: ["claude", "--resume", sid] } });
+  assert.throws(() => resolveOwner({ sessionId: sid, proc: twice, startPid: "100" }), /Ambiguous/);
+  const none = chain({ 300: { ppid: 400, ticks: "3", argv: ["claude", `--session-id=${sid}`] } });
+  assert.throws(() => resolveOwner({ sessionId: sid, proc: none, startPid: "100" }), /No ancestor/);
+});
+
+test("owner modes never mix and the explicit pair is all or nothing", () => {
+  const proc = fakeProc({});
+  assert.equal(ownerOptions(["--transcript", "x"], sid, proc), null);
+  assert.deepEqual(
+    ownerOptions(["--owner-pid", "4242", "--owner-start-ticks", "900"], sid, proc),
+    { pid: "4242", startTicks: "900" },
+  );
+  assert.throws(() => ownerOptions(["--owner-pid", "4242"], sid, proc), /together/);
+  assert.throws(
+    () => ownerOptions(["--owner-main", "--owner-pid", "4242", "--owner-start-ticks", "9"], sid, proc),
+    /either/,
+  );
 });

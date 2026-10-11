@@ -304,7 +304,12 @@ accepted; no separate diagnostic archive is required.
   runtime's background handle for long-running agent work. A polling timeout
   does not authorize killing the worker. Total worker deadlines require an
   explicit task budget or documented resource constraint in its runtime skill. Repeating a command that
-  just hung, unchanged, is a stop-and-think moment, not a retry.
+  just hung, unchanged, is a stop-and-think moment, not a retry. When a native
+  agent's launch result promises automatic notification on completion, continue
+  independent work or return control, keep its result unknown until that
+  notification arrives, and use the communication tools and handle the runtime
+  exposes as documented. Follow the launch result's own limits on its output
+  file in place of marker polling or nested waits.
 - **Supervision is a TICKER, not an alarm**: arm a periodic 10-minute
   check-in ticker in the same message as the dispatch; each tick forces
   the orchestrator to audit side effects (fresh files excluding
