@@ -102,6 +102,14 @@ verified counts. Usage deduplicates native observer message IDs; unavailable fie
 monetary cost and incomplete source coverage remain explicit. Keep the viewer in
 a supported background handle without an arbitrary two-hour lifetime.
 
+A viewer the agent starts is bound to the MAIN session that started it:
+`serve --owner-main` captures MAIN's process identity and closes the view when
+that session ends or its process is reused. Owner discovery is currently
+Linux/WSL; elsewhere the launch reports the gap instead of serving unowned. A
+manual `serve` with neither ownership mode is an unowned viewer; the explicit
+paired `--owner-pid` and `--owner-start-ticks` flags make it owned. The native
+agent uses `--owner-main`.
+
 Install this plugin and reload the client. Ask **“Finish SDLC setup”** for
 installation verification or authorized repair. The agent handles companions,
 prerequisites, footer and scoped repository integration using the runtime inside

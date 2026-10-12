@@ -1,0 +1,8 @@
+{
+  "name": "work-reporting",
+  "version": "0.1.0",
+  "description": "Lets a native agent report what it is working on to its session supervisor, independent of any workflow or process.",
+  "author": {
+    "name": "Sidkik"
+  }
+}

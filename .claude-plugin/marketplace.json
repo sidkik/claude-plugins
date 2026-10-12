@@ -15,13 +15,25 @@
       "description": "Delegate bounded review, investigation and implementation from Claude Code or Codex to the Grok CLI."
     },
     {
+      "name": "chat-collaboration",
+      "version": "0.1.1",
+      "source": "./chat-collaboration",
+      "description": "A listener that watches a shared human conversation and privately decides when a native agent contribution is called for."
+    },
+    {
+      "name": "work-reporting",
+      "version": "0.1.0",
+      "source": "./work-reporting",
+      "description": "Lets a native agent report its current work to its session supervisor, independent of any workflow or process."
+    },
+    {
       "name": "sdlc-status",
       "source": "./sdlc-status",
       "description": "Per-session SDLC phase, attributed evidence and next-action display"
     },
     {
       "name": "sdlc-process",
-      "version": "0.4.14",
+      "version": "0.4.15",
       "source": "./sdlc-process",
       "description": "Portable Sidkik SDLC process, policy, orchestration and pinned Pocock skills."
     }
