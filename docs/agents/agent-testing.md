@@ -75,6 +75,103 @@ add or change cases there, not here.
 
 ## Native integration
 
+### Board delegation acceptance plan
+
+Test the public seams: status CLI `write`/`record` responses, its read-only
+`next-work` response, and the accountable agent's native skill invocation. Use
+synthetic delivery repositories and a fake board skill that makes no board or
+GitHub writes. Native verification remains ongoing; the cases below are
+acceptance requirements, not passing receipts. Independent review and actual
+native evidence are required before acceptance.
+
+Materialize fixtures without model calls (destination must not exist):
+
+```bash
+node sdlc-status/tests/board-native-materialize.mjs /absolute/disposable/board-fixtures
+```
+
+Freeze candidate revisions and fixture source digests before execution; keep
+candidate skill bytes unchanged during runs. The materializer creates project
+skill trees in Claude `.claude/skills` and Codex `.agents/skills`, preserving
+source-relative references, README, runtime and templates. `candidate-skills.json`
+records native status/process paths, sources and SHA-256. Require native loading
+of those exact candidates using bare project names `sdlc-status` and
+`sdlc-process`; loading an older installed skill and then reading the candidate
+fails acceptance. Codex need not have an installed status plugin. Disposable
+skill trees are test assets, not release bundles; immutable distribution still
+uses the established generator and committed source pin.
+
+Isolate global plugins and hooks while preserving native project discovery.
+Verified Claude setup lesson: enable project settings sources, for example
+`--setting-sources project,local`. An empty `--setting-sources` value hides
+project skills and cannot qualify a candidate run. Use isolated client
+configuration; for Codex, use a copied/patched official runtime as described in
+`codex-crew/tests/live-capabilities.test.mjs`. Preserve shared installs and caches.
+Record client versions, runtime capabilities and resolved skill paths. Fixtures
+require no GitHub/network access.
+
+Run these cases in each harness:
+
+| Case | Trigger | Required observation |
+| --- | --- | --- |
+| Initial | `write initial.json` | native `fake-board` invocation with `stage-change`, issue `https://github.com/example/delivery/issues/17`, route `delivery`, stage `IN`, outcome `null` |
+| Unchanged | repeat identical write | no board request or invocation |
+| Stage change | `record change.json` | native invocation with same issue/route, `stage-change`, stage `RS`, outcome `null` |
+| Combined advancement | `record advance.json` | native finish `RS` with outcome `ready assessed; start not authorized` **before** native `stage-change:DE`, same issue/route |
+| Repeated finish | repeat `advance.json`, then `finish.json` | no additional request or invocation for the unchanged finish |
+| CLI next work | `next-work` | native invocation with `{"event":"next-work","readOnly":true}`; candidate 18, fixture-only ordering and unknown real availability; no start |
+| Ordinary next work | separate `next-work-prompt.txt` session | candidate process routes the ordinary request to the configured board skill; exact read-only input, candidate 18 and evidence limits; no start |
+| No skill | same sequence in `no-skill` | no board requests or invocations |
+| Unavailable | same sequence in `unavailable` | actual native resolution failure for `no-such-board`, visible scoped gap and continued fixture work |
+| Delivery versus cwd | all CLI commands run from `other-cwd` | selected `fake-board` from explicit delivery tracker; never `wrong-board` |
+
+Launch from the delivery fixture for native project discovery; its CLI commands
+exercise the distinct `other-cwd` tracker control. Repeat configured, no-skill
+and unavailable cases. Example native status runs:
+
+```bash
+cd /absolute/disposable/board-fixtures/claude/configured && claude -p --model claude-sonnet-5-5 --setting-sources project,local --output-format stream-json --verbose "$(cat prompt.txt)"
+cd /absolute/disposable/board-fixtures/codex/configured && crew-codex task --background --write --model gpt-6.1-sol --effort low --skill sdlc-status "$(cat prompt.txt)"
+```
+
+For ordinary next-work routing, use separate new sessions with
+`next-work-prompt.txt`. That prompt contains an ordinary request, no CLI command
+or board-skill name; the candidate process owns routing:
+
+```bash
+cd /absolute/disposable/board-fixtures/claude/configured && claude -p --model claude-sonnet-5-5 --setting-sources project,local --output-format stream-json --verbose "$(cat next-work-prompt.txt)"
+cd /absolute/disposable/board-fixtures/codex/configured && crew-codex task --background --model gpt-6.1-sol --effort low --skill sdlc-process "$(cat next-work-prompt.txt)"
+```
+
+Distinguish the evidence surfaces:
+
+- CLI `SDLC_BOARD_DELEGATE` output proves the exact request was emitted. Node
+  cannot issue a native Skill call. Manually dispatching that request can test
+  the emitter/executor seam; it does not prove that the model dynamically chose
+  and natively invoked the configured board skill from the candidate instructions.
+- Dynamic native acceptance requires the transcript to show candidate loading,
+  the model's configured-skill selection and exact event inputs, then successful
+  native invocation and full directed reads. Claude evidence is its `Skill`
+  call/result. Codex evidence is a real accepted structured skill input
+  (`{type:"skill",name,path}`) and turn result; inspect `thread/read` with
+  `includeTurns: true` where available. A file read, launch handle, fake reply
+  token or reassuring prose proves neither invocation nor routing.
+- Codex needs a capable native runtime. A child sandbox may be unable to launch
+  an app-server or detached background job. Report that exact capability gap;
+  it is not a passing case. Use the runtime's supported controls from a capable
+  environment, with launch and await/result calls separate and at the same cwd.
+  An acceptance-only transport bridge supplies only the evidence it actually
+  demonstrates; it imposes no production transport or shim requirement.
+
+No configured skill produces no board invocation. Unavailable native resolution
+must leave a visible scoped board gap while fixture work continues. Next-work
+must preserve ordering/evidence limits and never authorize start. Retain
+transcripts in disposable storage and record scoped results in the owning PR;
+explicit CLI next-work or manual dispatch alone cannot establish ordinary-request
+routing. The entry skill owns next-work routing, so the status skill description
+needs no expansion. Small independent fixtures may duplicate bounded setup;
+this acceptance work does not require a shared test framework or extra refactor.
+
 When the change concerns skill loading or main-session delivery, run it in a real
 client session and read the transcript.
 

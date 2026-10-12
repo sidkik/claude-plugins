@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { template, validateProgress, project, templates, retainRequirements } from "./stages.mjs";
+import { boardUpdate, emitBoardRequests, validateFinished } from "./board.mjs";
 const LIMIT = 65536;
 const clients = ["claude", "grok", "codex"];
 const clean = (value) =>
@@ -74,7 +75,7 @@ function options(args) {
   for (let i = 0; i < args.length; i += 2) {
     const k = args[i];
     if (
-      !["--session", "--client", "--width", "--max-age", "--color", "--route", "--source-revision", "--evidence-revision"].includes(k) ||
+      !["--session", "--client", "--width", "--max-age", "--color", "--route", "--source-revision", "--evidence-revision", "--delivery-repo"].includes(k) ||
       !args[i + 1] ||
       opts[k] !== undefined
     )
@@ -286,6 +287,8 @@ function inspectStages(s, projection) {
 }
 function inspectAll(s, projection, age = 0, stale = false) {
   inspectStages(s, projection);
+  if (s.boardDispositions)
+    console.log("Board finish dispositions (recorded events, not invocation receipts): " + JSON.stringify(s.boardDispositions.finishes));
   console.log(lines(s, age, stale).map(ascii).join("\n"));
   console.log("Evidence references (not independently validated):");
   for (const x of s.skills)
@@ -306,7 +309,7 @@ function observerStatus(payload) {
 function mergeRecord(previous, event) {
   if (!previous?.progress) throw Error("record requires existing tracked state");
   if (!event || typeof event !== "object" || Array.isArray(event)) throw Error("invalid record event");
-  const allowed = new Set(["changed", "results", "evidence", "assessment"]);
+  const allowed = new Set(["changed", "results", "evidence", "assessment", "finished"]);
   if (Object.keys(event).some(key => !allowed.has(key))) throw Error("invalid record event field");
   const changed = event.changed || {};
   if (!changed || typeof changed !== "object" || Array.isArray(changed) || Object.keys(changed).some(key => !["phase", "skills", "checks", "next", "human", "progress"].includes(key))) throw Error("invalid changed facts");
@@ -339,9 +342,14 @@ async function main() {
     console.log(randomUUID());
     return;
   }
+  if (command === "next-work") {
+    await emitBoardRequests(opts["--delivery-repo"], [{ event: "next-work", readOnly: true }]);
+    console.log("Next-work candidates retain ordering and evidence limits; selection never authorizes start.");
+    return;
+  }
   if (!["write", "record", "inspect", "text", ...clients].includes(command))
     throw Error(
-      "usage: status.mjs template --route ROUTE OR write|inspect|text|claude|grok|codex|new-session [--client CLIENT] [--session ID] [--width N] [--max-age SECONDS] [--color auto|always|never]",
+      "usage: status.mjs template --route ROUTE OR write|record|inspect|text|claude|grok|codex|new-session|next-work [--delivery-repo PATH] [--client CLIENT] [--session ID] [--width N] [--max-age SECONDS] [--color auto|always|never]",
     );
   let payload;
   if (command === "write" || command === "record" || command === "claude" || command === "grok")
@@ -363,6 +371,7 @@ async function main() {
   );
   const file = location(id);
   if (command === "write" || command === "record") {
+    const finished = command === "record" ? payload?.finished : undefined;
     let previous;
     try {
       const prior = await readFile(file);
@@ -372,6 +381,7 @@ async function main() {
     if (command === "record") payload = mergeRecord(previous, payload);
     retainRequirements(payload, previous);
     validate(payload, true);
+    validateFinished(finished, payload);
     const state = {
       version: payload.progress ? 2 : 1,
       ...id,
@@ -382,8 +392,12 @@ async function main() {
       checks: payload.checks,
       next: payload.next,
       human: payload.human,
+      ...(opts["--delivery-repo"] || (previous?.work === payload.work && previous?.deliveryRepository)
+        ? { deliveryRepository: opts["--delivery-repo"] || previous.deliveryRepository } : {}),
       ...(payload.progress ? {progress: payload.progress} : {}),
     };
+    const board = boardUpdate(previous, state, finished);
+    if (board.dispositions) state.boardDispositions = board.dispositions;
     const serialized = JSON.stringify(state) + "\n";
     if (Buffer.byteLength(serialized) > LIMIT) throw Error("state too large");
     await mkdir(join(file, ".."), { recursive: true, mode: 0o700 });
@@ -399,6 +413,7 @@ async function main() {
     }
     if (command === "record") inspectAll(state, project(state));
     else console.log("SDLC projection updated; assertions and references are not independently verified.");
+    await emitBoardRequests(state.deliveryRepository, board.events);
     return;
   }
   const raw = await readFile(file);

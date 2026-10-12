@@ -78,6 +78,49 @@ this plugin uses color, bold and layout rather than per-row font-size escapes.
 
 ## Required stages and evidence
 
+### Repository board hook
+
+The [canonical board delegation contract](https://github.com/sidkik/planning/blob/main/docs/work/agent-orchestration/process/orchestration.process.md#repository-board-delegation)
+owns configuration, native invocation and evidence limits. Supply
+`--delivery-repo /absolute/delivery/checkout` when initializing with `write` or
+changing the owner with `write`/`record`. Same-work records retain this path;
+new work needs its own delivery checkout. The runtime reads that repository's
+`docs/agents/issue-tracker.md`, never cwd's tracker.
+
+After a successful update, `SDLC_BOARD_DELEGATE` lines carry the selected skill,
+delivery checkout and exact event input. The accountable native agent executes
+them and checks the result. Node emits requests; it does not load skills or move
+cards. No configured skill emits nothing. `SDLC_BOARD_GAP` reports configuration
+or tracker access failures without failing the successful status update.
+Native resolution/invocation failures remain the agent's visible scoped board gap.
+
+Record a finish with an explicit disposition, including unsuccessful or partial
+outcomes, without manufacturing a completion claim:
+
+```json
+{"finished":{"stage":"DE","outcome":"review-ready"}}
+```
+
+New `claimedComplete` stages also emit finishes using the actual reported
+projection standing; an unmet claim emits `held`. Use this read-only request for
+next-work candidates (no session state is created):
+
+```sh
+node /absolute/path/to/sdlc-status/scripts/status.mjs next-work --delivery-repo /absolute/delivery/checkout
+```
+
+Read-only candidate selection grants no start authority. Rendering, inspection,
+unchanged writes and criterion-only updates emit no board request. This hook
+depends on the accountable agent processing its tool response; it has no daemon,
+automatic replay or background delivery guarantee.
+
+The existing session state retains `boardDispositions.finishes`, the latest
+outcome per stage. Repeating a finish within unchanged work, route and
+source/evidence revisions emits nothing, including after intervening writes.
+Changed outcomes/revisions and stage re-entry permit a new finish. Combined
+finish/advance records emit finishes before entering the next stage. These saved
+dispositions describe recorded events, not successful native invocation receipts.
+
 Version 0.3.1 requires verified display updates after substantive events and
 before yielding changed state to the user. It retains Intake orchestrator load
 and explicit bug reproduction criteria. The agent initializes it from

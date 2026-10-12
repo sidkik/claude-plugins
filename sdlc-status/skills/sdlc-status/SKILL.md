@@ -15,6 +15,17 @@ Read [setup and the projection contract](../../README.md) before the first updat
 5. Validate the same-session inspection returned by `record`, or run `inspect --client CLIENT --session ID` after `write`, using the same client, session and state directory. Check its exit status and compare the returned work identity, phase/active stage, affected criterion results, next action and human need with the intended update. A successful write alone does not establish that the correct session displays the result. Report an inspection failure or mismatch immediately before the ordinary reply, correct it within authority and verify again. Reconcile every current unmet criterion. Recover authorized omissions directly. If a required step cannot be met, identify the exact criterion, blocker, dependent work held and needed human decision/capability. Continue independent authorized work. A human exception requires its actual scoped authority, conditions and alternative evidence; it remains E, never a successful performance claim.
 6. After correction or relevant source/implementation change, withdraw affected passes and dependent questions/recommendations, verify the underlying flow and update the actual evidence revision. Compare against current known revisions using `--source-revision` and `--evidence-revision` when rendering/inspecting. Update only after reconciling real work; refreshing a timestamp alone does not restore evidence. Completion: affected checks are unresolved or supported by fresh evidence before dependent continuation.
 
+Apply the governing process's repository board delegation after recorded route/stage
+changes and stage finishes. Supply `--delivery-repo ABSOLUTE_CHECKOUT` on initialization
+(and when the delivery owner changes); same-work records retain it. Record explicit
+stage-finish dispositions with `finished: {stage, outcome}`. For every
+`SDLC_BOARD_DELEGATE` response, the accountable native agent invokes the selected
+skill with the exact `input` at `deliveryRepository`, then checks its actual result
+and directed reads. Node only emits the request. Report `SDLC_BOARD_GAP` or failed
+native invocation as a scoped board gap and continue authorized work. Unchanged
+status emits nothing. Use `next-work --delivery-repo ABSOLUTE_CHECKOUT` for the
+read-only candidate request under the same governing contract.
+
 Keep GitHub and the existing owning work record authoritative. The footer reports assertions; it cannot authenticate the actor, detect an unreported action, read your mind, authorize a transition or enforce the process. Missing template/capability is a visible gap, not permission to fabricate a pass. Questions and silence are not human approval. Source reads must be described as reads, not unavailable native skill invocations.
 
 The compact observer label reports `seen Ns ago` only from session-matched native observer evidence with its task and timestamp. Launch intent without that evidence is starting; a setup/version/custom-agent conflict is unavailable. Installation, configuration and agent-definition presence never prove activity. The recorded state is an as-of observation, not a heartbeat or policy approval.
