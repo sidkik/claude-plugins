@@ -93,3 +93,15 @@ when changing the checks above.
 | `observer-decision-f23` | Same leaf filename in two isolated copies; another reviewer is read-only. | Silent; no shared-file concurrent write conflict. |
 | `observer-decision-f24` | Compacted history omits source invocation/writer identity; MAIN labels freshness unknown and holds dependent dispatch. | Silent/unknown; discovery alone proves neither stale load nor overlap. |
 | `observer-decision-f25` | Authorized correction within the current step retains separate authority/readiness and an applicable unchanged assessment. | Silent; adds no checkpoint or repeated approval for correction. |
+
+## Incident 818ad70b triage trials
+
+For static/runtime claim distinctions, scoped test-only authority and production
+requests, use the [frozen five-case suite](observer-incident-818ad70b.json) and
+[bounded contract and retained outcomes](observer-incident-818ad70b-evaluation.md).
+The final [UNINSTALLED v3 candidate fixture](observer-incident-818ad70b-candidate-v3.uninstalled.txt)
+is reproduction input only. Runtime viewer/setup fixes separately passed and are
+active per the accountable parent; the prompt correction remains unresolved.
+Keep hidden acceptance separate from evaluator inputs; the retained development
+results do not qualify native observation or prompt activation. No more model runs
+are scheduled for this bounded repair.

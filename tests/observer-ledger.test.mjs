@@ -211,3 +211,44 @@ test('native inline-code annotation is accepted without accepting human/tool wra
  assert.equal(ledger.findings[0].latencySeconds,8);
  assert.equal(ledger.summary.usefulCorrections,1);
 });
+
+// The scan ceiling remains 8 MiB even when a native observer transcript grows.
+test('large observer source retains bounded whole-record activity and follows appends honestly', t => {
+ const f=fixture(t);
+ const huge='x'.repeat(9*1024*1024);
+ // A record crossing both windows must not become a fabricated parsed record.
+ f.observer(5,huge);
+ f.observer(6,'recent input',{type:'user',origin:{kind:'observer-activity'}});
+ let state=f.state(), source=state.ledger.sources[0];
+ assert.equal(state.observerActivity.inputCount,2);
+ assert.equal(state.observerActivity.coverage,'partial');
+ assert.equal(source.coverage,'partial');
+ assert.equal(state.ledger.usage.coverage,'partial');
+ assert.ok(source.bytesRead <= 8*1024*1024);
+ assert.ok(source.omittedBytes > 0);
+ assert.equal(source.ranges.length,2);
+ assert.equal(source.malformedLines,0);
+ assert.match(source.reason,/8 MiB/);
+ // An incomplete native append is never counted until its newline arrives.
+ const next={sessionId:sid,agentId:tid,isSidechain:true,uuid:id(7),timestamp:stamp(7),type:'user',origin:{kind:'observer-activity'},message:{content:'continuation'}};
+ fs.appendFileSync(f.sub,JSON.stringify(next));
+ assert.equal(f.state().observerActivity.inputCount,2);
+ fs.appendFileSync(f.sub,'\n');
+ state=f.state();
+ assert.equal(state.observerActivity.inputCount,3);
+ assert.equal(state.observerActivity.lastRecordedAt,stamp(7));
+ assert.equal(state.ledger.coverage,'partial');
+ fs.appendFileSync(f.sub,'malformed\n');
+ assert.equal(f.state().ledger.sources[0].malformedLines,1);
+});
+
+test('small observer source excludes incomplete final records until continuation completes',t=>{
+ const f=fixture(t);
+ const next={sessionId:sid,agentId:tid,isSidechain:true,uuid:id(5),timestamp:stamp(5),type:'user',origin:{kind:'observer-activity'},message:{content:'new input'}};
+ fs.appendFileSync(f.sub,JSON.stringify(next));
+ assert.equal(f.state().observerActivity.inputCount,1);
+ assert.equal(f.state().observerActivity.coverage,'partial');
+ fs.appendFileSync(f.sub,'\n');
+ assert.equal(f.state().observerActivity.inputCount,2);
+ assert.equal(f.state().ledger.sources[0].coverage,'complete');
+});
