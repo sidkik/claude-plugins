@@ -11,7 +11,8 @@ test('native fixtures expose candidate project skills, preserve relative sources
   const root = join(scratch, 'fixtures');
   try {
     const script = fileURLToPath(new URL('./board-native-materialize.mjs', import.meta.url));
-    const result = spawnSync(process.execPath, [script, root], { encoding: 'utf8' });
+    const source = fileURLToPath(new URL('../../sdlc-process/bundle/', import.meta.url));
+    const result = spawnSync(process.execPath, [script, root, source], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     for (const client of ['claude', 'codex']) for (const name of ['configured', 'no-skill', 'unavailable']) {
       const repo = join(root, client, name);
