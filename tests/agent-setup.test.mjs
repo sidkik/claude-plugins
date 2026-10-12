@@ -167,3 +167,40 @@ test('doctor reports codex-crew capability gaps by executable and accepts a full
   assert.deepEqual(Object.keys(gap),['code','detail']);assert.match(gap.detail,pattern);assert.match(gap.detail,/brew install bash coreutils gpatch/);assert.doesNotMatch(gap.detail,/WSL/);
  }
 });
+
+test('native source-folder repair uses readFromFolder instead of stale cached observer',t=>{
+ const f=fixture(t),folder=path.join(f.root,'active source/sdlc-process');
+ fs.cpSync(f.plugin,folder,{recursive:true});
+ const observerSource=path.join(folder,'agents/sidkik-sdlc-observer.md');
+ fs.appendFileSync(observerSource,'\nSource-folder incident correction.\n');
+ const cached=fs.readFileSync(path.join(f.plugin,'agents/sidkik-sdlc-observer.md'),'utf8');
+ const stateFile=path.join(f.home,'fake.json'),state=JSON.parse(fs.readFileSync(stateFile));
+ Object.assign(state.plugins[0],{readFromFolder:folder,folderVersion:'0.4.15'});
+ write(stateFile,JSON.stringify(state));
+ const result=f.run('repair');assert.equal(result.status,0,result.stderr);
+ assert.equal(JSON.parse(result.stdout).plugins['sdlc-process'],folder);
+ const expected=fs.readFileSync(observerSource,'utf8')
+  .replace('__SIDKIK_SOURCE_ADAPTER__',path.join(folder,'SOURCE-ADAPTER.md'))
+  .replace('__SIDKIK_PROCESS_SOURCE__',path.join(folder,'bundle/.claude/skills/sdlc-process/SKILL.md'));
+ assert.equal(fs.readFileSync(path.join(f.home,'.claude/agents/sidkik-sdlc-observer.md'),'utf8'),expected);
+ assert.equal(fs.readFileSync(path.join(f.plugin,'agents/sidkik-sdlc-observer.md'),'utf8'),cached);
+ assert.equal(f.run('doctor').status,0);
+});
+
+test('native cache fallback remains available when no source folder is selected',t=>{
+ const f=fixture(t),stateFile=path.join(f.home,'fake.json'),state=JSON.parse(fs.readFileSync(stateFile));
+ state.plugins[0].readFromFolder=null;write(stateFile,JSON.stringify(state));
+ const result=f.run('repair');assert.equal(result.status,0,result.stderr);
+ assert.equal(JSON.parse(result.stdout).plugins['sdlc-process'],f.plugin);
+ assert.equal(f.run('doctor').status,0);
+});
+
+test('invalid explicit native source reports a payload gap without installing stale cached observer',t=>{
+ const f=fixture(t),stateFile=path.join(f.home,'fake.json'),state=JSON.parse(fs.readFileSync(stateFile));
+ state.plugins[0].readFromFolder='relative/source';write(stateFile,JSON.stringify(state));
+ const result=f.run('repair');assert.notEqual(result.status,0);
+ assert.match(result.stderr,/installed payload unavailable/);
+ assert.equal(fs.existsSync(path.join(f.home,'.claude/agents/sidkik-sdlc-observer.md')),false);
+ const doctor=f.run('doctor');assert.notEqual(doctor.status,0);
+ assert.ok(JSON.parse(doctor.stdout).gaps.some(gap=>gap.code==='sdlc-process'));
+});

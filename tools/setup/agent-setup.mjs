@@ -31,7 +31,15 @@ function command(cli,args,cwd,timeout=15000){const r=spawnSync(cli,args,{cwd,enc
 function list(client,cwd){const v=JSON.parse(command(client,['plugin','list','--json'],cwd));const a=client==='codex'?v.installed:v;if(!Array.isArray(a))throw new Error(`${client} plugin list returned an unsupported schema`);return a;}
 const id=(name)=>`${name}@${name==='codex'?'openai-codex':'sidkik-plugins'}`;
 function find(list,name,client){return list.find(p=>client==='grok'?p.name===name:(p.id||p.pluginId)===id(name));}
-function installedPath(p,client){return client==='claude'?p.installPath:client==='grok'?p.path:path.join(process.env.CODEX_HOME||path.join(os.homedir(),'.codex'),'plugins/cache/sidkik-plugins',p.name||p.pluginId.split('@')[0],p.version);}
+function installedPath(p,client){
+ if(client==='claude'){
+  // Native Claude reports the effective source override separately from its cache.
+  // An invalid explicit source stays a gap instead of reinstalling stale cache bytes.
+  if(p.readFromFolder!==undefined&&p.readFromFolder!==null)return typeof p.readFromFolder==='string'&&path.isAbsolute(p.readFromFolder)?p.readFromFolder:undefined;
+  return p.installPath;
+ }
+ return client==='grok'?p.path:path.join(process.env.CODEX_HOME||path.join(os.homedir(),'.codex'),'plugins/cache/sidkik-plugins',p.name||p.pluginId.split('@')[0],p.version);
+}
 function validatePayload(location,name,client){
  const manifest=path.join(location,client==='codex'?'.codex-plugin/plugin.json':'.claude-plugin/plugin.json');
  if(!fs.existsSync(manifest)||json(manifest).name!==name)throw new Error(`${name}: installed manifest missing or invalid`);

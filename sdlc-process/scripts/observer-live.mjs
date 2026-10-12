@@ -49,6 +49,47 @@ function symlinkEscapes(file, base = path.dirname(file)) {
   }
   return fs.realpathSync(current) !== path.join(fs.realpathSync(root), relative);
 }
+// Re-read fixed head/tail windows on refresh. This bounds I/O and retained JSON
+// while letting new appended activity enter the tail; skipped history stays partial.
+function readObserverSnapshot(file) {
+  const limit = 8 * 1024 * 1024;
+  const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK | (fs.constants.O_NOFOLLOW || 0));
+  try {
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile()) throw Error("Observer transcript must be a regular file.");
+    const windows = stat.size <= limit
+      ? [[0, stat.size]]
+      : [[0, limit / 2], [stat.size - limit / 2, limit / 2]];
+    const texts = [], ranges = [];
+    let bytesRead = 0, incompleteFinalRecord = false;
+    for (const [offset, length] of windows) {
+      const buffer = Buffer.alloc(length);
+      let count = 0;
+      while (count < length) {
+        const read = fs.readSync(fd, buffer, count, length - count, offset + count);
+        if (!read) break;
+        count += read;
+      }
+      bytesRead += count;
+      const bytes = buffer.subarray(0, count);
+      // A tail starts inside unknown history. Discard its first fragment and
+      // every incomplete final fragment before decoding UTF-8 or parsing JSON.
+      const start = offset ? bytes.indexOf(10) + 1 : 0;
+      const end = bytes.lastIndexOf(10) + 1;
+      if (offset + count === stat.size)
+        incompleteFinalRecord = count > 0 && bytes[count - 1] !== 10;
+      if (end > start) {
+        texts.push(bytes.subarray(start, end).toString("utf8"));
+        ranges.push({start: offset + start, end: offset + end});
+      }
+    }
+    const omittedBytes = stat.size - ranges.reduce((sum, r) => sum + r.end - r.start, 0);
+    return {texts, ranges, bytesRead, snapshotBytes: stat.size, omittedBytes,
+      incompleteFinalRecord, bounded: stat.size > limit};
+  } finally {
+    fs.closeSync(fd);
+  }
+}
 export function inspectTranscript(file, sessionId) {
   const out = {
     sessionId,
@@ -163,15 +204,22 @@ export function inspectTranscript(file, sessionId) {
     );
     try {
       if (symlinkEscapes(sub, path.dirname(file))) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: "Observer transcript symlink rejected."}); continue; }
-      const stat = fs.lstatSync(sub);
-      if (stat.isSymbolicLink() || stat.size > 8 * 1024 * 1024) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: "Observer transcript exceeds the 8 MiB limit or is a symlink."}); continue; }
-      const raw = fs.readFileSync(sub, "utf8");
-      const lines = raw.split("\n").filter(Boolean);
+      const snapshot = readObserverSnapshot(sub);
       const parsed = [];
       let malformed = 0;
-      for (const line of lines) { try { parsed.push(JSON.parse(line)); } catch { malformed++; } }
+      for (const raw of snapshot.texts)
+        for (const line of raw.split("\n").filter(Boolean)) {
+          try { parsed.push(JSON.parse(line)); } catch { malformed++; }
+        }
       const selected = observerRecords(parsed, sessionId, id);
-      sourceCoverage.push({taskId: id, coverage: malformed || (raw && !raw.endsWith("\n")) || !selected.length ? "partial" : "complete", malformedLines: malformed, reason: !selected.length ? "No matching native observer records." : null});
+      const partial = malformed > 0 || snapshot.omittedBytes > 0 || !selected.length;
+      const {texts, ...scan} = snapshot;
+      const reasons = [];
+      if (snapshot.bounded) reasons.push("Observer history sampled at whole-record boundaries within an 8 MiB head/tail scan; omitted history is unknown.");
+      if (snapshot.incompleteFinalRecord) reasons.push("Incomplete final observer record excluded until its newline arrives.");
+      if (!selected.length) reasons.push("No matching native observer records.");
+      sourceCoverage.push({taskId: id, coverage: partial ? "partial" : "complete",
+        malformedLines: malformed, ...scan, reason: reasons.join(" ") || null});
       const inputs = selected.filter(r => r.type === "user" && r.origin?.kind === "observer-activity");
       out.observerSources.push({taskId: id, records: selected});
       out.observerActivity = {
@@ -179,8 +227,8 @@ export function inspectTranscript(file, sessionId) {
         firstRecordedInputAt: inputs[0]?.timestamp || null,
         lastRecordedAt: selected.at(-1)?.timestamp || null,
         inputCount: inputs.length,
-        coverage: malformed ? "partial" : "recorded",
-        label: "recorded activity; not a heartbeat",
+        coverage: partial ? "partial" : "recorded",
+        label: partial ? "recorded activity in partial coverage; counts cover sampled records only; not a heartbeat" : "recorded activity; not a heartbeat",
       };
     } catch (error) { sourceCoverage.push({taskId: id, coverage: "unavailable", reason: error.code || error.message}); }
   }
