@@ -1,0 +1,35 @@
+{
+ "fixture": "observer-decision-f27",
+ "history": [
+  {
+   "role": "user",
+   "text": "Settled for refunds: partial refunds are allowed up to the captured amount, and we reuse the existing tenant-scoped idempotency key. Do not ask me about those again; build on them."
+  },
+  {
+   "role": "assistant",
+   "text": "Understood: partial refunds up to the captured amount, existing tenant-scoped idempotency key."
+  },
+  {
+   "role": "assistant",
+   "text": "Checking the provider behavior for the in-scope card types.",
+   "tool": {
+    "id": "toolu_01prov",
+    "name": "Bash",
+    "input": {
+     "command": "npm run probe:provider -- --card=debit-eu --partial-refund"
+    }
+   }
+  },
+  {
+   "result": {
+    "toolUseId": "toolu_01prov",
+    "content": "provider response 422: partial refunds are rejected for card type debit-eu (in scope for the launch markets)"
+   }
+  },
+  {
+   "role": "assistant",
+   "text": "New evidence contradicts the settled partial-refund decision for in-scope users: the provider rejects partial refunds on debit-eu, so those customers could not be refunded partially. Question for you: for debit-eu cards, should we fall back to full refunds or keep partial refunds unavailable? I am holding only the debit-eu refund path; the rest of the handler and the idempotency work continue."
+  }
+ ],
+ "digestFrom": 5
+}

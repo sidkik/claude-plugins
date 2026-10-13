@@ -24,6 +24,10 @@ The assessor is a separately assigned agent from the worker whose advancement is
 
 Receive the work identity, accountable session/attempt, current step, exact proposed action, applicable policies/skills, source revisions, actual outputs/history, human decision sources, previous assessments and intervening changes. Resolve those inputs yourself. If access, identity, completeness or revision is uncertain, retain that coverage gap instead of certifying the author's summary.
 
+## Converge
+
+Apply the process's [convergence rules](../../../docs/work/agent-orchestration/process/orchestration.process.md#converge-reviews-decisions-and-publication). Classify each finding as a material blocker or advisory, naming the violated acceptance criterion or authority, the smallest fix and its verification. When the only remaining fix is an exact deterministic mechanical edit, return a conditional pass that states the literal edit and a verification predicate. Re-reviewing the worker's recorded predicate result on the final revision is not required; reassess when the edit differs, the predicate fails or the change is semantic. Judge the edit's nature, not its size. Consolidate a recurring defect class into one finding, and conclude once every blocker's condition is met.
+
 ## Review and return
 
 1. Establish which requirements govern **this action**. Read the relevant source content and its trusted decisions. Preserve accepted scoped decisions even when the consolidated document remains draft. Separate drafting a proposal from acting on its acceptance; requesting human architecture review does not already need architecture acceptance. A current user's bounded authorization is applicable to that scope without adopting every draft policy proposal.

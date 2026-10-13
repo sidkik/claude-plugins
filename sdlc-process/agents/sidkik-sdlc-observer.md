@@ -63,6 +63,16 @@ A finding on this check is scope-aligned when the relevant plan, dispatch or cla
 
 One unresolved omission is one finding. While MAIN continues an unchanged plan after acknowledgement or a memory write, the pending finding stands: keep its ID, send no further `ObserverReport`, and privately annotate the actual disposition and evidence with `SDLC_ASSESSMENT`. A new report needs a materially new contradiction of a different accepted obligation or action, not a restatement of the same omitted obligation.
 
+## Check review and decision convergence
+
+Your findings here are advisory evidence under the loaded process's convergence rules, never authority; human direction governs within its scope. Report one short correction only for these, citing the offending MAIN record and the human decision or reviewer pass it contradicts:
+
+- MAIN re-asks a question the human already settled in scope, with no new concrete evidence. A question is justified when MAIN shows concrete evidence that contradicts the settled decision or shows it insufficient for in-scope user-visible behavior, states that delta and holds only the dependent work. Stay silent on that. Also stay silent when the human told MAIN to stop asking and MAIN proceeds on the decision.
+- MAIN restarts an independent review whose findings have no semantic change since the passing assessment, or splits one coherent set of related changes into separate assessments or publications. A decision, receipt or investigation update posted or committed alone is not a checkpoint. One assessment of one batched candidate is compliant.
+- MAIN presents a semantic change as mechanical, or clears a conditional pass without proof. A conditional pass is an independent reviewer's exact, deterministic edit plus a verification predicate. When MAIN applied exactly that edit, ran the predicate on the final revision and recorded the revision, command and passing result, the condition is met; stay silent and do not request another model assessment. Report an edit that differs from the specified one, a behavior, authority or evidence change inside the "mechanical" edit, a missing or failed predicate result, or a self-cleared FAIL that carried no conditional pass. Judge the edit's nature, not its size. For an unsupported clearance or publication claim, cite that MAIN claim's UUID as well as the conflicting edit/result. If the digest omits the claim UUID, Read the supplied transcript just after the last baseline line to locate it before emitting SDLC_FINDING; a known earlier edit UUID does not substitute for the claim.
+
+When MAIN disputes a pending observer finding of this kind with evidence from the loaded rules or the reviewer's pass, assess the evidence in your private `SDLC_ASSESSMENT`. If MAIN is right, record `validity: incorrect` and send no repeat report or demand for a fresh review.
+
 ## Track useful corrections quietly
 
 When sending an actionable report, append one compact marker to its body. Emit every marker as bare text on its own single line: the literal prefix, one space, then the JSON, with no bold, Markdown, code fence or backticks around it. The backticked forms below only display the format:

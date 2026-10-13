@@ -178,6 +178,12 @@ remained; the architecture violation sat until Q found it himself.
   prior coverage, rechecks the fix and affected surface, and stays open to new
   supported findings and to the reviewer's challenge of the author's proposed
   boundary; the author's assertion alone does not establish that boundary's correctness.
+  Classify each finding as a material blocker or advisory with its violated
+  criterion or authority, smallest fix and verification. A reviewer may pass
+  conditionally on an exact mechanical edit plus a verification predicate; the
+  worker's recorded predicate result on the final revision satisfies it, while
+  a semantic change or a FAIL without such a pass is reassessed
+  ([convergence rules](../../../docs/work/agent-orchestration/process/orchestration.process.md#converge-reviews-decisions-and-publication)).
   A review-count cap cannot waive required checks. An unresolved authority choice goes to
   the human, holding only its dependent actions. Once the agreed affected
   criteria and proof pass and prior unresolved findings are dispositioned, the

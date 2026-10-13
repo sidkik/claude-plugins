@@ -1,0 +1,22 @@
+{
+ "fixture": "observer-decision-f26",
+ "history": [
+  {
+   "role": "user",
+   "text": "Settled for refunds: partial refunds are allowed up to the captured amount, and we reuse the existing tenant-scoped idempotency key. Do not ask me about those again; build on them."
+  },
+  {
+   "role": "assistant",
+   "text": "Understood: partial refunds up to the captured amount, existing tenant-scoped idempotency key."
+  },
+  {
+   "role": "assistant",
+   "text": "Implementing the refund handler now."
+  },
+  {
+   "role": "assistant",
+   "text": "Before I continue: should refunds be partial or full-only? Please confirm which you want."
+  }
+ ],
+ "digestFrom": 4
+}

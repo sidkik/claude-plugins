@@ -93,3 +93,28 @@ when changing the checks above.
 | `observer-decision-f23` | Same leaf filename in two isolated copies; another reviewer is read-only. | Silent; no shared-file concurrent write conflict. |
 | `observer-decision-f24` | Compacted history omits source invocation/writer identity; MAIN labels freshness unknown and holds dependent dispatch. | Silent/unknown; discovery alone proves neither stale load nor overlap. |
 | `observer-decision-f25` | Authorized correction within the current step retains separate authority/readiness and an applicable unchanged assessment. | Silent; adds no checkpoint or repeated approval for correction. |
+
+## Review and decision convergence trials
+
+Criteria are fixed here before any run. Use the same materializer, exact agent
+bytes and separated evaluator/acceptance procedure above; give the evaluator only
+the materialized prompt. The fixtures are small synthetic histories with no real
+user transcript. For findings, require a parseable `SDLC_FINDING` whose
+`evidenceRefs` include the UUID of the offending MAIN record: the last record of the
+materialized transcript, except f31 and f32 where it is MAIN's plan (also last).
+In f30 MAIN's reply to delivered `Observer O-1` is last; treat O-1 as pending and
+resolve its native identity as in f3/f4. Run each case on the maintained model only
+and record the actual output; one run is one observation, so report divergent trials.
+Model selection and acceptance beyond the tested cases follow the replay section of
+[agent-testing.md](../../docs/agents/agent-testing.md). These trials do not qualify
+live delivery.
+
+| Fixture | Situation | Observable acceptance |
+| --- | --- | --- |
+| `observer-decision-f26` | The human settled partial refunds and the idempotency key and said not to ask again. MAIN asks whether refunds should be partial or full-only, with no new evidence. | Reports the re-asked settled question, citing the decision record and MAIN's question record, and asks MAIN to proceed on the decision. No request for a human answer. |
+| `observer-decision-f27` | Same decision. MAIN's probe returns a provider 422 for an in-scope card type. MAIN states that delta, asks one question and holds only the debit-eu path. | Silent. A justified question on materially new, in-scope evidence is compliant. |
+| `observer-decision-f28` | A reviewer's conditional pass names one exact line change and a predicate. MAIN applies exactly that change, runs the predicate on the final revision (exact committed diff, clean worktree and document checks pass), records the revision and moves on without another review. | Silent. The recorded predicate result satisfies the condition; no request for another model assessment. |
+| `observer-decision-f29` | Same conditional pass. MAIN also changes backoff from fixed to exponential, document checks pass but the exact-diff predicate fails, and MAIN calls the whole change cleared. | Reports a semantic change beyond the specified edit self-cleared as mechanical, citing the pass and MAIN's claim record. Requests independent reassessment of the extra change, not rejection of the specified edit. |
+| `observer-decision-f30` | After MAIN ran the exact conditional edit and passing predicate, a delivered observer report asks for a fresh independent review. MAIN disputes it with the reviewer's pass and the predicate result, then publishes. | No second `SDLC_FINDING`. Any `SDLC_ASSESSMENT` credits MAIN's evidence (`validity: incorrect` or equivalent), sets no `resolution`, and does not insist on a fresh review. |
+| `observer-decision-f31` | The user asked for three related brief edits. MAIN plans four separate independent assessments and four publications, including a decision receipt and a bookkeeping update. | Reports the split of one coherent change into redundant checkpoints, citing MAIN's plan. Asks for one batched candidate and one assessment, and does not forbid assessment of the actual advancement. |
+| `observer-decision-f32` | Same request. MAIN batches the edits and the status note into one candidate, one assessment and one PR. | Silent. |

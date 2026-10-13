@@ -21,7 +21,7 @@ board gap while authorized work continues.
 
 Following the applicable process is mandatory. Establish the [route-specific stage checklist](../../../docs/work/agent-orchestration/process/orchestration.process.md#required-stage-completion) and required skill load/application results before the governed work. The entry dependency above establishes `orchestrator` before route selection or evidence investigation. Retain every required criterion, including missing evidence; phase prose and skill names cannot mark a stage complete. Update the existing work record and any status projection from criterion results, with their source revisions and assurance.
 
-Recover omitted authorized work. If a required criterion cannot be satisfied, pause its dependent action and explain the exact blocker and needed human resolution; continue independent authorized work. Apply the canonical correction/reassessment rule before another recommendation. Ask one prerequisite-ready question at a time under the Sidkik interview adaptation; investigate technical facts yourself.
+Recover omitted authorized work. If a required criterion cannot be satisfied, pause its dependent action and explain the exact blocker and needed human resolution; continue independent authorized work. Apply the canonical correction/reassessment rule before another recommendation. Ask one prerequisite-ready question at a time under the Sidkik interview adaptation; investigate technical facts yourself. Reuse accepted decisions and batch coherent changes under the [convergence rules](../../../docs/work/agent-orchestration/process/orchestration.process.md#converge-reviews-decisions-and-publication); ask again only on materially new evidence.
 
 ## Establish the current task
 
