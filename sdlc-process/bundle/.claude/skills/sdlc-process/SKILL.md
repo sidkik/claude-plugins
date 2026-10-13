@@ -11,6 +11,12 @@ At continuation, a task pivot or dispatch, verify each applicable skill's loaded
 
 This skill connects the existing Pocock activities to the [canonical process](../../../docs/work/agent-orchestration/process/orchestration.process.md). It is the session entry procedure, not another planning methodology. Consult the [tracker configuration](../../../docs/agents/issue-tracker.md) and the process sections relevant to the current action. Reuse established context and unchanged sources; a new user turn does not restart session preparation or require rereading the entire process. For a read-only request to find the next work item, apply tracker ordering, ownership and availability checks, then report the candidate and evidence limits. Readiness/start and repair requirements become applicable when proposing or performing those actions; selecting an item alone neither requires those checks nor authorizes implementation.
 
+For recorded issue route/stage changes, stage finishes and read-only next-work
+requests, apply the canonical [repository board delegation](../../../docs/work/agent-orchestration/process/orchestration.process.md#repository-board-delegation).
+Resolve configuration in the delivery repository; the configured skill owns board
+facts and actions. Its absence does nothing; an unavailable invocation is a scoped
+board gap while authorized work continues.
+
 ## Required execution
 
 Following the applicable process is mandatory. Establish the [route-specific stage checklist](../../../docs/work/agent-orchestration/process/orchestration.process.md#required-stage-completion) and required skill load/application results before the governed work. The entry dependency above establishes `orchestrator` before route selection or evidence investigation. Retain every required criterion, including missing evidence; phase prose and skill names cannot mark a stage complete. Update the existing work record and any status projection from criterion results, with their source revisions and assurance.
