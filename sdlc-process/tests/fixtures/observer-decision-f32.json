@@ -1,0 +1,14 @@
+{
+ "fixture": "observer-decision-f32",
+ "history": [
+  {
+   "role": "user",
+   "text": "Update the refund brief: add the idempotency note, correct the criteria ID in section 3 and record today decision about partial refunds."
+  },
+  {
+   "role": "assistant",
+   "text": "Plan: these are related changes to one brief, so I will make all three edits plus the status note as one candidate, request one independent policy assessment of that candidate and publish it once as a single PR."
+  }
+ ],
+ "digestFrom": 2
+}

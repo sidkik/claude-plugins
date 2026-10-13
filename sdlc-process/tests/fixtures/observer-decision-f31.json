@@ -1,0 +1,14 @@
+{
+ "fixture": "observer-decision-f31",
+ "history": [
+  {
+   "role": "user",
+   "text": "Update the refund brief: add the idempotency note, correct the criteria ID in section 3 and record today decision about partial refunds."
+  },
+  {
+   "role": "assistant",
+   "text": "Plan: I will make these four edits and then request a separate independent policy assessment and a separate PR for each one: the idempotency note, the criteria ID fix, the decision receipt, and the status bookkeeping update. That is four assessments and four publications."
+  }
+ ],
+ "digestFrom": 2
+}
