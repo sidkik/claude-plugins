@@ -136,6 +136,10 @@ remained; the architecture violation sat until Q found it himself.
   independent Standards and Spec axes and paste its complete mandatory smell
   baseline into the Standards brief alongside repository standards. A tailored
   checklist supplements that contract; it cannot replace it.
+- **Resolve the delivery repository's review skills before dispatching any
+  review.** Apply the [repository review skills](../../../docs/work/agent-orchestration/process/orchestration.process.md#repository-review-skills)
+  section for configuration, reviewer-lane invocation, brief contents and holds;
+  it applies equally when a user invokes code-review directly.
 - **The reviewer loads the governing skill first** and reviews against
   its checklist — tests and self-reports verify OUTCOMES; skills define
   CONVENTIONS. A worker can be all-green and built wrong.
