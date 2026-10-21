@@ -236,6 +236,7 @@ class ProcessBundleTests(unittest.TestCase):
                          'A new call is supported only by an explicit reload requirement in the rules MAIN received, a changed source, or an invocation that is actually missing',
                          'A re-read of a source MAIN already invoked is not reading in place of invoking it'):
                 self.assertIn(rule, text, name)
+            self.assertIn('Do not pass `offset` to `Grep` when locating evidence: it skips matching output entries, never source lines', recipe, name)
             # The instructions must not hand the evaluator the scored target as an example.
             self.assertNotIn('SK-grilling', text)
             # The index covers invocation, not reads: read absence needs a whole-transcript search.
@@ -274,6 +275,19 @@ class ProcessBundleTests(unittest.TestCase):
             self.assertIn('A self-contained third-party or local skill carries no such markers', acquisition, name)
             self.assertIn('A pointer wrapper only tells MAIN to read a packaged source', acquisition, name)
             self.assertIn('require no separate `Read` of the packaged source and never ask for one', acquisition, name)
+            # A recorded prerequisite or status claim is assessed now; draft, unpushed, pending review or a later chance to object defer nothing.
+            claims = text[text.index('5. **Recorded claims.**'):text.index('Report when invocation')]
+            for rule in ('Assess now whether a prerequisite or status claim MAIN recorded is true',
+                         'A draft, an unpushed change, a pending review or a later chance for the human to object does not defer that check',
+                         'a recorded passed or not-applicable claim that depends on that choice is unsupported unless it cites the human\'s actual disposition',
+                         'reconciled to pending or to cite that disposition',
+                         'do not presume consent is absent',
+                         'This leaves drafting and proposals free, and a conditional step stays met where its own condition does not hold'):
+                self.assertIn(rule, claims, name)
+            self.assertIn('adherence or the truth of a recorded claim fails at the action', text, name)
+            # The claims rule carries no case identifiers or examples from the qualification session.
+            for case in ('w3', 'AC-16', 'SK-', 'D-813', 'grilling and domain'):
+                self.assertNotIn(case, claims, name)
             # The checkpoint explanation stays generic: it names no example of the scored step.
             checkpoint = text[text.index('## Skill checkpoint'):text.index('## Report')]
             self.assertNotIn('grill if needed', checkpoint.lower(), name)
