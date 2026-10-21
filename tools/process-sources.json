@@ -59,5 +59,113 @@
     "docs/work/agent-orchestration/items/core-gh-517-document-organization/source-navigation.research.md",
     "docs/work/agent-orchestration/items/core-gh-512-process-enablement/process-enablement.spec.md",
     "docs/work/agent-orchestration/items/core-gh-512-process-enablement/process-enablement.plan.md"
-  ]
+  ],
+  "composition": {
+    "adapter": "sdlc-process/SOURCE-ADAPTER.md",
+    "max_lines": 500,
+    "canonical_references": {
+      "docs/work/agent-orchestration/process/orchestration.process.md": "Canonical process. The entry and orchestrator direct sections by situation; sections are retained links, not inlined.",
+      "docs/work/agent-orchestration/process/planning-repository.process.md": "Planning storage and publication convention; read through work-artifacts before writing planning documents.",
+      "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md": "Canonical governed-context specification; only the policy checkpoint contract is bundled, and only into policy review.",
+      "docs/agents/sdlc/records.md": "Shared record, continuity and closeout procedure; sections are retained links.",
+      "docs/agents/issue-tracker.md": "Sidkik tracker mechanics; retained link."
+    },
+    "assets": {
+      ".agents/skills/ask-matt/SKILL.md": {
+        "inline": [
+          ".agents/skills/ask-matt/PHASE-BOUNDARIES.md"
+        ]
+      },
+      ".agents/skills/codebase-design/SKILL.md": {
+        "inline": [
+          ".agents/skills/codebase-design/DEEPENING.md",
+          ".agents/skills/codebase-design/DESIGN-IT-TWICE.md"
+        ]
+      },
+      ".agents/skills/diagnosing-bugs/SKILL.md": {
+        "inline": [
+          {
+            "path": ".agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh",
+            "as": "code",
+            "lang": "bash",
+            "reason": "The skill directs the agent to copy this template; it is not a Markdown link."
+          }
+        ]
+      },
+      ".agents/skills/domain-modeling/SKILL.md": {
+        "inline": [
+          ".agents/skills/domain-modeling/ADR-FORMAT.md",
+          ".agents/skills/domain-modeling/CONTEXT-FORMAT.md"
+        ]
+      },
+      ".agents/skills/prototype/SKILL.md": {
+        "inline": [
+          ".agents/skills/prototype/LOGIC.md",
+          ".agents/skills/prototype/UI.md"
+        ]
+      },
+      ".agents/skills/tdd/SKILL.md": {
+        "inline": [
+          ".agents/skills/tdd/mocking.md",
+          ".agents/skills/tdd/tests.md"
+        ]
+      },
+      ".agents/skills/triage/SKILL.md": {
+        "inline": [
+          ".agents/skills/triage/AGENT-BRIEF.md",
+          ".agents/skills/triage/OUT-OF-SCOPE.md"
+        ]
+      },
+      ".agents/skills/writing-for-agents/SKILL.md": {
+        "inline": [
+          ".agents/skills/writing-for-agents/SKILL-MECHANICS.md"
+        ]
+      },
+      ".claude/skills/sdlc-process/SKILL.md": {
+        "inline": [
+          {
+            "path": ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
+            "reason": "The session/harness boundary row directs this guidance as part of the flow."
+          }
+        ]
+      },
+      ".claude/skills/sdlc-policy-review/SKILL.md": {
+        "inline": [
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "policy-agent-checkpoints-across-the-process",
+            "reason": "The checkpoint contract every assessment applies."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+            "fragment": "converge-reviews-decisions-and-publication",
+            "reason": "Convergence rules the assessment applies."
+          }
+        ]
+      },
+      ".claude/agents/sdlc-policy-reviewer.md": {
+        "inline": [
+          {
+            "path": ".claude/skills/sdlc-policy-review/SKILL.md",
+            "reason": "The brief directs this procedure first; the reviewer has no other guaranteed way to load it."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "policy-agent-checkpoints-across-the-process",
+            "reason": "Required by the inlined policy-review procedure."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+            "fragment": "converge-reviews-decisions-and-publication",
+            "reason": "Required by the inlined policy-review procedure."
+          }
+        ]
+      }
+    },
+    "maintained": {
+      "tools/session-start/SKILL.md": {
+        "output": "skills/session-start/SKILL.md"
+      }
+    }
+  }
 }

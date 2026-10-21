@@ -2,9 +2,22 @@
 
 The bundle is a generated, revision-pinned distribution of shared instructions.
 Its source manifest records each upstream repository, commit and byte digest.
-Update the canonical source, then regenerate the package; edit wrappers only
-through the generator. Managed planning documents retain their canonical owner
-and become provenance-bearing snapshots in this distribution.
+Update the canonical source, then regenerate the package; native skills and
+agents are generated outputs and are never edited directly. Managed planning
+documents retain their canonical owner and become provenance-bearing snapshots
+in this distribution.
+
+Native skills and agents contain their instructions; they are not pointers. Each
+has the pinned source's frontmatter, its full pinned body, the supporting
+instruction and template files that body requires, and this contract.
+Invoking one loads all of that: the `Skill` result is the packaged source, so a
+separate read of the same file adds nothing and never substitutes for the
+invocation. Links that remain are not bundled: other skills (invoke them), and
+canonical process, specification and record documents under `bundle/`
+(read the sections the current action relies on). `native-composition.json`
+lists every asset's bundled files and retained links with sizes. Report a
+retained rule you needed but could not read as a scoped load gap; do not
+claim complete coverage of a rule you did not read.
 
 1. Establish the actual working repository and its Git remotes. Read its
    `AGENTS.md`/`CLAUDE.md`, configured `docs/agents/issue-tracker.md` when present,
@@ -32,7 +45,7 @@ and become provenance-bearing snapshots in this distribution.
    is an engineering plugin, use its canonical sources or exact installed bundle
    for those instructions. From any starting repository, route contributions to
    the plugin-owned sources to the owner's authorized checkout; generated bundles,
-   wrappers and agents remain distribution outputs.
+   native skills and agents remain distribution outputs.
    For Core's explicitly adopted migration, `sidkik/core-plugins` owns these
    engineering instructions under `core-engineering/source`. Legacy Core copies
    of migrated instructions cannot silently override that authority; report

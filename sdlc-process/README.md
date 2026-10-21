@@ -2,9 +2,9 @@
 
 This plugin packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
-review agent and a silent SessionStart metadata hook. Codex can discover native skill
-wrappers through its manifest or the portable setup's configured source pointers.
-Both hosts expose the same model-invocable wrappers under `skills/`, including
+review agent and a silent SessionStart metadata hook. Codex can discover the native skills
+through its manifest or the portable setup's configured source pointers.
+Both hosts expose the same model-invocable skills under `skills/`, including
 the Pocock workflows (ask-matt, grill-with-docs, handoff, implement, to-spec,
 to-tickets, triage, wayfinder), so the orchestrator invokes the selected flow
 from an ordinary request without a user slash command. Loading a flow grants no
@@ -121,7 +121,7 @@ Shared SDLC governing documents belong in Planning; engineering instructions and
 maintained governing references belong to their configured owner, including an
 engineering plugin where explicitly adopted. Edit plugin-owned sources in that
 owner's authorized checkout even when starting in a delivery repository. This
-plugin's source adapter is maintained here; its generated wrappers are not editable
+plugin's source adapter is maintained here; its generated skills and agents are not editable
 authority. Obtain the applicable review for source changes.
 
 For changes to this plugin's pinned bundle, commit the upstream source changes
@@ -145,6 +145,24 @@ stage criteria, update and test `sdlc-status/templates/routes.json` against that
 same canonical process revision before release; this generator does not infer
 criteria changes or silently certify a stale checklist. Run the setup's isolated
 fresh-home, repeat-install, update and relocation tests before claiming portability.
+
+Native skills and agents contain their instructions rather than pointing at them.
+For each pinned skill and the policy reviewer the generator writes the source's
+frontmatter byte-for-byte, then its full body, then the supporting instruction and
+template files the body requires, then the [source adapter](SOURCE-ADAPTER.md)
+contract, so invoking the skill loads all of it. What is bundled is an explicit
+policy, `composition` in `tools/process-sources.json`: each asset's `inline` list
+names files, or one section of a canonical document (`fragment`), and
+`canonical_references` names the documents that stay linked. Every local link
+must be bundled, be another skill or agent, or be a listed canonical reference;
+an unclassified link or an unlisted file in a skill's directory fails the build,
+so nothing is dropped silently. Separately invoked skills are never inlined into
+another skill. `native-composition.json` records, per asset, the bundled files,
+retained links with section sizes, invoked skills, digests and size flags (over
+500 lines is flagged, never truncated); the generator prints the same summary.
+Retained canonical process sections are not covered by invoking the skill; a
+required one that cannot be read is a scoped load gap. The adapter repeats in every
+pinned entry (about 6 KB), the cost of making each entry self-contained.
 
 The generator fails on unresolved required local links, hardcoded original-machine
 paths and output drift. It retains full selected skill directories including

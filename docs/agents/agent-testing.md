@@ -25,7 +25,9 @@ python3 tools/build-process.py --planning <planning-checkout> --core <core-check
 Find `<planning-checkout>` and `<core-checkout>` from `git worktree list` and the
 sibling checkouts of this repository (the tracker doc names `../planning`); the
 generator reads Git objects at the pinned commits in `tools/process-sources.json`.
-Run `--check` when the change touches generated bundle files.
+Run `--check` when the change touches generated bundle files, native skills or
+agents, or the `composition` policy. `tests/process_composition.py` checks the
+committed native files against a fresh composition without source checkouts.
 
 ## Behavioral replay
 
@@ -184,7 +186,19 @@ client session and read the transcript.
   discovery alone is not success.
 - Invocation alone does not satisfy the loading contract. Full loading also needs
   the complete packaged source read, plus the directed reference files relevant to
-  the work. Check each as its own requirement in the transcript.
+  the work. Check each as its own requirement in the transcript. The sdlc-process
+  native skills and the policy reviewer agent carry their pinned source, the
+  supporting files named in `composition` (`tools/process-sources.json`) and the
+  source adapter contract in the entry itself, so the `Skill` result (or the
+  agent's own definition) is that content: verify it by finding a bundled
+  marker, such as the `## Source adapter contract` heading and a bundled
+  dependency's heading, in the result record. A separate read of the same
+  bundled bytes is not needed. Links the entry retains (canonical process,
+  specification and record sections, other skills) are not covered by the
+  invocation; `sdlc-process/native-composition.json` lists them per asset, and
+  each one the work relies on still needs its own read. The shared process text
+  still says "full read of its packaged source"; until Planning changes it,
+  treat that wording as satisfied by the composed result for bundled content.
 - A tool call is not a successful result. Cite the result record, not only the
   call.
 - Use the client's documented CLI help for invocation flags; record the exact
