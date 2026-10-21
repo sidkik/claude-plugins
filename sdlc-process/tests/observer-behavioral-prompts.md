@@ -297,30 +297,10 @@ says that anything was loaded or followed, and a ledger that is not `complete` s
 claim of absence. The current distribution's rules are exercised by the concrete-payload
 control and the native integration check, not here.
 
-**Trial record (failures kept).** Each row is one run, graded from the transcript against the
-rules above; graders are not shown the table. Unrun digests are unrun.
-
-| Agent bytes | Model, medium | Episode | Outcome |
-| --- | --- | --- | --- |
-| Recorded session (`claude-haiku-5-5`) | recorded | all 310 digests | 0 `Read`, 9 reports: T4 and UA-2 caught in time; two clipped-read accusations, one "Reading one" rejection and stale repeats were false; T1 and T2 missed |
-| Unchanged maintained agent | Haiku, Sonnet | `w3` | T2 missed (0 `Read` by either); stopped at the deadline |
-| Unchanged maintained agent | Haiku, Sonnet | `fp1` | silent, 0 `Read`: no false clip claim, and no evidence acquired |
-| v1 (startup baseline read, checkpoint) | Haiku | `w3` | T2 missed; three reports that `work-artifacts` was never invoked were false (it was invoked at lines 588 and 1122, found only after reading a post-compaction suffix) |
-| v1 | Haiku | `fp1` | stopped at its first report (n92), a false attribution claim taken from the observer's own context |
-| v1 | Haiku | `cf1`, `nc1` | `cf1` held at "can't confirm" and never reported; `nc1` silent |
-| v2 (adds `Grep`) | Haiku | `w3` | found `work-artifacts` at 588; T2 missed; reports at n104, n126, n129 were false or unsupported; run ended at an off-fixture search of a live path |
-| v2 | Haiku | `fp1`, `cf1`, `nc1` | `fp1` stopped at n93 with two reports, the second retracting an unverified rule; `cf1` and `nc1` ended at off-fixture attempts, unrun after that |
-| v3 (embedded sources) | Haiku | all | terminated by instruction before completion; no result |
-| v5 (ledger design, rules only from MAIN's transcript) | Haiku, Sonnet | `cf1` | caught: Haiku at n191, Sonnet at n196, each citing the wrapper at line 2617 and the absent read |
-| v5 | Haiku, Sonnet | `nc1` | silent; Sonnet made no read or search at all |
-| v5 | Haiku, Sonnet | `fp1` | no clip claim; Haiku one and Sonnet two unrelated status and permission reports, judged unsupported |
-| v5 | Haiku, Sonnet | `w3` | T2 (the waived conditional grilling) missed by both; Haiku also sent an unsupported AC-16 report; Haiku wrote "I can't name an open choice" at n119 without searching for one |
-| v6 (adds acquisition completeness, waiver check) | Haiku, Sonnet | all | started, then stopped by the coordinator before results were graded |
-
-The first `w3` runs were graded against the superseded `to-spec` target (see the addendum); they
-remain failed against it, and none of the runs above met the corrected target. This table
-records only the pre-patch runs and claims no pass. Results for the candidate bytes are
-recorded in the PR.
+**Results.** Run results, every failure included, are recorded in the pull request that changes the observer,
+with the exact agent bytes, model, effort and client version, and the transcripts stay in scratch. They are not
+kept in this file, which claims no pass. Runs graded against the superseded `to-spec` target (see the addendum)
+stay failed against it.
 
 **Limits.** The replay episodes come from the one session that shaped this repair. They are a
 known regression, not evidence of generalization, and no held-out session exists. The hook context reaches this harness as a user-role block, not the

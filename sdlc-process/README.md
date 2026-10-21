@@ -38,7 +38,7 @@ fields, selects the observed MAIN only when no custom default agent conflicts,
 and preserves the user's model, tools, permissions, authentication and unrelated
 settings. The MAIN definition has an empty body so Claude retains its normal
 system prompt; the observer uses the explicit `claude-sonnet-5-5` model at
-`effort: medium` (a selection contingent on final qualification, see below) and can
+`effort: medium` and can
 only read, search the MAIN transcript and send native advisory reports. Observation
 is scoped to MAIN, with worker delegation unchanged.
 A narrowly matched `SubagentStart` hook passes native MAIN identity and a bounded
@@ -78,12 +78,10 @@ of that timestamp, not a live heartbeat. Installation alone is never activation
 evidence, and stopped or failed states require native evidence. This setup has
 no supported hot-attach path; start a fresh session after setup or repair. Earlier
 live tests, on an earlier revision, proved native report delivery, MAIN
-correction, model separation and silence on a compliant fixture. This revision's behavior
-was measured by replaying episodes of one recorded session and by a native wiring fixture;
-the recorded results and their limits are in the
-[agent testing procedure](../docs/agents/agent-testing.md) and the PR. The replay episodes are a
-known regression, not evidence that the observer generalizes, and no held-out session exists.
-No pass is claimed here: the model selection stays contingent on the final qualification run.
+correction, model separation and silence on a compliant fixture. How the current revision is evaluated is in the
+[agent testing procedure](../docs/agents/agent-testing.md); results for a given revision are recorded in
+the pull request that changes it, not here. The replay episodes come from one recorded session and are a
+known regression, not evidence of broad reliability, and no held-out session exists.
 
 Claude Code **2.1.285 misses the first interactive MAIN turn** during native
 observer initialization, even with correct setup. Doctor separates this

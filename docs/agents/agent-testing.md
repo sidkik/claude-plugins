@@ -41,18 +41,12 @@ Keep the maintained agent model until the affected behavioral comparison support
 a change. A replay result establishes only the tested cases, not live observation
 or another agent's fitness.
 
-The maintained observer selects `claude-sonnet-5-5` with explicit `effort: medium` (a documented
-subagent frontmatter field; the replay passes the same effort, and the foreground observer's
-effort is read from its own recorded API requests, never from a flag). This selection is contingent
-on the final qualification of these bytes and is not a pass claim. On the real-session episodes
-in the contract below, root's qualification of the preceding bytes reported Haiku 5.5 passing `w3`,
-`cf1` and `nc1` but failing `fp1` at digest 92 (a false claim that MAIN's read was clipped and a
-wrong commit-attribution claim taken from the observer's own context), and Sonnet 5.5 passing
-`w3`, `cf1` and `nc1` with its `fp1` run still in progress; the transcripts stay in scratch. The
-earlier ten-case replay comparison (both models met its acceptance table and both skipped the
-native delivery-identity read before the f3 assessment) is history for those synthetic cases
-only. Replay acceptance does not qualify live MAIN delivery. Grok supervisors and Codex
-forwarding agents retain Sonnet.
+The maintained observer is configured with `claude-sonnet-5-5` and explicit `effort: medium`, a documented
+subagent frontmatter field. The replay passes the same effort; the foreground observer's effort is read from
+its own recorded API requests, never from a flag. This is the configuration, not an acceptance claim: results
+for the exact bytes, with model, effort and client version, are recorded in the pull request that changes
+them, and replay results never qualify live MAIN delivery. Grok supervisors and Codex forwarding agents
+retain Sonnet.
 
 Cases and acceptance live in
 [observer-behavioral-prompts.md](../../sdlc-process/tests/observer-behavioral-prompts.md);
