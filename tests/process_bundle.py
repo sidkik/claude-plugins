@@ -248,6 +248,37 @@ class ProcessBundleTests(unittest.TestCase):
             # The failed pattern shape from the qualification run stays out of the instructions.
             self.assertNotIn('^.{0,400}', text)
 
+    def test_observer_instruction_boundaries_stay_exact(self):
+        """Focused source assertions for what the observer may rely on, say and claim."""
+        selection = json.loads((ROOT / 'tools/process-sources.json').read_text())
+        for name in ('tools/observer/agents/sdlc-observer.md', 'sdlc-process/agents/sidkik-sdlc-observer.md'):
+            text = (ROOT / name).read_text()
+            front = build.frontmatter(text)
+            self.assertRegex(front, r'(?m)^model: claude-sonnet-5-5$', name)
+            self.assertRegex(front, r'(?m)^effort: medium$', name)
+            # The excerpt intro names exactly what the extracts carry and claims no stage-completion rules.
+            intro = text[text.index('## Governing rules'):text.index('<!-- ', text.index('## Governing rules'))]
+            self.assertIn("the entry's mandatory-process rule (following the process is mandatory, phase prose cannot mark a stage complete, and how an unmet criterion is handled)", intro, name)
+            self.assertIn('They cover only these three sections', intro, name)
+            for claim in ('not-applicable result', 'an exception', 'stage-completion rules'):
+                self.assertNotIn(claim, intro, name)
+            self.assertEqual(len(selection['composition']['observer_extracts']), 3)
+            # Private reasoning and internal request records are never evidence.
+            self.assertIn('ignore them, use only the public MAIN text, tool calls and results, and never quote private reasoning or base a finding on it', text, name)
+            for private in ('`thinking`', '`redacted_thinking`', 'signatures', 'internal request records'):
+                self.assertIn(private, text, name)
+            # Completeness markers are a property of the Sidkik composed distribution, not of every skill.
+            acquisition = text[text.index('3. **Acquisition.**'):text.index('4. **Adherence.**')]
+            self.assertIn('for a Sidkik composed skill, confirm it is whole', acquisition, name)
+            self.assertIn('a Sidkik record without them is cut', acquisition, name)
+            self.assertIn('A self-contained third-party or local skill carries no such markers', acquisition, name)
+            self.assertIn('A pointer wrapper only tells MAIN to read a packaged source', acquisition, name)
+            self.assertIn('require no separate `Read` of the packaged source and never ask for one', acquisition, name)
+            # The checkpoint explanation stays generic: it names no example of the scored step.
+            checkpoint = text[text.index('## Skill checkpoint'):text.index('## Report')]
+            self.assertNotIn('grill if needed', checkpoint.lower(), name)
+            self.assertIn('A conditional step is required only where its own condition holds', checkpoint, name)
+
     def test_observer_reads_and_searches_but_never_edits_and_has_no_installed_path_placeholders(self):
         source = (ROOT / 'tools/observer/agents/sdlc-observer.md').read_text()
         generated = (ROOT / 'sdlc-process/agents/sidkik-sdlc-observer.md').read_text()

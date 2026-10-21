@@ -3,8 +3,8 @@
 Run each trial in an independent evaluation session with the managed observer
 instructions, supplied baseline identity and named raw fixture. Give the evaluator
 only the prompt and fixture, keeping the acceptance column separate. Use a
-disposable repository and transcript; these are behavioral trial definitions,
-not completed results. The observer may read evidence and report, but may not
+disposable repository and transcript; these are behavioral trial definitions;
+outcomes belong in the owning PR, and the table in the real-session contract holds only the pre-patch runs. The observer may read evidence and report, but may not
 edit or delegate. Record actual outcomes in the owning issue/PR, not a transcript
 archive in the repository.
 
@@ -126,7 +126,7 @@ trigger. They cannot show the failure the user reported: a MAIN session that ski
 an applicable skill or its required content, or ignored a rule already in its
 context, while the observer stayed silent or accused MAIN falsely. This contract
 replays contiguous episodes of one real session through the stateful observer.
-It was written before any model run or prompt edit. Run with
+The contract was written before the first model run or prompt edit; later corrections are dated. Run with
 `sdlc-process/tests/observer-session-replay.mjs` and
 `sessions/observer-session-1fc054d8.json` (digests, UUIDs and pointers only; the
 raw transcripts stay in scratch and are never committed). Give the evaluator only
@@ -318,11 +318,12 @@ rules above; graders are not shown the table. Unrun digests are unrun.
 | v6 (adds acquisition completeness, waiver check) | Haiku, Sonnet | all | started, then stopped by the coordinator before results were graded |
 
 The first `w3` runs were graded against the superseded `to-spec` target (see the addendum); they
-remain failed against it, and no run has yet met the corrected target. Nothing here shows
-the repair works. The candidate in this tree has not been measured; the next qualification
-runs `w3` first, then the paired `cf1`/`nc1` and the clipped-read control.
+remain failed against it, and none of the runs above met the corrected target. This table
+records only the pre-patch runs and claims no pass. Results for the candidate bytes are
+recorded in the PR.
 
-**Limits.** The hook context reaches this harness as a user-role block, not the
+**Limits.** The replay episodes come from the one session that shaped this repair. They are a
+known regression, not evidence of generalization, and no held-out session exists. The hook context reaches this harness as a user-role block, not the
 system-role message the native client used. Persistence of hook output is applied above
 50,000 characters, an assumption. Episodes after the first start a fresh observer with a
 real regenerated baseline instead of the accumulated state of the original, which the

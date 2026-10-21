@@ -72,12 +72,12 @@ test('native repair reuses registry, installs named plugins, configures footer a
 test('disabled companions repaired, unrelated disabled plugin preserved',t=>{const f=fixture(t);assert.equal(f.run('repair').status,0);const file=path.join(f.home,'fake.json'),s=JSON.parse(fs.readFileSync(file));s.plugins.find(p=>p.id.startsWith('grok-crew')).enabled=false;s.plugins.push({id:'unrelated@other',enabled:false});write(file,JSON.stringify(s));assert.equal(f.run('repair').status,0);const after=JSON.parse(fs.readFileSync(file));assert.equal(after.plugins.find(p=>p.id.startsWith('grok-crew')).enabled,true);assert.equal(after.plugins.find(p=>p.id==='unrelated@other').enabled,false)});
 test('bad settings schema is a blocker and preserves bytes',t=>{const f=fixture(t),config=path.join(f.home,'.claude/settings.json');write(config,'[]');const r=f.run('repair');assert.notEqual(r.status,0);assert.match(r.stderr,/settings|object/i);assert.equal(fs.readFileSync(config,'utf8'),'[]');metadataOnly(f.hook())});
 test('observer setup preserves permissions and unrelated environment',t=>{const f=fixture(t),config=path.join(f.home,'.claude/settings.json');write(config,JSON.stringify({permissions:{allow:['Read']},env:{EXISTING:'yes'}}));assert.equal(f.run('repair').status,0);const settings=JSON.parse(fs.readFileSync(config));assert.deepEqual(settings.permissions,{allow:['Read']});assert.equal(settings.env.EXISTING,'yes');assert.equal(settings.env.CLAUDE_CODE_EXPERIMENTAL_OBSERVER_AGENTS,'1');assert.equal(settings.agent,'sidkik-sdlc-observed-main');assert.equal(fs.readFileSync(path.join(f.home,'.claude/agents/sidkik-sdlc-observed-main.md'),'utf8'),fs.readFileSync(path.join(f.plugin,'agents/sidkik-sdlc-observed-main.md'),'utf8'))});
-test('observer repair installs the exact Haiku model without changing the chosen MAIN model',t=>{
+test('observer repair installs the exact Sonnet model at explicit medium effort without changing the chosen MAIN model or effort',t=>{
  const f=fixture(t),config=path.join(f.home,'.claude/settings.json');
  write(config,JSON.stringify({model:'claude-sonnet-5-5',effortLevel:'high'}));
  assert.equal(f.run('repair').status,0);
  const observer=fs.readFileSync(path.join(f.home,'.claude/agents/sidkik-sdlc-observer.md'),'utf8');
- assert.match(observer,/^model: claude-haiku-5-5$/m);
+ assert.match(observer,/^model: claude-sonnet-5-5$/m);assert.match(observer,/^effort: medium$/m);assert.doesNotMatch(observer,/haiku/i);
  // No installed-path placeholder is left for the observer to resolve, and it can search the MAIN transcript.
  assert.doesNotMatch(observer,/__SIDKIK_/);assert.match(observer,/^  - Read$/m);assert.match(observer,/^  - Grep$/m);
  const settings=JSON.parse(fs.readFileSync(config));assert.equal(settings.model,'claude-sonnet-5-5');assert.equal(settings.effortLevel,'high');

@@ -41,11 +41,18 @@ Keep the maintained agent model until the affected behavioral comparison support
 a change. A replay result establishes only the tested cases, not live observation
 or another agent's fitness.
 
-The maintained observer selects `claude-haiku-5-5` following the accepted matched
-ten-case replay comparison. Both models met the existing acceptance table, but
-both skipped the native delivery-identity read before the f3 assessment. That
-shared instruction-conformance gap remains; replay acceptance does not qualify
-live MAIN delivery. Grok supervisors and Codex forwarding agents retain Sonnet.
+The maintained observer selects `claude-sonnet-5-5` with explicit `effort: medium` (a documented
+subagent frontmatter field; the replay passes the same effort, and the foreground observer's
+effort is read from its own recorded API requests, never from a flag). This selection is contingent
+on the final qualification of these bytes and is not a pass claim. On the real-session episodes
+in the contract below, root's qualification of the preceding bytes reported Haiku 5.5 passing `w3`,
+`cf1` and `nc1` but failing `fp1` at digest 92 (a false claim that MAIN's read was clipped and a
+wrong commit-attribution claim taken from the observer's own context), and Sonnet 5.5 passing
+`w3`, `cf1` and `nc1` with its `fp1` run still in progress; the transcripts stay in scratch. The
+earlier ten-case replay comparison (both models met its acceptance table and both skipped the
+native delivery-identity read before the f3 assessment) is history for those synthetic cases
+only. Replay acceptance does not qualify live MAIN delivery. Grok supervisors and Codex
+forwarding agents retain Sonnet.
 
 Cases and acceptance live in
 [observer-behavioral-prompts.md](../../sdlc-process/tests/observer-behavioral-prompts.md);
@@ -102,6 +109,17 @@ write or extend them there before any model run or prompt edit.
 4. The recorded observer run is the baseline. Add a matched fresh run of the unchanged
    agent only for the first material miss, then the candidate on each model under
    comparison. This surface proves the episodes run, not live MAIN delivery.
+
+What the observer carries, so a run can be read against it: a startup index of the whole MAIN
+snapshot (`Skill` calls and results, skill-content records, compaction boundaries and the human's messages,
+with source lines, coverage and a completeness flag) that records what the transcript contains and never
+that anything was loaded or followed; three bounded excerpts of the process generated from the pinned
+sources (the entry's routing table, triage's steps with their conditional grilling step, and the entry's
+mandatory-process rule), with provenance, headings shifted and local links resolved to the upstream, so not
+the sources and not exact bytes; and `Read` plus a read-only `Grep` to recover anything else from the MAIN
+transcript. The replay episodes come from the one session that shaped this repair. They are a known
+regression, not evidence of generalization, and no held-out session exists. Qualification results for a
+candidate belong in the PR, with the exact bytes, model, effort and client version.
 
 ## Native integration
 

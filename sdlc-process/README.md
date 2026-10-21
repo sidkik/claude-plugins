@@ -37,9 +37,10 @@ because Claude's plugin-agent loader does not retain the experimental observer
 fields, selects the observed MAIN only when no custom default agent conflicts,
 and preserves the user's model, tools, permissions, authentication and unrelated
 settings. The MAIN definition has an empty body so Claude retains its normal
-system prompt; the observer uses the explicit `claude-haiku-5-5` model and can
-only read and send native advisory reports. Observation is scoped to MAIN, with
-worker delegation unchanged.
+system prompt; the observer uses the explicit `claude-sonnet-5-5` model at
+`effort: medium` (a selection contingent on final qualification, see below) and can
+only read, search the MAIN transcript and send native advisory reports. Observation
+is scoped to MAIN, with worker delegation unchanged.
 A narrowly matched `SubagentStart` hook passes native MAIN identity and a bounded
 public-record baseline to the observer, excluding internal metadata and reasoning.
 It reads snapshots up to 32 MiB and supplies up to 256 KiB of public records at
@@ -47,6 +48,12 @@ whole-record boundaries, marking exceeded limits and omitted public content.
 The observer consumes this baseline once, then reconciles subsequent digests,
 suppressing overlap conservatively. Targeted reads resolve specific gaps. Missing
 or truncated history stays unknown and cannot prove a prerequisite was skipped.
+The baseline also carries a startup evidence index built from the whole snapshot: `Skill` calls with their results, skill-content records, compaction boundaries and the
+human's messages, each with its source line, plus the line it covers and whether it is complete. It records what the
+transcript contains, never that anything was loaded or followed. The observer carries three bounded, generated excerpts
+of the process, each with its pinned source revision and digest: the entry's routing table, triage's steps with their
+conditional grilling step, and the entry's mandatory-process rule. They are excerpts, not the sources; the stage criteria and
+everything else is the skill text MAIN received, which the observer finds through the index and a read-only search.
 A native skill load is a `Skill` call and result plus the separate injected
 skill-content record after them; the baseline can omit that large record, which
 leaves delivery unknown. Claude re-attaches only the first 5,000 tokens of each
@@ -69,11 +76,14 @@ The status renderer shows `Observer: starting` from configuration and
 native observer record. `Seen` means native observer activity was recorded as
 of that timestamp, not a live heartbeat. Installation alone is never activation
 evidence, and stopped or failed states require native evidence. This setup has
-no supported hot-attach path; start a fresh session after setup or repair. Live
-tests proved native report delivery, MAIN
-correction, model separation and silence on a compliant fixture. They did not
-prove that every observer turn reads the packaged shared process sources; the
-prompt requires those reads when a finding relies on that process.
+no supported hot-attach path; start a fresh session after setup or repair. Earlier
+live tests, on an earlier revision, proved native report delivery, MAIN
+correction, model separation and silence on a compliant fixture. This revision's behavior
+was measured by replaying episodes of one recorded session and by a native wiring fixture;
+the recorded results and their limits are in the
+[agent testing procedure](../docs/agents/agent-testing.md) and the PR. The replay episodes are a
+known regression, not evidence that the observer generalizes, and no held-out session exists.
+No pass is claimed here: the model selection stays contingent on the final qualification run.
 
 Claude Code **2.1.285 misses the first interactive MAIN turn** during native
 observer initialization, even with correct setup. Doctor separates this
