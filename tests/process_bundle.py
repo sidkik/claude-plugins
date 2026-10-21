@@ -255,8 +255,8 @@ class ProcessBundleTests(unittest.TestCase):
         for name in ('tools/observer/agents/sdlc-observer.md', 'sdlc-process/agents/sidkik-sdlc-observer.md'):
             text = (ROOT / name).read_text()
             front = build.frontmatter(text)
-            self.assertRegex(front, r'(?m)^model: claude-sonnet-5-5$', name)
-            self.assertRegex(front, r'(?m)^effort: medium$', name)
+            self.assertRegex(front, r'(?m)^model: claude-opus-5-5$', name)
+            self.assertRegex(front, r'(?m)^effort: low$', name)
             # The excerpt intro names exactly what the extracts carry and claims no stage-completion rules.
             intro = text[text.index('## Governing rules'):text.index('<!-- ', text.index('## Governing rules'))]
             self.assertIn("the entry's mandatory-process rule (following the process is mandatory, phase prose cannot mark a stage complete, and how an unmet criterion is handled)", intro, name)

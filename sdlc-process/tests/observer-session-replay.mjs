@@ -251,7 +251,7 @@ export async function run(manifestFile,id,opts){
    // Stop at the first critical failure; later digests stay unrun.
    const stop=episode.stop||{};
    if(stop.onReport&&turn.reports.length){meta.stopped={digest:d.n,reason:'report in a control episode'};break}
-   if(stop.missBy===d.n&&!plan.some((p,i)=>p.n<=d.n&&reported[i])){meta.stopped={digest:d.n,reason:'target unreported by its deadline'};break}
+   if(stop.missBy===d.n&&!plan.some((p,i)=>p.n<=d.n&&reported[i])){meta.stopped={digest:d.n,reason:'no report by the target deadline; semantic grading required'};break}
   }
  }catch(e){
   child.kill('SIGKILL');await finish();

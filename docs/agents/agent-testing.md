@@ -41,7 +41,7 @@ Keep the maintained agent model until the affected behavioral comparison support
 a change. A replay result establishes only the tested cases, not live observation
 or another agent's fitness.
 
-The maintained observer is configured with `claude-sonnet-5-5` and explicit `effort: medium`, a documented
+The maintained observer is configured with `claude-opus-5-5` and explicit `effort: low`, a documented
 subagent frontmatter field. The replay passes the same effort; the foreground observer's effort is read from
 its own recorded API requests, never from a flag. This is the configuration, not an acceptance claim: results
 for the exact bytes, with model, effort and client version, are recorded in the pull request that changes

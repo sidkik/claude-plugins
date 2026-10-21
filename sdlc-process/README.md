@@ -37,8 +37,8 @@ because Claude's plugin-agent loader does not retain the experimental observer
 fields, selects the observed MAIN only when no custom default agent conflicts,
 and preserves the user's model, tools, permissions, authentication and unrelated
 settings. The MAIN definition has an empty body so Claude retains its normal
-system prompt; the observer uses the explicit `claude-sonnet-5-5` model at
-`effort: medium` and can
+system prompt; the observer uses the explicit `claude-opus-5-5` model at
+`effort: low` and can
 only read, search the MAIN transcript and send native advisory reports. Observation
 is scoped to MAIN, with worker delegation unchanged.
 A narrowly matched `SubagentStart` hook passes native MAIN identity and a bounded

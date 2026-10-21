@@ -128,7 +128,7 @@ test('native cost is the last cumulative total, never a sum of totals',async t=>
 });
 test('stop rules end an episode at its first critical failure and leave later digests unrun',async t=>{
  const control=await go(t,'c','report');assert.deepEqual(control.meta.stopped,{digest:2,reason:'report in a control episode'});assert.equal(turns(control.out).length,2);
- const miss=await go(t,'d','ok');assert.deepEqual(miss.meta.stopped,{digest:2,reason:'target unreported by its deadline'});assert.equal(turns(miss.out).length,2);
+ const miss=await go(t,'d','ok');assert.deepEqual(miss.meta.stopped,{digest:2,reason:'no report by the target deadline; semantic grading required'});assert.equal(turns(miss.out).length,2);
 });
 test('the maintained real-session manifest is sanitized, pinned and consistent',()=>{
  const file=path.join(import.meta.dirname,'sessions/observer-session-1fc054d8.json'),m=JSON.parse(fs.readFileSync(file,'utf8'));

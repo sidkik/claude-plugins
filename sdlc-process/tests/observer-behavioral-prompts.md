@@ -4,7 +4,7 @@ Run each trial in an independent evaluation session with the managed observer
 instructions, supplied baseline identity and named raw fixture. Give the evaluator
 only the prompt and fixture, keeping the acceptance column separate. Use a
 disposable repository and transcript; these are behavioral trial definitions;
-outcomes belong in the owning PR, and the table in the real-session contract holds only the pre-patch runs. The observer may read evidence and report, but may not
+outcomes belong in the owning PR. The observer may read evidence and report, but may not
 edit or delegate. Record actual outcomes in the owning issue/PR, not a transcript
 archive in the repository.
 
