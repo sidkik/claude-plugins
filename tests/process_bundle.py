@@ -3,6 +3,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -138,8 +139,78 @@ class ProcessBundleTests(unittest.TestCase):
             ('agents/sdlc-observed-main.md', 'agents/sidkik-sdlc-observed-main.md'),
             ('skills/sdlc-observer/SKILL.md', 'skills/sdlc-observer/SKILL.md'),
         ):
-            self.assertEqual((ROOT / 'tools/observer' / source).read_bytes(),
-                             (ROOT / 'sdlc-process' / destination).read_bytes())
+            expected = (ROOT / 'tools/observer' / source).read_bytes()
+            if source == 'agents/sdlc-observer.md':
+                # The only generated part is the governing-extracts block; everything else is the maintained source.
+                self.assertEqual(expected.count(build.EXTRACTS_MARKER), 1)
+                head, tail = expected.split(build.EXTRACTS_MARKER)
+                generated = (ROOT / 'sdlc-process' / destination).read_bytes()
+                self.assertTrue(generated.startswith(head) and generated.endswith(tail))
+                continue
+            self.assertEqual(expected, (ROOT / 'sdlc-process' / destination).read_bytes())
+
+    def test_observer_governing_rules_are_the_declared_pinned_sections_with_provenance(self):
+        """Locate each declared section independently of the generator, then check what the observer actually carries."""
+        selection = json.loads((ROOT / 'tools/process-sources.json').read_text())
+        planning = selection['sources']['planning']
+        manifest = {item['path']: item for item in json.loads((ROOT / 'sdlc-process/bundle/source-manifest.json').read_text())['files']}
+        generated = (ROOT / 'sdlc-process/agents/sidkik-sdlc-observer.md').read_text()
+        self.assertEqual(generated.count(build.EXTRACTS_BEGIN), 1)
+        self.assertEqual(generated.count(build.EXTRACTS_END), 1)
+        block = generated[generated.index(build.EXTRACTS_BEGIN):generated.index(build.EXTRACTS_END)]
+        self.assertNotIn('__SIDKIK_', generated)
+        wanted = {(e['path'], e['fragment']) for e in selection['composition']['observer_extracts']}
+        # The extracts are an explicit, reviewed choice: the routing table, triage's steps and the mandatory-process rule.
+        self.assertEqual(wanted, {('.claude/skills/sdlc-process/SKILL.md', 'compose-pocock-from-the-actual-situation'),
+                                  ('.agents/skills/triage/SKILL.md', 'triage-a-specific-issue-or-pr'),
+                                  ('.claude/skills/sdlc-process/SKILL.md', 'required-execution')})
+
+        def find_section(text, fragment):
+            lines, start, level = text.split('\n'), None, None
+            for index, line in enumerate(lines):
+                m = re.match(r'(#{1,6})\s+(.*?)\s*#*$', line)
+                if not m:
+                    continue
+                name = re.sub(r'\s+', '-', re.sub(r'[^a-z0-9 -]', '', m[2].lower()).strip())
+                if start is None and name == fragment:
+                    start, level = index, len(m[1])
+                elif start is not None and len(m[1]) <= level:
+                    return '\n'.join(lines[start:index]).rstrip('\n') + '\n'
+            self.assertIsNotNone(start, fragment)
+            return '\n'.join(lines[start:]).rstrip('\n') + '\n'
+
+        def plain(raw):
+            raw = re.sub(r'^#{1,6}[ \t]+', '', raw, flags=re.M)
+            return re.sub(r'\s+', ' ', re.sub(r'\[([^\]]+)\]\([^)\s]+\)', r'[\1]', raw)).strip()
+        for path, fragment in sorted(wanted):
+            raw = (ROOT / 'sdlc-process/bundle' / path).read_text()
+            body = find_section(raw[len(build.frontmatter(raw)):].lstrip('\n') if raw.startswith('---\n') else raw, fragment)
+            self.assertIn(plain(body), plain(block), f'{path}#{fragment} is not carried in full')
+            # Provenance names the pinned revision, the source file's digest and the excerpt's own digest.
+            marker = f"<!-- source: {planning['repository']} @ {planning['revision']} {path}#{fragment} sha256:{manifest[path]['source_sha256']} -->"
+            self.assertIn(marker, block)
+            self.assertIn('sha256:' + hashlib.sha256(body.encode()).hexdigest() + ';', block)
+            # Every local reference is kept and resolved to the pinned upstream file, never erased.
+            for text, target in re.findall(r'(?<!!)\[([^\]]+)\]\(([^\s)]+)\)', body):
+                if target.startswith(('http://', 'https://')):
+                    continue
+                resolved = path if target.startswith('#') else build.target_path(path, target)
+                pinned = f"[{text}]({planning['repository']}/blob/{planning['revision']}/" + build.quote(resolved)
+                self.assertIn(pinned, block, f'link target {target} was erased or left local')
+        self.assertNotRegex(re.sub(r'\]\(https?://[^)]*\)', ']()', block), r'\]\((?!\))')
+        # The text claims bounded excerpts with transformations; it never claims the sources or exact bytes.
+        self.assertIn('Bounded coverage:', block)
+        self.assertIn('headings shifted and local links resolved to the pinned upstream revision, text otherwise unchanged', block)
+        self.assertNotRegex(block.lower(), r'exact bytes|byte-for-byte|verbatim')
+        for rule in ('Bounded repo-backed idea', 'Grill (if needed).', 'cannot mark a stage complete'):
+            self.assertIn(rule, block)
+
+    def test_observer_reads_and_searches_but_never_edits_and_has_no_installed_path_placeholders(self):
+        source = (ROOT / 'tools/observer/agents/sdlc-observer.md').read_text()
+        generated = (ROOT / 'sdlc-process/agents/sidkik-sdlc-observer.md').read_text()
+        for text in (source, generated):
+            self.assertRegex(build.frontmatter(text), r'(?m)^tools:\n  - Read\n  - Grep\n(?!  - )')
+            self.assertNotIn('__SIDKIK_', text)
 
 
 if __name__ == '__main__':

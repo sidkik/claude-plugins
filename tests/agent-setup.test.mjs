@@ -78,6 +78,8 @@ test('observer repair installs the exact Haiku model without changing the chosen
  assert.equal(f.run('repair').status,0);
  const observer=fs.readFileSync(path.join(f.home,'.claude/agents/sidkik-sdlc-observer.md'),'utf8');
  assert.match(observer,/^model: claude-haiku-5-5$/m);
+ // No installed-path placeholder is left for the observer to resolve, and it can search the MAIN transcript.
+ assert.doesNotMatch(observer,/__SIDKIK_/);assert.match(observer,/^  - Read$/m);assert.match(observer,/^  - Grep$/m);
  const settings=JSON.parse(fs.readFileSync(config));assert.equal(settings.model,'claude-sonnet-5-5');assert.equal(settings.effortLevel,'high');
  assert.equal(f.run('doctor').status,0);
 });

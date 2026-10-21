@@ -319,6 +319,23 @@
       "tools/session-start/SKILL.md": {
         "output": "skills/session-start/SKILL.md"
       }
-    }
+    },
+    "observer_extracts": [
+      {
+        "path": ".claude/skills/sdlc-process/SKILL.md",
+        "fragment": "compose-pocock-from-the-actual-situation",
+        "reason": "the entry routing table that says which flow governs which situation; the rest of the entry is carried by the sdlc-process skill"
+      },
+      {
+        "path": ".agents/skills/triage/SKILL.md",
+        "fragment": "triage-a-specific-issue-or-pr",
+        "reason": "triage steps, including the conditional grilling and domain-modeling step; the rest of triage is carried by the triage skill"
+      },
+      {
+        "path": ".claude/skills/sdlc-process/SKILL.md",
+        "fragment": "required-execution",
+        "reason": "the rule that following the process is mandatory, that phase prose cannot mark a stage complete and how an unmet criterion is handled; the stage criteria themselves are carried by the sdlc-process skill"
+      }
+    ]
   }
 }

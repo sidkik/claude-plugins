@@ -75,6 +75,34 @@ add or change cases there, not here.
    and record trials that diverge: an earlier run that failed a case a later run
    passed is evidence of variance, not a pass for every old trial.
 
+### Real-session replay
+
+Use this when a failure came from a real MAIN session that fixtures cannot
+reproduce (clipped digests, a prefix-only baseline, intervening work, a user who
+catches the miss). The cases, deadlines and failure classes are the
+[real-session regression contract](../../sdlc-process/tests/observer-behavioral-prompts.md);
+write or extend them there before any model run or prompt edit.
+
+1. Copy the MAIN transcript, the observer transcript and the persisted baseline to
+   scratch as `main.jsonl`, `observer.jsonl` and `baseline.txt`. The manifest
+   `sdlc-process/tests/sessions/observer-session-1fc054d8.json` pins their
+   SHA-256 values and the digest stream; the driver refuses any other bytes. Raw
+   transcripts stay in scratch.
+2. `node sdlc-process/tests/observer-session-replay.mjs <manifest> <episode> --source <scratch> --agent <agent.md> --model <full model id> --out <new dir>`
+   replays one contiguous episode through a stateful `claude -p` observer; `--through N`
+   shortens it. Add `<manifest> report <run dir>` for read, report, marker and cost
+   facts. A client failure, off-fixture `Read` or isolation breach ends the run non-zero.
+   The observer's generated rule excerpts are replaced by the same sections from MAIN's own
+   records (manifest `historicalExtracts`), so a past session is never judged by present-day
+   rules; a manifest or agent that cannot supply them fails the run.
+3. Grade the transcript against the contract, never the markers alone: a missed target,
+   a report the delivered records contradict, or a retroactive rule application is a
+   fail even when every marker parses. Judge by the rules in force in the recorded
+   session. Record unrun digests as unrun.
+4. The recorded observer run is the baseline. Add a matched fresh run of the unchanged
+   agent only for the first material miss, then the candidate on each model under
+   comparison. This surface proves the episodes run, not live MAIN delivery.
+
 ## Native integration
 
 ### Board delegation acceptance plan
