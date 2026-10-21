@@ -3,7 +3,7 @@ name: grill-with-docs
 description: A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/grill-with-docs/SKILL.md sha256:fc6401cbf34f1f3b6cb5e97253e25671d822733fc3f985117fe0d162639abf61 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/grill-with-docs/SKILL.md sha256:fc6401cbf34f1f3b6cb5e97253e25671d822733fc3f985117fe0d162639abf61 -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 

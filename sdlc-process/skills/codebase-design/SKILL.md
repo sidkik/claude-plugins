@@ -3,7 +3,7 @@ name: codebase-design
 description: Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/codebase-design/SKILL.md sha256:2c20617f87ec8af6a434859f381b2f061a69b530444e74eb39e78bb016a6d1e2 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/codebase-design/SKILL.md sha256:2c20617f87ec8af6a434859f381b2f061a69b530444e74eb39e78bb016a6d1e2 -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 
@@ -122,7 +122,7 @@ Good interfaces make testing natural:
 The instructions above require the following pinned files. They are included here so this invocation loads them; separately invoked skills are not.
 
 <a id="bundled-agents-skills-codebase-design-deepening-md"></a>
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/codebase-design/DEEPENING.md sha256:f3dd099ce99289bd213914d8ee3e2429b78309c3957ca4583f7659551b1d53c1 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/codebase-design/DEEPENING.md sha256:f3dd099ce99289bd213914d8ee3e2429b78309c3957ca4583f7659551b1d53c1 -->
 
 ### Deepening
 
@@ -163,7 +163,7 @@ Third-party services (Stripe, Twilio, etc.) you don't control. The deepened modu
 - Tests should survive internal refactors, since they describe behaviour, not implementation. If a test has to change when the implementation changes, it's testing past the interface.
 
 <a id="bundled-agents-skills-codebase-design-design-it-twice-md"></a>
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/codebase-design/DESIGN-IT-TWICE.md sha256:8e740bf98446dbd4dfdc132ac4346d9a7eedaf93de6a495889171cf7f99f16bd -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/codebase-design/DESIGN-IT-TWICE.md sha256:8e740bf98446dbd4dfdc132ac4346d9a7eedaf93de6a495889171cf7f99f16bd -->
 
 ### Design It Twice
 

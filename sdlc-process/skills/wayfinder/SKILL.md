@@ -3,7 +3,7 @@ name: wayfinder
 description: Plan a huge chunk of work (more than one agent session can hold) as a shared map of decision tickets on your issue tracker, and resolve them one at a time until the way to the destination is clear.
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/wayfinder/SKILL.md sha256:2ea36721ad2dfc37ce68baa258ee5c83a6b63b4c3afcf2caacf5b003cf8082c2 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/wayfinder/SKILL.md sha256:2ea36721ad2dfc37ce68baa258ee5c83a6b63b4c3afcf2caacf5b003cf8082c2 -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 

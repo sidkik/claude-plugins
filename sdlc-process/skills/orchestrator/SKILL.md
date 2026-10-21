@@ -4,7 +4,7 @@ description: How the primary thread orchestrates agent work in this repo — ski
 when_to_use: Any multi-agent build — before writing the first dispatch brief, before accepting any agent report, before declaring any chunk done.
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .claude/skills/orchestrator/SKILL.md sha256:2bc1209e43d6acff56788a926299825b9c5765a83ab5049b9bf5053304d506ee -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .claude/skills/orchestrator/SKILL.md sha256:2bc1209e43d6acff56788a926299825b9c5765a83ab5049b9bf5053304d506ee -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 
@@ -388,7 +388,7 @@ settings; follow the user's explicit execution instructions.
 
 The instructions above require the following pinned files. They are included here so this invocation loads them; separately invoked skills are not.
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 docs/work/agent-orchestration/process/orchestration.process.md#converge-reviews-decisions-and-publication sha256:e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 docs/work/agent-orchestration/process/orchestration.process.md#converge-reviews-decisions-and-publication sha256:e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6 -->
 
 ### Converge reviews, decisions and publication
 
@@ -402,7 +402,7 @@ Convergence ends repeated work when its stated condition is met. It sets no nume
 - **Bound grilling here.** Grilling and grill-with-docs end when every prerequisite-ready human choice has an answer or a reported blocker. Check the decision record for a settled answer before each question. The imported skills stay unchanged; this adaptation sits above them.
 - **Observer.** The [advisory observer](#policy-agent-checkpoints-across-the-process) flags re-asked settled questions, semantic-free review restarts and publication churn. It accepts executed reviewer-specified mechanical verification and flags a semantic change presented as mechanical, a missing predicate result or an unsafe self-clear. Human direction governs within its scope.
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 docs/work/agent-orchestration/process/orchestration.process.md#local-runtime-environments-select-own-validate-and-clean-up sha256:e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 docs/work/agent-orchestration/process/orchestration.process.md#local-runtime-environments-select-own-validate-and-clean-up sha256:e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6 -->
 
 ### Local runtime environments: select, own, validate and clean up
 
@@ -417,13 +417,13 @@ This section owns the process rules for work that needs a live local Tilt enviro
 
 Readiness control 5 and RS-2 rely on the discovered allocation, not on an environment name or a recorded label.
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 docs/agents/sdlc/records.md#retain-local-environment-custody sha256:62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 docs/agents/sdlc/records.md#retain-local-environment-custody sha256:62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934 -->
 
 ### Retain local environment custody
 
 When work allocates a live local runtime environment, its rules live in the [local environment process](#local-runtime-environments-select-own-validate-and-clean-up). Keep one entry in the existing work record: owner, checkout and revision, environment name, target and namespace, services, the immutable ownership identifiers the tool reports, and status (running, stopped, retained). Take the values from the tool's inspection output rather than memory, and update the entry at create, pause/resume, handoff and cleanup. The entry is a recovery pointer, not authority to delete: the recipient of a handoff inspects the environment and acknowledges custody before acting on it, and a session exit leaves the resource and its entry in place.
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 docs/agents/sdlc/records.md#finish-triage-and-clean-up-the-workspace sha256:62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 docs/agents/sdlc/records.md#finish-triage-and-clean-up-the-workspace sha256:62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934 -->
 
 ### Finish triage and clean up the workspace
 
@@ -449,7 +449,7 @@ receipt; an unresolved triage or active handoff is a continuation, not cleanup
 permission. Reuse existing authority for routine cleanup, and report the resulting
 branch/checkout state rather than waiting for the user to request it.
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 docs/work/agent-orchestration/process/planning-repository.process.md#publish-a-reviewable-checkpoint sha256:b7e354fac2120e8e7b2e81e4144baf7d33402ecd6653b815cae3b1e0027d7442 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 docs/work/agent-orchestration/process/planning-repository.process.md#publish-a-reviewable-checkpoint sha256:b7e354fac2120e8e7b2e81e4144baf7d33402ecd6653b815cae3b1e0027d7442 -->
 
 ### Publish a reviewable checkpoint
 
@@ -462,7 +462,7 @@ branch/checkout state rather than waiting for the user to request it.
 
 Use meaningful checkpoints, not a PR per message. Batch coherent brief or spec changes into one candidate; decisions, bookkeeping and investigation updates ride with it and are not independent checkpoints merely because they are committed or posted. This governs step 3: assess the batched candidate once. When that assessment is a conditional pass on an exact mechanical edit, applying the edit and recording the verification predicate on the final revision satisfies the condition, so push that revision without a second assessment; any other change to the candidate needs reassessment under the [convergence rules](#converge-reviews-decisions-and-publication). An unresolved candidate can remain in its open PR while review proceeds; publish coherent drafts early so long investigations do not require a permanent shared branch. Initial setup must give document PRs appropriate checks and validate actual merge/identity rules. Current Core CI and shared human credentials are not proof that this path is already configured.
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 docs/work/agent-orchestration/workstreams/context/governed-context.spec.md#policy-agent-checkpoints-across-the-process sha256:91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 docs/work/agent-orchestration/workstreams/context/governed-context.spec.md#policy-agent-checkpoints-across-the-process sha256:91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9 -->
 
 ### Policy-agent checkpoints across the process
 

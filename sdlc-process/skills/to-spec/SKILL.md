@@ -3,7 +3,7 @@ name: to-spec
 description: "Turn the current conversation into a spec and publish it to the project issue tracker: no interview, just synthesis of what you've already discussed."
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/to-spec/SKILL.md sha256:13c5b992d278aa49f366e6baa8acf76e99e130e7a80ca9b813ff20ff9528e617 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/to-spec/SKILL.md sha256:13c5b992d278aa49f366e6baa8acf76e99e130e7a80ca9b813ff20ff9528e617 -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 

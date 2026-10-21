@@ -3,7 +3,7 @@ name: ask-matt
 description: Ask which skill or flow fits your situation. A router over the skills in this repo.
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/ask-matt/SKILL.md sha256:57ed70ddf3ac8bc89a60f9082e59102c0d84b41e56e11372a13d79d195976155 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/ask-matt/SKILL.md sha256:57ed70ddf3ac8bc89a60f9082e59102c0d84b41e56e11372a13d79d195976155 -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 
@@ -97,7 +97,7 @@ Off the main flow entirely.
 The instructions above require the following pinned files. They are included here so this invocation loads them; separately invoked skills are not.
 
 <a id="bundled-agents-skills-ask-matt-phase-boundaries-md"></a>
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/ask-matt/PHASE-BOUNDARIES.md sha256:a8aa20158609ef39e2b308b6ba0660c91066838d07a867202e63a7744a88a3ed -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/ask-matt/PHASE-BOUNDARIES.md sha256:a8aa20158609ef39e2b308b6ba0660c91066838d07a867202e63a7744a88a3ed -->
 
 ### Phase boundaries
 

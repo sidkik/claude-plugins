@@ -3,7 +3,7 @@ name: triage
 description: Move issues and external PRs through a state machine of triage roles, categorise, verify, grill if needed, and write agent-ready briefs.
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/triage/SKILL.md sha256:fd50291e5a0868acea60e211f48b1156feafb072a5f330e070cca65db98d458e -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/triage/SKILL.md sha256:fd50291e5a0868acea60e211f48b1156feafb072a5f330e070cca65db98d458e -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 
@@ -119,7 +119,7 @@ If prior triage notes exist on the issue or PR, read them, check whether the rep
 The instructions above require the following pinned files. They are included here so this invocation loads them; separately invoked skills are not.
 
 <a id="bundled-agents-skills-triage-agent-brief-md"></a>
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/triage/AGENT-BRIEF.md sha256:7f5f87fed3033df1b06e083c480f3e847b1fbb0647746b8a4c6a50f9f26ef44f -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/triage/AGENT-BRIEF.md sha256:7f5f87fed3033df1b06e083c480f3e847b1fbb0647746b8a4c6a50f9f26ef44f -->
 
 ### Writing Agent Briefs
 
@@ -330,7 +330,7 @@ This is bad because:
 - No description of current vs desired behavior
 
 <a id="bundled-agents-skills-triage-out-of-scope-md"></a>
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/triage/OUT-OF-SCOPE.md sha256:1fbf9b432130c6380aa65813b55553cfda150309b27c595e183f8e335b8a190d -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/triage/OUT-OF-SCOPE.md sha256:1fbf9b432130c6380aa65813b55553cfda150309b27c595e183f8e335b8a190d -->
 
 ### Out-of-Scope Knowledge Base
 

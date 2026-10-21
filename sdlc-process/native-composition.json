@@ -11,13 +11,13 @@
       "path": "agents/sdlc-policy-reviewer.md",
       "kind": "agent",
       "source": ".claude/agents/sdlc-policy-reviewer.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "77b85e538a9ffe8a29a0cea5f0a809ddd0df4fb2414af10289d4b91000607636",
       "frontmatter_sha256": "c367cc5b4eb6f6721fd221b3603611e377911097bda03a99fb3fdbff1494d3e0",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 169975,
       "lines": 1028,
-      "sha256": "cce8b9d2d2951e52fa6e7a11125aede10b6f8fc052aaa5d7923be028b9642d6f",
+      "sha256": "33ffe35922f4a7a92faa17e5d714ac2ac877c20c4861b8be1a06dd5665a4da01",
       "inlined": [
         {
           "path": ".claude/skills/sdlc-policy-review/SKILL.md",
@@ -101,7 +101,7 @@
       "cited_sources": [
         {
           "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
-          "url": "https://github.com/sidkik/planning/blob/09243483254a746e1fef504f1e5ad959d484eaa3/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "url": "https://github.com/sidkik/planning/blob/dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
           "file_bytes": 55905,
           "carried_bytes": 28845,
           "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
@@ -115,13 +115,13 @@
       "path": "skills/ask-matt/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/ask-matt/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "57ed70ddf3ac8bc89a60f9082e59102c0d84b41e56e11372a13d79d195976155",
       "frontmatter_sha256": "5f5dbf21160d3a02d91fce9f95b7891c817b5e8a178097caa74061d839334b60",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 22604,
       "lines": 245,
-      "sha256": "983a30eaa260dea71d487016b95fa20801f8ed405d25c4eed1f12a0d48d778f1",
+      "sha256": "f07276f8f2b6a6d1c7cec11b737bcfeb614a14748bc3cbb8895d1e4c95ddac67",
       "inlined": [
         {
           "path": ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
@@ -140,13 +140,13 @@
       "path": "skills/code-review/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/code-review/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "47f4e52c21694def9c7c11cbfbf891ca35eac7a93e395797515be3c8a409ae50",
       "frontmatter_sha256": "17f57de7e31fc9fe1cc5467029bae545fa53544c73a562be3db175c85d06715e",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 13059,
       "lines": 180,
-      "sha256": "69a54fc368f217a33294a4f13411da6dc3074d4195db3ecb787833f52c7a1150",
+      "sha256": "5cf0a742e7d9da38100220d9f98baa08c4e0fd94038589886d8f268b98f0683a",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -158,13 +158,13 @@
       "path": "skills/codebase-design/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/codebase-design/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "2c20617f87ec8af6a434859f381b2f061a69b530444e74eb39e78bb016a6d1e2",
       "frontmatter_sha256": "b25b3572a11783daa31d93d98137c0903646680bec562f9bb4de88580f7ce63d",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 19107,
       "lines": 300,
-      "sha256": "318523787e978a1eb3614fc5dbf414bece28def96d061c279241bd597e6248d3",
+      "sha256": "12f61a35ced3ae3294ff784d72ccd9c58c96a041e2284396ce36ae026fedb585",
       "inlined": [
         {
           "path": ".agents/skills/codebase-design/DEEPENING.md",
@@ -189,13 +189,13 @@
       "path": "skills/diagnosing-bugs/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/diagnosing-bugs/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "77f3cf31bc99b2f49af943222526531fcc9fc41d047626d3640e875e85af3e84",
       "frontmatter_sha256": "bc1b5646541f0a544ba94d0835295fea5fa40ce5486d3339ae99b5b6e003ee9e",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 16866,
       "lines": 287,
-      "sha256": "ba0ee1dac894728f86c3f6c7534d88e033f50bb7e1d673d83ef1b3904c1eb735",
+      "sha256": "ac9385962792b355243a9c7c44d531d53ace43557ed3b132fe894343105d530a",
       "inlined": [
         {
           "path": ".agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh",
@@ -215,13 +215,13 @@
       "path": "skills/domain-modeling/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/domain-modeling/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "327a2b50620e2fd70abc6893cd6965e76b20f8d0adb0dc2c8d5eb3845efb643e",
       "frontmatter_sha256": "5a45c253ee19296c097f199f9dd44b4e58a56ceb1120b34b7b9029b5d15f7794",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 15671,
       "lines": 286,
-      "sha256": "f4b935921ac79bfdcca0d5be02792aedef14aa2b3c6cc714aa07191d778f0f29",
+      "sha256": "26d8a07962707325fb770fc17a82b3025de2e2d4f91e54e3e5a3db2cafac0a7a",
       "inlined": [
         {
           "path": ".agents/skills/domain-modeling/ADR-FORMAT.md",
@@ -246,13 +246,13 @@
       "path": "skills/grill-with-docs/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/grill-with-docs/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "fc6401cbf34f1f3b6cb5e97253e25671d822733fc3f985117fe0d162639abf61",
       "frontmatter_sha256": "03a2e52d78d213a3e3f4e7568fa66c7bc6113ee774c7c5a60fa33178491e6416",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 6690,
       "lines": 99,
-      "sha256": "8aa2ac1acd64094d2d6e967d46dd45bf33878548b6b1556ad8c3d59b6f25091c",
+      "sha256": "7c5682ca7bf5f79b48bcd3462b86fcda1bba55221fe3a352ac1c3f2708ed3cf2",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -264,13 +264,13 @@
       "path": "skills/grilling/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/grilling/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "10ff989e7498b23b5acb49d5048f11dcd906757d2f79c5cdf8a00001381296f2",
       "frontmatter_sha256": "b338f30a98983521f90c77c0b80e7c44506dcfdd62a3d6480de311cd2d353818",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 8454,
       "lines": 121,
-      "sha256": "396e6da33bd7c3677c4a2f828677ef1c7893cb555a062fca10df3c3669bd9dc4",
+      "sha256": "1b6fd1958a4aff0ee35451ec9cab5001a2a37b4859887b90d6bfea3e026f1860",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -282,13 +282,13 @@
       "path": "skills/handoff/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/handoff/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "33a8209a74d36c5280e1699f5bc54a313a60671a3599a5c2c8ab8ce327451555",
       "frontmatter_sha256": "d345b2fd25e370cb1d723ff66f0b7fee300b34793c0aff05af6acdab2f0e186a",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 7329,
       "lines": 108,
-      "sha256": "bd3f3d906c187cf35c0d30a2af46f55170f9e25f45ab1f89cd15d09e533664f8",
+      "sha256": "4c25cb6872abe657d0385eeb98fdc6a27e483128e8645389f2234e1b8014d7e6",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -300,13 +300,13 @@
       "path": "skills/implement/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/implement/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "dc27831f466b865bf9e95f28c9361e9e99d59bcfb72a9585aa49a6829b3de3f8",
       "frontmatter_sha256": "a19979727ea9c0073806fd572ad45b042fa01bfeebcaf13c8ae00cdb9045e8d0",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 6870,
       "lines": 107,
-      "sha256": "a93f9867ecc0e2cb05ee617daa75d8bcde6cdc4d54621f787279584f9cf04cb8",
+      "sha256": "7b1e97e8f24e9e56378023bd73e166666cd464eb87ed973f799c968e86da5021",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -318,13 +318,13 @@
       "path": "skills/orchestrator/SKILL.md",
       "kind": "skill",
       "source": ".claude/skills/orchestrator/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "2bc1209e43d6acff56788a926299825b9c5765a83ab5049b9bf5053304d506ee",
       "frontmatter_sha256": "538cb11b2939c98fad34eb16e74af0b918c66b8427baf37a2025a60f68a5d3bd",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 57986,
       "lines": 616,
-      "sha256": "9457e04c817163c66699ee6bda64bf6d1d3f831b2384498b269a4dbefdc99255",
+      "sha256": "153dd794416baf59279f018e3085e65100ed4d3e6f165f7f9c801db156036eac",
       "inlined": [
         {
           "path": "docs/work/agent-orchestration/process/orchestration.process.md",
@@ -383,13 +383,13 @@
       "path": "skills/prototype/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/prototype/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "714de632d116bb73f65cdb5a882db15b9369a6713b9a47c0fad827848f0bfbe3",
       "frontmatter_sha256": "5644156a5ae159cd7d20b28ee47ad03b91c5e74ed28e6f439a1f88f69baca559",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 23215,
       "lines": 310,
-      "sha256": "d733ebf65fba5601d3c16d9ba460147d2a7140a5741f32ff1fa1de3dbbd152d9",
+      "sha256": "1aaddd6af561861ade126e72a003f270840059c7e23362191417a96553cf9c71",
       "inlined": [
         {
           "path": ".agents/skills/prototype/LOGIC.md",
@@ -414,13 +414,13 @@
       "path": "skills/research/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/research/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "985569f15739c713d6784887c3d186d4ef9ac85bec5ad9c068d25bf0739928e4",
       "frontmatter_sha256": "19667cf52f1dfba9a563ee347080d7f8d4d9cd55fa95357ec87598374db4740c",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 7261,
       "lines": 105,
-      "sha256": "edee9881e39ad62fe38ce69cf994c4eb3ec139c9092c68e969d6ef58915b99ca",
+      "sha256": "2efe8e12da5d3ef7c49c007106940608863c7afa202ca4eb8d0c2eef9f60bde6",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -450,13 +450,13 @@
       "path": "skills/sdlc-policy-review/SKILL.md",
       "kind": "skill",
       "source": ".claude/skills/sdlc-policy-review/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "9204acd7c57222c3038eeddde98fc30c0245fdd543961b7b7c5961c610102bc7",
       "frontmatter_sha256": "e5a541c85543c0d546cb35a24b96ebf3f6b08d12a505938a8726f34df6b3f476",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 168724,
       "lines": 1018,
-      "sha256": "203d59ad1971da2d8cea53d9f6da80f4cc4863a93814c96c74b2d6d59ed2f382",
+      "sha256": "c8f30b4e9dc30baab961c9185cd7342989b0f55623f059adb4b4b3d41b676951",
       "inlined": [
         {
           "path": "docs/work/agent-orchestration/process/orchestration.process.md",
@@ -534,7 +534,7 @@
       "cited_sources": [
         {
           "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
-          "url": "https://github.com/sidkik/planning/blob/09243483254a746e1fef504f1e5ad959d484eaa3/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "url": "https://github.com/sidkik/planning/blob/dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
           "file_bytes": 55905,
           "carried_bytes": 28845,
           "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
@@ -548,13 +548,13 @@
       "path": "skills/sdlc-process/SKILL.md",
       "kind": "skill",
       "source": ".claude/skills/sdlc-process/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "b220392a9ea2273a43456d481126a28965cc47e7b65815b0bfe2c0681cbcf6eb",
       "frontmatter_sha256": "4ace79cc8c9eef559411721332bb0d9cd23936dc404bbfdce8f8205441c11d59",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 185319,
       "lines": 1098,
-      "sha256": "68e7706ea53621fe169f32ae0fdf8fa4a2c3a1ceca6f0ecfbe5e390a5c43f31c",
+      "sha256": "e638011f88e840af1fff450d527e7d3f224ffc589a38160c22cb2a12ff9dd85c",
       "inlined": [
         {
           "path": ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
@@ -639,7 +639,7 @@
       "cited_sources": [
         {
           "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
-          "url": "https://github.com/sidkik/planning/blob/09243483254a746e1fef504f1e5ad959d484eaa3/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "url": "https://github.com/sidkik/planning/blob/dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
           "file_bytes": 55905,
           "carried_bytes": 28845,
           "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
@@ -673,13 +673,13 @@
       "path": "skills/tdd/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/tdd/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "cb01f66bebfaa25fa1f88e6b7e769cd9fd9f35b1120b8563749820738814c927",
       "frontmatter_sha256": "18f3c53c39a963a812db738c48d8f51417e69c4e93a5e4a3f55ea8f07048880a",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 14447,
       "lines": 279,
-      "sha256": "c1115d9456a83dade85513da45b9b94cb99594c235b5a503624861e6ef868d3d",
+      "sha256": "672e2a6cf71744542912171c06b1008a517bf8d357a17f923a3b5158b20596b9",
       "inlined": [
         {
           "path": ".agents/skills/tdd/mocking.md",
@@ -704,13 +704,13 @@
       "path": "skills/to-spec/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/to-spec/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "13c5b992d278aa49f366e6baa8acf76e99e130e7a80ca9b813ff20ff9528e617",
       "frontmatter_sha256": "0e19d6ade8b04f20009be74e678ff616dee06e582be33140f1a9d1227e779d30",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 9478,
       "lines": 167,
-      "sha256": "f6422baa4cf392f47bb2a7d592512973626ce78fd4129fb6fed8714b22ef60c4",
+      "sha256": "0af508b6e67383cfa5f9e40b90da3fdff1f546c603ac1ca8edf6f748a7d1286e",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -722,13 +722,13 @@
       "path": "skills/to-tickets/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/to-tickets/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "611ff3528bbf210d964c794f1994c0343b03e27be9bacc70794727d1104a7f06",
       "frontmatter_sha256": "346d20e47a2a1609357228798b4eeacd45b150991437cff297949f6aa86e46ca",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 12109,
       "lines": 197,
-      "sha256": "23785e0feff49efac01277ec554f176226116c2b719c1a60490edec65b283037",
+      "sha256": "f701ad48f54ef9fd6b28f208997486bc8ebbbea85abc68f73dc3c523927b661e",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -740,13 +740,13 @@
       "path": "skills/triage/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/triage/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "fd50291e5a0868acea60e211f48b1156feafb072a5f330e070cca65db98d458e",
       "frontmatter_sha256": "463131800e2568b32da78e1f19fd0baa67cc057d9de69ccae2cd3def3f99468b",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 26519,
       "lines": 528,
-      "sha256": "23c9f6bdfd38c0009ac3447990bbb6e4519c5cf3c9b724c3165b2f04213594f4",
+      "sha256": "d51766b664235342303d5b0e6dd63957396cca9280c4addb6cdae8cb55614751",
       "inlined": [
         {
           "path": ".agents/skills/triage/AGENT-BRIEF.md",
@@ -774,13 +774,13 @@
       "path": "skills/wayfinder/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/wayfinder/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "2ea36721ad2dfc37ce68baa258ee5c83a6b63b4c3afcf2caacf5b003cf8082c2",
       "frontmatter_sha256": "872b2aec97f5322ea28aac445231eaec88c20cc8f9f976aaf1a3e81c6994019a",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 18439,
       "lines": 220,
-      "sha256": "8ccc98dd3e1366c878cd2d0afd0fe0c6d3edac7c8aebb37102c89cb8b27bf860",
+      "sha256": "e4134e0003c855ad4c48e339d7728ea2a8a2b597b770323cd843172ba5c63746",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
@@ -792,13 +792,13 @@
       "path": "skills/work-artifacts/SKILL.md",
       "kind": "skill",
       "source": ".claude/skills/work-artifacts/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "22bdb0fa74845016dcd495b096f45ccd5532e0bb91de6f7b6404855d53019cfe",
       "frontmatter_sha256": "9ecf733ab33bc19c601ed3e01d5c2c565bada8db2c9bca1451572f4423bb6637",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 51985,
       "lines": 403,
-      "sha256": "b7f783a79bf29cfdc49669d362c69e73d6adf62b8726c6a3175d99d478825766",
+      "sha256": "18e57efc85a25ca4f0cdd51177867959cb5b07843ccfe87e2b75aeceade192ab",
       "inlined": [
         {
           "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
@@ -832,13 +832,13 @@
       "path": "skills/writing-for-agents/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/writing-for-agents/SKILL.md",
-      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "source_sha256": "551adca942227b44192edba88acd4e8db911f0121ce58ad16944ccf6a896a74a",
       "frontmatter_sha256": "9ad324816d8b962ae16b38086356973633d0153345485154b28eab2686b407cd",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
       "bytes": 20562,
       "lines": 204,
-      "sha256": "510e428e42b1243b4694a9f5aef833e9cebb4774205f88ae937eb13009a4516f",
+      "sha256": "b5d8ee666645e17690e4baba7463a844f53ac5f86dce7b6b9036407a64bb4224",
       "inlined": [
         {
           "path": ".agents/skills/writing-for-agents/SKILL-MECHANICS.md",

@@ -4,7 +4,7 @@ description: Compact the current conversation into a handoff document for anothe
 argument-hint: "What will the next session be used for?"
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/handoff/SKILL.md sha256:33a8209a74d36c5280e1699f5bc54a313a60671a3599a5c2c8ab8ce327451555 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/handoff/SKILL.md sha256:33a8209a74d36c5280e1699f5bc54a313a60671a3599a5c2c8ab8ce327451555 -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 

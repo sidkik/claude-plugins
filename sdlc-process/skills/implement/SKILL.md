@@ -3,7 +3,7 @@ name: implement
 description: "Implement a piece of work based on a spec or set of tickets."
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/implement/SKILL.md sha256:dc27831f466b865bf9e95f28c9361e9e99d59bcfb72a9585aa49a6829b3de3f8 -->
+<!-- source: https://github.com/sidkik/planning @ dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2 .agents/skills/implement/SKILL.md sha256:dc27831f466b865bf9e95f28c9361e9e99d59bcfb72a9585aa49a6829b3de3f8 -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 
