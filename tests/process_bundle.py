@@ -205,6 +205,49 @@ class ProcessBundleTests(unittest.TestCase):
         for rule in ('Bounded repo-backed idea', 'Grill (if needed).', 'cannot mark a stage complete'):
             self.assertIn(rule, block)
 
+    def test_observer_recovery_recipe_quotes_valid_native_tool_arguments(self):
+        """The recipe's examples must be callable as written, and must not rest on count mode or on where a UUID sits."""
+        grep_keys = {'pattern', 'path', 'glob', 'type', 'output_mode', '-B', '-A', '-C', 'context', '-n', '-i', '-o', 'head_limit', 'offset', 'multiline'}
+        read_keys = {'file_path', 'offset', 'limit', 'allow_large', 'pages'}
+        for name in ('tools/observer/agents/sdlc-observer.md', 'sdlc-process/agents/sidkik-sdlc-observer.md'):
+            text = (ROOT / name).read_text()
+            calls = []
+            for span in re.findall(r'`(\{"[^`]*\})`', text):
+                try:
+                    calls.append(json.loads(span.replace('<line>', '1')))
+                except ValueError:
+                    pass  # an illustrative fragment with an ellipsis, not a complete call
+            greps = [c for c in calls if 'pattern' in c]
+            reads = [c for c in calls if 'file_path' in c]
+            self.assertEqual(len(greps), 1, name)
+            self.assertEqual(len(reads), 1, name)
+            self.assertEqual(greps[0], {'pattern': 'example-check', 'path': '<transcriptPath>', 'output_mode': 'content', '-n': True, '-o': True}, name)
+            self.assertEqual(reads[0], {'file_path': '<transcriptPath>', 'offset': 1, 'limit': 1, 'allow_large': True}, name)
+            self.assertLessEqual(set(greps[0]), grep_keys)
+            self.assertLessEqual(set(reads[0]), read_keys)
+            recipe = text[text.index('Recovery recipe.'):text.index('Absence needs a search,')]
+            for rule in ('The `count` and `files_with_matches` modes return no line and no record identity',
+                         'A UUID you already hold, from the ledger, is a valid search key. Never guess a UUID, and never assume where a field sits in a record or what lies beside the phrase',
+                         'do not open the artifact\'s path on disk to judge a recorded action',
+                         'A search that returns nothing proves nothing'):
+                self.assertIn(rule, recipe, name)
+            # A compaction proves nothing missing: it never alone supports another native call.
+            for rule in ('never by itself invalidates a proved native invocation: do not ask for another `Skill` call because of a compaction',
+                         'A new call is supported only by an explicit reload requirement in the rules MAIN received, a changed source, or an invocation that is actually missing',
+                         'A re-read of a source MAIN already invoked is not reading in place of invoking it'):
+                self.assertIn(rule, text, name)
+            # The instructions must not hand the evaluator the scored target as an example.
+            self.assertNotIn('SK-grilling', text)
+            # The index covers invocation, not reads: read absence needs a whole-transcript search.
+            absence = text[text.index('Absence needs a search,'):text.index('## Skill checkpoint')]
+            for rule in ('it does not index `Read` or `cat` calls or their results',
+                         'plus the newer matches from a `Grep` of the transcript',
+                         'needs a `Grep` over the whole relevant transcript, including before the ledger\'s boundary',
+                         '`Grep` has no line-range argument: search the whole file and use the returned line numbers to tell newer matches from older ones'):
+                self.assertIn(rule, absence, name)
+            # The failed pattern shape from the qualification run stays out of the instructions.
+            self.assertNotIn('^.{0,400}', text)
+
     def test_observer_reads_and_searches_but_never_edits_and_has_no_installed_path_placeholders(self):
         source = (ROOT / 'tools/observer/agents/sdlc-observer.md').read_text()
         generated = (ROOT / 'sdlc-process/agents/sidkik-sdlc-observer.md').read_text()
