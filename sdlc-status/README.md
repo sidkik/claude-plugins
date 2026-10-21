@@ -78,56 +78,13 @@ this plugin uses color, bold and layout rather than per-row font-size escapes.
 
 ## Required stages and evidence
 
-### Repository board hook
-
-The [canonical board delegation contract](https://github.com/sidkik/planning/blob/main/docs/work/agent-orchestration/process/orchestration.process.md#repository-board-delegation)
-owns configuration, native invocation and evidence limits. Supply
-`--delivery-repo /absolute/delivery/checkout` when initializing with `write` or
-changing the owner with `write`/`record`. Same-work records retain this path;
-new work needs its own delivery checkout. The runtime reads that repository's
-`docs/agents/issue-tracker.md`, never cwd's tracker.
-
-After a successful update, `SDLC_BOARD_DELEGATE` lines carry the selected skill,
-delivery checkout and exact event input. The accountable native agent executes
-them and checks the result. Node emits requests; it does not load skills or move
-cards. No configured skill emits nothing. `SDLC_BOARD_GAP` reports configuration
-or tracker access failures without failing the successful status update.
-Native resolution/invocation failures remain the agent's visible scoped board gap.
-
-Record a finish with an explicit disposition, including unsuccessful or partial
-outcomes, without manufacturing a completion claim:
-
-```json
-{"finished":{"stage":"DE","outcome":"review-ready"}}
-```
-
-New `claimedComplete` stages also emit finishes using the actual reported
-projection standing; an unmet claim emits `held`. Use this read-only request for
-next-work candidates (no session state is created):
-
-```sh
-node /absolute/path/to/sdlc-status/scripts/status.mjs next-work --delivery-repo /absolute/delivery/checkout
-```
-
-Read-only candidate selection grants no start authority. Rendering, inspection,
-unchanged writes and criterion-only updates emit no board request. This hook
-depends on the accountable agent processing its tool response; it has no daemon,
-automatic replay or background delivery guarantee.
-
-The existing session state retains `boardDispositions.finishes`, the latest
-outcome per stage. Repeating a finish within unchanged work, route and
-source/evidence revisions emits nothing, including after intervening writes.
-Changed outcomes/revisions and stage re-entry permit a new finish. Combined
-finish/advance records emit finishes before entering the next stage. These saved
-dispositions describe recorded events, not successful native invocation receipts.
-
-Version 0.3.1 requires verified display updates after substantive events and
-before yielding changed state to the user. It retains Intake orchestrator load
-and explicit bug reproduction criteria. The agent initializes it from
-`template --route triage|feature|delivery|research`; you can start with an ordinary
-request such as “triage #456.” The skill owns checklist updates, not the human.
-Templates in `templates/routes.json` pin the canonical planning source by path,
-commit and SHA-256. Their required IDs cannot be replaced with a caller's list.
+The accountable agent maintains the checklist; the human need not construct JSON
+or prescribe the route, and an ordinary request such as “triage #456” is enough.
+The agent-facing contract is owned by [the skill](skills/sdlc-status/SKILL.md) and
+delivered in its native invocation result, so it is not duplicated here: session
+identity, the CLI commands, the stage and symbol meanings, the progress and
+criterion-result schema, declarations beyond the template, revision checks,
+bug-reproduction criteria and the repository board hook. A footer looks like:
 
 ```text
 core#456 | Triage | PENDING                                      Obs: unavailable
@@ -135,152 +92,14 @@ core#456 | Triage | PENDING                                      Obs: unavailabl
 Next: Load orchestrator before selecting the route | inspect
 ```
 
-`✓` green means every applicable required criterion has current reported
-proof, including independent assessment where required. `?` amber is current
-pending/unknown; `·` is future work. `✕` marks a failure in red, or attempted
-advancement/explicit completion with an unknown prerequisite in amber. `E` amber is an
-authorized exception, never an unqualified complete stage. `-` is justified
-N/A. `→` identifies the current stage without concealing its separate status
-symbol. These meanings survive color being disabled. Reports remain unauthenticated;
-even an independent assessment is a reported reference, not a verified identity.
-
-Stages abbreviate Intake, Verify, Refine, Brief, Review, Ready/start, Deliver and
-Closeout. The route governs which appear. Load requirements occur before their
-governed activity, application requirements need actual outputs. Conditional
-skills remain visible until supported or explicitly dispositioned N/A. Every route places orchestrator load at Intake, following the governing
-`sdlc-process` entry before route selection or the next action. Missing skill
-availability stays an explicit unknown capability gap; only dependent work
-pauses. Loading the skill does not require spawning agents, and application
-remains at the stage where governed work actually occurs. Feature refinement chooses its applicable grill/wayfinder
-path and records why other conditional skills are inapplicable.
-
-For a current defect being reproduced for repair, Verify includes `VE-BUG1`
-(accepted expectation), `VE-BUG2` (relevant-path failure on the reported symptom,
-not setup/mock configuration or an unrelated failure), and `VE-BUG3` (retained exact test/source,
-command, tested revision and expected/actual results). Their passes mean
-reproduction complete. `RS-BUG1`, at triage disposition or delivery Ready/start,
-applies when actually proposing ready/start and requires bounded repair authority
-and applicable readiness/start controls. For disposition-only triage or a requested
-stop/handoff, record N/A with that reason; do not require more diagnosis or
-readiness work before preserving the current state and handing off.
-Red alone does not mean ready or fixed. Existing review requirements still apply.
-
-Once reproduction is complete and no diagnostic gap remains, conditional
-`diagnosing-bugs` load/application can be N/A when diagnosis was not needed.
-Preserve actual load/application evidence when diagnosis was needed and performed. An unknown
-conditional skill requires an applicability decision, not automatic invocation.
-Further minimization and ranked hypotheses are not prerequisites to routine
-repair. Investigate a named remaining gap instead. Non-bug, already-fixed and
-specifically approved alternative-verification dispositions record their concrete
-N/A basis for inapplicable reproduction criteria; ordinary verification and
-policy obligations remain. The renderer checks reported evidence fields, not
-whether the referenced test actually reproduced the symptom.
-
-The criterion template is now `sidkik-sdlc@3`. Old templates lose green until
-reinitialized; carry forward only applicable current evidence. This same-route
-upgrade needs no new review checkpoint.
-
-Generate an exhaustive starting payload, then have the accountable agent fill
-in its real work data and evidence:
-
-```sh
-node /absolute/path/to/sdlc-status/scripts/status.mjs template --route triage
-node /absolute/path/to/sdlc-status/scripts/status.mjs write --client claude --session SESSION_ID < session-payload.json
-node /absolute/path/to/sdlc-status/scripts/status.mjs record --client claude --session SESSION_ID < event.json
-node /absolute/path/to/sdlc-status/scripts/status.mjs inspect --client claude --session SESSION_ID
-```
-
-After initialization, `record` accepts one atomic event with `changed` state
-fields, affected `results`, and optional shared `evidence` and `assessment`.
-It validates and writes the merged state, then returns the same inspection used
-for verification. Shared evidence does not supply independent approval.
-
-Update after an accepted human decision, skill load/application, dispatch,
-agent return/review, new or resolved blocker, or a phase/next-action/human-need
-change. Batch events from one response into one write while preserving updates
-required before governed activity. Before yielding to the user, flush substantive
-changes since the last verified update. Unchanged turns need no duplicate write.
-
-Check the writer's exit status, then inspect the same client, session and state
-directory. Compare the actual work identity, phase/active stage, affected criterion
-results, next action and human need. On write failure, inspection failure or
-mismatch, report the display failure before the ordinary reply and correct it
-within existing authority. Invalid writes preserve the previous projection, so an
-old footer is not evidence the new update succeeded. Refreshing only its timestamp
-does not renew evidence. These are agent responsibilities: the renderer cannot
-detect an omitted write or authenticate the reported events.
-
-The JSON's `progress` object has `template`, `route`, `sourceRevision`,
-`evidenceRevision`, `active`, `claimedComplete`, `activities` and `results`.
-`sourceRevision` is the pinned canonical SHA-256; `evidenceRevision` identifies
-the actual candidate/context used for evidence. A result is keyed by a template
-criterion ID:
-
-```json
-{"status":"passed","actor":"primary","reference":"GitHub receipt or concrete retained output","revision":"actual-candidate-revision"}
-```
-
-Status may be `unknown`, `pending`, `passed`, `failed`, `na` or `exception`.
-Missing results, pass claims without evidence, mismatched revisions and absent
-required independent assessments derive unknown. `na` is permitted only for
-conditional criteria and requires `reason`. A required independent criterion
-also needs `assessment: {"result":"passed","actor":"different-reviewer",
-"reference":"assessment receipt","revision":"actual-candidate-revision"}`.
-An exception needs a reason, alternative evidence and
-`authority: {"kind":"human","actor":"actual decision maker",
-"reference":"scoped decision receipt","revision":"actual-candidate-revision"}`;
-required independent assessment still applies. References are text, never executed.
-
-For a triggered specialist skill beyond the template, add declarations before
-its governed activity to `progress.additions`, with a separate load/application
-criterion. For example:
-
-```json
-{"id":"X-temporal-workflow-writer-load","stage":"DE","label":"temporal-workflow-writer loaded","source":".claude/skills/temporal-workflow-writer/SKILL.md","sourceRevision":"actual-skill-sha256"}
-```
-
-Declare the corresponding `X-temporal-workflow-writer-apply` requirement and
-record its actual outputs under `results`. Declarations are bounded to 40, use
-`X-` IDs, and cannot replace a template criterion. Existing declarations persist
-when omitted from an update for the same work and route/template; omitted
-results become unknown. A changed declaration is rejected. A justified N/A
-requires a declaration marked `conditional: true` and a result reason.
-A same-route template upgrade preserves existing declarations without another
-review checkpoint. Changing the projected route needs no manufactured review:
-display bookkeeping is not execution. The writer preserves an immutable prior
-route snapshot, keeps attempted failures visible, and requires an
-evidenced `historyDispositions` entry before those failures stop holding delivery
-completion. Triage and Delivery completion remain distinct in the compact
-summary. Actual starts and advancement remain governed by the retained route
-criteria and applicable assessment. Tracked work cannot be downgraded to schema 1.
-
-Claude's compact footer also shows the observer state. `seen Ns ago` requires
-matching native runtime evidence for this MAIN session; launch intent without
-that evidence is starting, while setup/version/custom-agent conflict is
-unavailable. Installation, configuration or an agent definition does not
-establish activity. This is an as-of observation, not a heartbeat or policy
-approval.
-
-Set `activities` to include `delegation` before attempting dispatch, add stage
-IDs to `claimedComplete` when claiming completion, and set `active` to the stage
-being entered. Missing prior criteria become violations. A phase sentence such
-as “verification done” has no authority over the chain: this tool does not parse
-natural-language claims or observe unreported activity. Agents must report these
-explicit events accurately. A user correction requires invalidating affected
-criterion results, not merely changing the phase sentence.
-
-Rendering compares source evidence to the packaged pin. Supply known current
-revisions with `--source-revision SHA256 --evidence-revision REVISION` to detect
-subsequent changes; no background GitHub fetch occurs. Stale state, mismatched
-revisions and unknown template versions withdraw green. Reconcile evidence
-before writing fresh state. Inspect preserves reported evidence for diagnosis.
-
-Schema-1 writes remain supported for migration and display `legacy/untracked`;
-they provide no stage completion. Reinitialize from `template` to adopt schema 2
-and carry only still-applicable evidence. The writer assigns schema version,
-client/session and timestamp. Each bounded valid write atomically replaces one
-private local projection; invalid writes leave the prior projection untouched.
-The human must still compare assertions to evidence where assurance matters.
+Templates in `templates/routes.json` pin the canonical planning source by path,
+commit and SHA-256. Claude's compact footer also shows the observer state:
+`seen Ns ago` requires matching native runtime evidence for this MAIN session;
+launch intent without it is starting, while a setup/version/custom-agent conflict
+is unavailable. Installation, configuration or an agent definition does not
+establish activity, and this is an as-of observation, not a heartbeat or policy
+approval. The human must still compare assertions to evidence where assurance
+matters.
 
 ## Behavioral trials
 

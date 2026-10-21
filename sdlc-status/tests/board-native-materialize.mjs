@@ -77,7 +77,7 @@ for (const client of ['claude', 'codex']) {
     writeFileSync(join(repo, 'commands.txt'), commands.join('\n') + '\n');
     writeFileSync(join(repo, 'next-work-prompt.txt'), "What's up next? Please check GitHub for the next work item. Keep this read-only.\n");
     writeFileSync(join(repo, 'prompt.txt'), `This is an authorized synthetic acceptance run, not real work advancement. No GitHub or board writes.\n` +
-      `Natively load the local candidate project skill sdlc-status (bare name, exact resolved path ${statusSkill}); read its full source and directed candidate references. A call to an older installed status plugin followed by reading this candidate fails acceptance.\n` +
+      `Natively load the local candidate project skill sdlc-status (bare name, exact resolved path ${statusSkill}); its result must deliver the candidate's instructions, and a separate source read does not substitute. A call to an older installed status plugin followed by reading this candidate fails acceptance.\n` +
       `Run the following commands in order. Follow the loaded status skill for each emitted board request; do not manually invent requests.\n${commands.join('\n')}\n` +
       `Report native call/result evidence, exact event inputs, unchanged/no-skill controls and gaps. Continue after an unavailable board skill and print CONTINUED_AUTHORIZED_FIXTURE.\n`);
     const launch = client === 'claude'

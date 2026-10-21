@@ -123,8 +123,11 @@ class ProcessBundleTests(unittest.TestCase):
                 build.source_bytes({'revision': 'HEAD'}, repo, 'skill.md')
 
     def test_setup_runtime_is_packaged_from_maintained_source(self):
-        self.assertEqual((ROOT / 'tools/session-start/SKILL.md').read_bytes(),
-                         (ROOT / 'sdlc-process/skills/session-start/SKILL.md').read_bytes())
+        maintained = (ROOT / 'tools/session-start/SKILL.md').read_text()
+        packaged = (ROOT / 'sdlc-process/skills/session-start/SKILL.md').read_text()
+        self.assertTrue(packaged.startswith(build.frontmatter(maintained)))
+        self.assertIn(build.normalized_prose(maintained[len(build.frontmatter(maintained)):]), build.normalized_prose(packaged))
+        self.assertIn('## Source adapter contract', packaged)
         for name in ('setup.mjs', 'status.mjs', 'agent-setup.mjs'):
             self.assertEqual((ROOT / 'tools/setup' / name).read_bytes(),
                              (ROOT / 'sdlc-process/scripts/setup' / name).read_bytes())

@@ -52,10 +52,13 @@ for evidence work already allowed by the governing review task.
 
 Codex lanes inherit no Claude skills. A required skill needs two kinds of
 evidence in the worker's return or transcript: **native invocation** and the
-**full read** of its source and directed references. The Claude `Skill` tool
-leaves the call and its success; Codex's structured skill input leaves the
-accepted input and its result (`crew-codex task --skill <name>` with the
-resolved identity and path at the worker cwd). A file read substitutes for
+**delivered content** of its instructions and mandatory references. The Claude
+`Skill` tool leaves the call and its success; Codex's structured skill input
+leaves the accepted input and its result (`crew-codex task --skill <name>` with
+the resolved identity and path at the worker cwd). A result that carries the full
+instructions and mandatory reference content needs no separate source read; a
+result that only points to a source for the worker to open is an incomplete
+payload and a load gap, and reading that source does not complete the load. A file read substitutes for
 neither invocation, and a job launch or skill discovery alone is not success.
 A brief that only tells the worker to read a `SKILL.md` supplies source
 inspection, never invocation.

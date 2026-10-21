@@ -70,8 +70,9 @@ Command selection — pick ONE launch command for the request:
   Forward the complete governing checklist and evidence contract. Add
   `--network` when the reviewer must fetch GitHub context or test dependencies,
   and `--skill <name>` for each governing skill the brief lists (the brief's
-  report requirements ask for each skill's native-invocation evidence and full
-  source reads; a launch alone is not a load): the Codex
+  report requirements ask for each skill's native-invocation evidence and that its
+  result delivered the instructions, with no separate source read required; a
+  launch alone is not a load): the Codex
   reviewer fetches its own GitHub context and runs its own evidence, so this
   wrapper and the primary never do it for the reviewer. `--network` is not write
   authority. The generic review command does not accept a custom brief, a write

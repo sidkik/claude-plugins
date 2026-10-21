@@ -14,13 +14,16 @@ the rule is never re-litigated.
 ## Rule 0 — load the governing skills BEFORE writing briefs
 
 Use the [SDLC entry's loading contract](../sdlc-process/SKILL.md#follow-the-work):
-native invocation and full source inspection are separate requirements. A file
-read alone never satisfies a required skill load. Record unavailable invocation
-as a scoped capability gap, including in delegated worker returns. At continuation,
-task pivot and before each dispatch wave, apply that contract's loaded identity,
-path and revision comparison, then refresh applicable constraints against current
-inputs. Carry verified load evidence or the exact dependent gap into the brief;
-reuse identified unchanged source reads rather than rereading unchanged files.
+a required load is a native invocation whose result delivers the full governing
+instructions and mandatory reference content, so no separate read of the source is
+needed. A file read alone never satisfies a required skill load, and a pointer-only
+result is an incomplete payload. Record unavailable invocation or an incomplete
+payload as a scoped capability gap, including in delegated worker returns. At
+continuation, task pivot and before each dispatch wave, apply that contract's loaded
+identity, path and revision comparison, then refresh applicable constraints against
+current inputs. Carry verified load evidence or the exact dependent gap into the
+brief; reuse an identified successful invocation while its delivered content
+remains in context, and load again after actual loss or truncation of that content.
 
 You cannot brief work you haven't loaded the skill for, and you cannot
 review it either. **Blind briefs override agent skills**: dispatch briefs
@@ -46,12 +49,13 @@ still build your anti-pattern if your brief dictates one.
   ordered list of skill names and `.claude/skills/<name>/SKILL.md`
   (+PATTERNS etc.) source paths covering every layer
   the task touches. Invoke each required skill through the available native
-  mechanism and read its full source and directed references. Native evidence
-  is the Claude `Skill` call with its success, or for a Codex worker an accepted
-  structured skill input with its result (crew: `task --skill <name>`); a file
-  read substitutes for neither. The worker's return or transcript carries both
-  the native-invocation evidence and the full source/reference reads; a job
-  launch or skill discovery alone is not success. If unavailable,
+  mechanism; its result must deliver the full instructions and mandatory
+  reference content. Native evidence is the Claude `Skill` call with its success,
+  or for a Codex worker an accepted structured skill input with its result (crew:
+  `task --skill <name>`); a file read substitutes for neither. The worker's return
+  or transcript carries the native-invocation evidence and states that the result
+  delivered the instructions; a job launch or skill discovery alone is not
+  success, and a pointer-only result is a load gap. If unavailable,
   report the scoped load gap and hold the governed action. Route that action to an authorized capable
   worker when available; a source read alone cannot clear the hold.
   The lane's report must state, per file changed,
@@ -63,8 +67,9 @@ still build your anti-pattern if your brief dictates one.
 
 ## Establish the worker runtime and workspace
 
-Read the installed delegation runtime documentation and skill before launching a
-worker (for example, `codex-crew:crew-runtime` or `grok-crew-runtime`). Reading
+Natively load the installed delegation runtime skill before launching a worker
+(for example, `codex-crew:crew-runtime` or `grok-crew-runtime`) under the entry
+contract, and consult its documentation for commands as needed. Reading
 the source provides instructions when native invocation is unavailable, but does not satisfy a required load. Report that gap under the entry contract. Its commands and capability
 checks govern launch, progress inspection, steering, resume and cancellation.
 Native harness agents use their available tools. A missing runtime holds that

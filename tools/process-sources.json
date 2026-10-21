@@ -3,7 +3,7 @@
   "sources": {
     "planning": {
       "repository": "https://github.com/sidkik/planning",
-      "revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "revision": "dc76ca4c3e5b163d88b92524ccfa18d7e4d101d2",
       "files": [
         ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
         ".agents/skills/ask-matt/SKILL.md",
@@ -59,5 +59,266 @@
     "docs/work/agent-orchestration/items/core-gh-517-document-organization/source-navigation.research.md",
     "docs/work/agent-orchestration/items/core-gh-512-process-enablement/process-enablement.spec.md",
     "docs/work/agent-orchestration/items/core-gh-512-process-enablement/process-enablement.plan.md"
-  ]
+  ],
+  "composition": {
+    "adapter": "sdlc-process/SOURCE-ADAPTER.md",
+    "max_lines": 500,
+    "fence_corrections": {
+      ".agents/skills/triage/OUT-OF-SCOPE.md": {
+        "source_sha256": "1fbf9b432130c6380aa65813b55553cfda150309b27c595e183f8e335b8a190d",
+        "reason": "The pinned source shows a markdown file whose example contains a nested ts fence, all inside a three-backtick fence. The bare closer after the ts code ends the outer fence early, so the final closer opens a fence that never ends and swallows the rest of any document that inlines this file. Lengthening the outer markers makes the example one code block and leaves every character of its text unchanged. Remove this entry when the upstream source is corrected.",
+        "lines": [
+          {"line": 23, "was": "```markdown", "now": "````markdown"},
+          {"line": 54, "was": "```", "now": "````"}
+        ]
+      }
+    },
+    "canonical_references": {
+      "docs/work/agent-orchestration/process/orchestration.process.md": "Governing process. Every native asset that directs it carries the text it requires, never a read-later link.",
+      "docs/work/agent-orchestration/process/planning-repository.process.md": "Governing planning storage and publication convention, carried by each asset that directs it.",
+      "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md": "Governing governed-context specification; the policy checkpoint contract is carried wherever advancement is assessed.",
+      "docs/agents/sdlc/records.md": "Governing record, continuity and closeout procedure, carried by each asset that directs it.",
+      "docs/agents/issue-tracker.md": "Sidkik tracker mechanics, carried by the entry that consults them."
+    },
+    "assets": {
+      ".agents/skills/ask-matt/SKILL.md": {
+        "inline": [
+          ".agents/skills/ask-matt/PHASE-BOUNDARIES.md"
+        ]
+      },
+      ".agents/skills/codebase-design/SKILL.md": {
+        "inline": [
+          ".agents/skills/codebase-design/DEEPENING.md",
+          ".agents/skills/codebase-design/DESIGN-IT-TWICE.md"
+        ]
+      },
+      ".agents/skills/diagnosing-bugs/SKILL.md": {
+        "inline": [
+          {
+            "path": ".agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh",
+            "as": "code",
+            "lang": "bash",
+            "reason": "The skill directs the agent to copy this template; it is not a Markdown link."
+          }
+        ]
+      },
+      ".agents/skills/domain-modeling/SKILL.md": {
+        "inline": [
+          ".agents/skills/domain-modeling/ADR-FORMAT.md",
+          ".agents/skills/domain-modeling/CONTEXT-FORMAT.md"
+        ]
+      },
+      ".agents/skills/prototype/SKILL.md": {
+        "inline": [
+          ".agents/skills/prototype/LOGIC.md",
+          ".agents/skills/prototype/UI.md"
+        ]
+      },
+      ".agents/skills/tdd/SKILL.md": {
+        "inline": [
+          ".agents/skills/tdd/mocking.md",
+          ".agents/skills/tdd/tests.md"
+        ]
+      },
+      ".agents/skills/triage/SKILL.md": {
+        "inline": [
+          ".agents/skills/triage/AGENT-BRIEF.md",
+          ".agents/skills/triage/OUT-OF-SCOPE.md"
+        ]
+      },
+      ".agents/skills/writing-for-agents/SKILL.md": {
+        "inline": [
+          ".agents/skills/writing-for-agents/SKILL-MECHANICS.md"
+        ]
+      },
+      ".claude/skills/sdlc-process/SKILL.md": {
+        "inline": [
+          {
+            "path": ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
+            "reason": "The session/harness boundary row directs this guidance as part of the flow."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+            "reason": "The process is applied in full: its stage checklists, routing, readiness rules, records and reports govern the entry."
+          },
+          {
+            "path": "docs/agents/issue-tracker.md",
+            "reason": "Tracker mechanics the process directs."
+          },
+          {
+            "path": "docs/agents/sdlc/records.md",
+            "reason": "Record, continuity, custody, cleanup and closeout procedures the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+            "reason": "Planning storage, publication and handoff convention the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "policy-agent-checkpoints-across-the-process",
+            "reason": "The checkpoint contract the process applies before every advancement."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "workflow-handoffs-producers-durable-records-and-recipients",
+            "reason": "The context mapping of producers, records and recipients the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "readiness-controls",
+            "reason": "Readiness controls the checkpoint contract and context mapping apply."
+          }
+        ],
+        "cite": [
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
+          }
+        ]
+      },
+      ".claude/skills/sdlc-policy-review/SKILL.md": {
+        "inline": [
+          {
+            "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+            "reason": "The process is applied in full: its stage checklists, routing, readiness rules, records and reports govern every assessment."
+          },
+          {
+            "path": "docs/agents/issue-tracker.md",
+            "reason": "Tracker mechanics the process directs."
+          },
+          {
+            "path": "docs/agents/sdlc/records.md",
+            "reason": "Record, continuity, custody, cleanup and closeout procedures the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+            "reason": "Planning storage, publication and handoff convention the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "policy-agent-checkpoints-across-the-process",
+            "reason": "The checkpoint contract the process applies before every advancement."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "workflow-handoffs-producers-durable-records-and-recipients",
+            "reason": "The context mapping of producers, records and recipients the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "readiness-controls",
+            "reason": "Readiness controls the checkpoint contract and context mapping apply."
+          }
+        ],
+        "cite": [
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
+          }
+        ]
+      },
+      ".claude/agents/sdlc-policy-reviewer.md": {
+        "inline": [
+          {
+            "path": ".claude/skills/sdlc-policy-review/SKILL.md",
+            "reason": "The brief directs this procedure first; the reviewer has no other guaranteed way to load it."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+            "reason": "The process is applied in full: its stage checklists, routing, readiness rules, records and reports govern every assessment."
+          },
+          {
+            "path": "docs/agents/issue-tracker.md",
+            "reason": "Tracker mechanics the process directs."
+          },
+          {
+            "path": "docs/agents/sdlc/records.md",
+            "reason": "Record, continuity, custody, cleanup and closeout procedures the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+            "reason": "Planning storage, publication and handoff convention the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "policy-agent-checkpoints-across-the-process",
+            "reason": "The checkpoint contract the process applies before every advancement."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "workflow-handoffs-producers-durable-records-and-recipients",
+            "reason": "The context mapping of producers, records and recipients the process directs."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "readiness-controls",
+            "reason": "Readiness controls the checkpoint contract and context mapping apply."
+          }
+        ],
+        "cite": [
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
+          }
+        ]
+      },
+      ".claude/skills/orchestrator/SKILL.md": {
+        "inline": [
+          {
+            "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+            "fragment": "converge-reviews-decisions-and-publication",
+            "reason": "Convergence rules the orchestrator applies to reviews, decisions and publication."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+            "fragment": "local-runtime-environments-select-own-validate-and-clean-up",
+            "reason": "Local environment rules the orchestrator applies to live work."
+          },
+          {
+            "path": "docs/agents/sdlc/records.md",
+            "fragment": "retain-local-environment-custody",
+            "reason": "Custody record procedure required by the local environment rules."
+          },
+          {
+            "path": "docs/agents/sdlc/records.md",
+            "fragment": "finish-triage-and-clean-up-the-workspace",
+            "reason": "Workspace cleanup procedure required by the local environment rules."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+            "fragment": "publish-a-reviewable-checkpoint",
+            "reason": "Checkpoint definition required by the convergence rules."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "policy-agent-checkpoints-across-the-process",
+            "reason": "Observer and checkpoint contract required by the convergence rules."
+          }
+        ]
+      },
+      ".claude/skills/work-artifacts/SKILL.md": {
+        "inline": [
+          {
+            "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+            "reason": "Storage and publication convention the skill directs before writing planning documents."
+          },
+          {
+            "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+            "fragment": "converge-reviews-decisions-and-publication",
+            "reason": "Convergence rules the planning convention requires for reassessment of a candidate."
+          },
+          {
+            "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+            "fragment": "policy-agent-checkpoints-across-the-process",
+            "reason": "Policy checkpoint contract that governs publication and handoff."
+          }
+        ]
+      }
+    },
+    "maintained": {
+      "tools/session-start/SKILL.md": {
+        "output": "skills/session-start/SKILL.md"
+      }
+    }
+  }
 }

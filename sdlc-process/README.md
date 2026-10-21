@@ -2,9 +2,9 @@
 
 This plugin packages the shared Sidkik process, selected Pocock skills, orchestrator,
 work-artifacts and independent policy-review brief. Claude discovers the skills,
-review agent and a silent SessionStart metadata hook. Codex can discover native skill
-wrappers through its manifest or the portable setup's configured source pointers.
-Both hosts expose the same model-invocable wrappers under `skills/`, including
+review agent and a silent SessionStart metadata hook. Codex can discover the native skills
+through its manifest or the portable setup's configured source pointers.
+Both hosts expose the same model-invocable skills under `skills/`, including
 the Pocock workflows (ask-matt, grill-with-docs, handoff, implement, to-spec,
 to-tickets, triage, wayfinder), so the orchestrator invokes the selected flow
 from an ordinary request without a user slash command. Loading a flow grants no
@@ -47,6 +47,11 @@ whole-record boundaries, marking exceeded limits and omitted public content.
 The observer consumes this baseline once, then reconciles subsequent digests,
 suppressing overlap conservatively. Targeted reads resolve specific gaps. Missing
 or truncated history stays unknown and cannot prove a prerequisite was skipped.
+A native skill load is a `Skill` call and result plus the separate injected
+skill-content record after them; the baseline can omit that large record, which
+leaves delivery unknown. Claude re-attaches only the first 5,000 tokens of each
+invoked skill after compaction (25,000 combined, newest first), so delivery is
+not assumed to persist past a compaction boundary.
 Claude may persist larger hook output and supply a preview with its exact file
 path. The observer reads that normalized output before claiming it loaded the
 baseline; preview or partial reads remain unknown. This uses Claude’s native
@@ -110,7 +115,7 @@ local; no credentials or machine paths are distributed here. Codex requires its
 native hook trust review; the setup skill also works without a running hook.
 
 [Source adapter](SOURCE-ADAPTER.md) explains working-repository ownership and
-conflicting revisions. Required sources resolve locally under `bundle/`; the
+conflicting revisions. Required sources are carried in the native assets and kept as snapshots under `bundle/`; the
 [manifest](bundle/source-manifest.json) records the actual source commits and
 hashes. Historical evidence stays linked to immutable upstream GitHub revisions.
 
@@ -121,7 +126,7 @@ Shared SDLC governing documents belong in Planning; engineering instructions and
 maintained governing references belong to their configured owner, including an
 engineering plugin where explicitly adopted. Edit plugin-owned sources in that
 owner's authorized checkout even when starting in a delivery repository. This
-plugin's source adapter is maintained here; its generated wrappers are not editable
+plugin's source adapter is maintained here; its generated skills and agents are not editable
 authority. Obtain the applicable review for source changes.
 
 For changes to this plugin's pinned bundle, commit the upstream source changes
@@ -145,6 +150,32 @@ stage criteria, update and test `sdlc-status/templates/routes.json` against that
 same canonical process revision before release; this generator does not infer
 criteria changes or silently certify a stale checklist. Run the setup's isolated
 fresh-home, repeat-install, update and relocation tests before claiming portability.
+
+Native skills and agents contain their instructions rather than pointing at them.
+For each pinned skill and the policy reviewer the generator writes the source's
+frontmatter byte-for-byte, then its full body, then the supporting instruction and
+template files the body requires, then the [source adapter](SOURCE-ADAPTER.md)
+contract, so invoking the skill loads all of it. What is bundled is an explicit
+policy, `composition` in `tools/process-sources.json`: each asset's `inline` list
+names files, or one section of a canonical document (`fragment`), and
+`canonical_references` names the governing process, specification, record,
+planning and tracker documents. A link from an asset (or from a section it
+carries) into a canonical document must be satisfied by carrying that file or
+section in the asset; leaving it as a link to read later fails the build, as
+does an overlapping inline, an unclassified link or an unlisted file in a skill's
+directory, so nothing is dropped silently. A `cite` entry keeps only a whole-file
+identity link to the pinned upstream (used for the governed-context proposal,
+whose governing sections are carried) and is reported with the bytes carried.
+Separately invoked skills are never inlined into another skill; a link to one
+stays a link, and a link to a supplement another skill bundles resolves to that
+skill's anchor. `native-composition.json` records, per asset, the bundled files
+with section sizes, cited sources, invoked skills, digests and size flags (over
+500 lines is flagged, never truncated); the generator prints the same summary.
+The sdlc-process entry, the sdlc-policy-review skill and the policy reviewer
+carry the whole shared process (about 95 KB) with the record, planning, tracker
+and checkpoint content it directs, so they are large by design. The adapter
+repeats in every pinned entry (about 6 KB), the cost of making each entry
+self-contained.
 
 The generator fails on unresolved required local links, hardcoded original-machine
 paths and output drift. It retains full selected skill directories including
