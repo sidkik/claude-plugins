@@ -110,7 +110,7 @@ local; no credentials or machine paths are distributed here. Codex requires its
 native hook trust review; the setup skill also works without a running hook.
 
 [Source adapter](SOURCE-ADAPTER.md) explains working-repository ownership and
-conflicting revisions. Required sources resolve locally under `bundle/`; the
+conflicting revisions. Required sources are carried in the native assets and kept as snapshots under `bundle/`; the
 [manifest](bundle/source-manifest.json) records the actual source commits and
 hashes. Historical evidence stays linked to immutable upstream GitHub revisions.
 
@@ -153,16 +153,24 @@ template files the body requires, then the [source adapter](SOURCE-ADAPTER.md)
 contract, so invoking the skill loads all of it. What is bundled is an explicit
 policy, `composition` in `tools/process-sources.json`: each asset's `inline` list
 names files, or one section of a canonical document (`fragment`), and
-`canonical_references` names the documents that stay linked. Every local link
-must be bundled, be another skill or agent, or be a listed canonical reference;
-an unclassified link or an unlisted file in a skill's directory fails the build,
-so nothing is dropped silently. Separately invoked skills are never inlined into
-another skill. `native-composition.json` records, per asset, the bundled files,
-retained links with section sizes, invoked skills, digests and size flags (over
+`canonical_references` names the governing process, specification, record,
+planning and tracker documents. A link from an asset (or from a section it
+carries) into a canonical document must be satisfied by carrying that file or
+section in the asset; leaving it as a link to read later fails the build, as
+does an overlapping inline, an unclassified link or an unlisted file in a skill's
+directory, so nothing is dropped silently. A `cite` entry keeps only a whole-file
+identity link to the pinned upstream (used for the governed-context proposal,
+whose governing sections are carried) and is reported with the bytes carried.
+Separately invoked skills are never inlined into another skill; a link to one
+stays a link, and a link to a supplement another skill bundles resolves to that
+skill's anchor. `native-composition.json` records, per asset, the bundled files
+with section sizes, cited sources, invoked skills, digests and size flags (over
 500 lines is flagged, never truncated); the generator prints the same summary.
-Retained canonical process sections are not covered by invoking the skill; a
-required one that cannot be read is a scoped load gap. The adapter repeats in every
-pinned entry (about 6 KB), the cost of making each entry self-contained.
+The sdlc-process entry, the sdlc-policy-review skill and the policy reviewer
+carry the whole shared process (about 95 KB) with the record, planning, tracker
+and checkpoint content it directs, so they are large by design. The adapter
+repeats in every pinned entry (about 6 KB), the cost of making each entry
+self-contained.
 
 The generator fails on unresolved required local links, hardcoded original-machine
 paths and output drift. It retains full selected skill directories including

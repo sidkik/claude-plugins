@@ -4,20 +4,20 @@
   "policy": "tools/process-sources.json#composition",
   "adapter": {
     "path": "sdlc-process/SOURCE-ADAPTER.md",
-    "sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac"
+    "sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd"
   },
   "assets": [
     {
       "path": "agents/sdlc-policy-reviewer.md",
       "kind": "agent",
       "source": ".claude/agents/sdlc-policy-reviewer.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "77b85e538a9ffe8a29a0cea5f0a809ddd0df4fb2414af10289d4b91000607636",
       "frontmatter_sha256": "c367cc5b4eb6f6721fd221b3603611e377911097bda03a99fb3fdbff1494d3e0",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 31180,
-      "lines": 231,
-      "sha256": "d86be95fa00cf9358fc9a21879a3a1cb274ddf8c6614e4d2a49111f44d6b64dd",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 169975,
+      "lines": 1028,
+      "sha256": "cce8b9d2d2951e52fa6e7a11125aede10b6f8fc052aaa5d7923be028b9642d6f",
       "inlined": [
         {
           "path": ".claude/skills/sdlc-policy-review/SKILL.md",
@@ -27,55 +27,101 @@
           "reason": "The brief directs this procedure first; the reviewer has no other guaranteed way to load it."
         },
         {
+          "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+          "fragment": null,
+          "source_sha256": "e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6",
+          "bytes": 95121,
+          "reason": "The process is applied in full: its stage checklists, routing, readiness rules, records and reports govern every assessment."
+        },
+        {
+          "path": "docs/agents/issue-tracker.md",
+          "fragment": null,
+          "source_sha256": "bbb066e7f896459fb2b5bdc044ef592153ee8174abdf617d13eb555b82d8a89d",
+          "bytes": 3935,
+          "reason": "Tracker mechanics the process directs."
+        },
+        {
+          "path": "docs/agents/sdlc/records.md",
+          "fragment": null,
+          "source_sha256": "62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934",
+          "bytes": 10601,
+          "reason": "Record, continuity, custody, cleanup and closeout procedures the process directs."
+        },
+        {
+          "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+          "fragment": null,
+          "source_sha256": "b7e354fac2120e8e7b2e81e4144baf7d33402ecd6653b815cae3b1e0027d7442",
+          "bytes": 15053,
+          "reason": "Planning storage, publication and handoff convention the process directs."
+        },
+        {
           "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
           "fragment": "policy-agent-checkpoints-across-the-process",
           "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
           "bytes": 11759,
-          "reason": "Required by the inlined policy-review procedure."
+          "reason": "The checkpoint contract the process applies before every advancement."
         },
         {
-          "path": "docs/work/agent-orchestration/process/orchestration.process.md",
-          "fragment": "converge-reviews-decisions-and-publication",
-          "source_sha256": "c691867c5324df0dd7cb2b70535ae1dd36aac8b7bc27eb13fe61971cf90f0ed3",
-          "bytes": 3854,
-          "reason": "Required by the inlined policy-review procedure."
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "workflow-handoffs-producers-durable-records-and-recipients",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 9655,
+          "reason": "The context mapping of producers, records and recipients the process directs."
+        },
+        {
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "readiness-controls",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 7431,
+          "reason": "Readiness controls the checkpoint contract and context mapping apply."
         }
       ],
       "invokes": [
+        "skills/ask-matt/SKILL.md",
+        "skills/code-review/SKILL.md",
+        "skills/codebase-design/SKILL.md",
+        "skills/diagnosing-bugs/SKILL.md",
+        "skills/domain-modeling/SKILL.md",
+        "skills/grill-with-docs/SKILL.md",
+        "skills/grilling/SKILL.md",
+        "skills/handoff/SKILL.md",
+        "skills/implement/SKILL.md",
         "skills/orchestrator/SKILL.md",
-        "skills/work-artifacts/SKILL.md"
+        "skills/prototype/SKILL.md",
+        "skills/research/SKILL.md",
+        "skills/sdlc-process/SKILL.md",
+        "skills/tdd/SKILL.md",
+        "skills/to-spec/SKILL.md",
+        "skills/to-tickets/SKILL.md",
+        "skills/triage/SKILL.md",
+        "skills/wayfinder/SKILL.md",
+        "skills/work-artifacts/SKILL.md",
+        "skills/writing-for-agents/SKILL.md"
       ],
-      "retained_references": [
+      "cited_sources": [
         {
-          "path": "bundle/docs/work/agent-orchestration/process/orchestration.process.md",
-          "fragments": {
-            "required-stage-completion": 29179
-          },
-          "file_bytes": 95516,
-          "reason": "Canonical process. The entry and orchestrator direct sections by situation; sections are retained links, not inlined."
-        },
-        {
-          "path": "bundle/docs/work/agent-orchestration/process/planning-repository.process.md",
-          "fragments": {
-            "publish-a-reviewable-checkpoint": 3532
-          },
-          "file_bytes": 15652,
-          "reason": "Planning storage and publication convention; read through work-artifacts before writing planning documents."
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "url": "https://github.com/sidkik/planning/blob/09243483254a746e1fef504f1e5ad959d484eaa3/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "file_bytes": 55905,
+          "carried_bytes": 28845,
+          "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
         }
       ],
-      "size_flags": []
+      "size_flags": [
+        "1028 lines exceeds the recommended 500-line skill size; nothing was truncated"
+      ]
     },
     {
       "path": "skills/ask-matt/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/ask-matt/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "57ed70ddf3ac8bc89a60f9082e59102c0d84b41e56e11372a13d79d195976155",
       "frontmatter_sha256": "5f5dbf21160d3a02d91fce9f95b7891c817b5e8a178097caa74061d839334b60",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 22118,
-      "lines": 239,
-      "sha256": "749243402639efada1b13b1c96a3a9e0f7926c7a45fb8797a0b828d0b03be012",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 22604,
+      "lines": 245,
+      "sha256": "983a30eaa260dea71d487016b95fa20801f8ed405d25c4eed1f12a0d48d778f1",
       "inlined": [
         {
           "path": ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
@@ -87,38 +133,38 @@
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/code-review/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/code-review/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "47f4e52c21694def9c7c11cbfbf891ca35eac7a93e395797515be3c8a409ae50",
       "frontmatter_sha256": "17f57de7e31fc9fe1cc5467029bae545fa53544c73a562be3db175c85d06715e",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 12573,
-      "lines": 174,
-      "sha256": "9c86c3ac16288aba3311db7dfde4ac5aa382eddcb614f037deab7a70a1d751ec",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 13059,
+      "lines": 180,
+      "sha256": "69a54fc368f217a33294a4f13411da6dc3074d4195db3ecb787833f52c7a1150",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/codebase-design/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/codebase-design/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "2c20617f87ec8af6a434859f381b2f061a69b530444e74eb39e78bb016a6d1e2",
       "frontmatter_sha256": "b25b3572a11783daa31d93d98137c0903646680bec562f9bb4de88580f7ce63d",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 18621,
-      "lines": 294,
-      "sha256": "f9dcf02d391be4dafbbc46727dde61020575247ade72bd5386db64daf1b80526",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 19107,
+      "lines": 300,
+      "sha256": "318523787e978a1eb3614fc5dbf414bece28def96d061c279241bd597e6248d3",
       "inlined": [
         {
           "path": ".agents/skills/codebase-design/DEEPENING.md",
@@ -136,20 +182,20 @@
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/diagnosing-bugs/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/diagnosing-bugs/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "77f3cf31bc99b2f49af943222526531fcc9fc41d047626d3640e875e85af3e84",
       "frontmatter_sha256": "bc1b5646541f0a544ba94d0835295fea5fa40ce5486d3339ae99b5b6e003ee9e",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 16380,
-      "lines": 281,
-      "sha256": "290091c8296793cb5672276f66362272b519093ba72d81b2f6d2067e25f31756",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 16866,
+      "lines": 287,
+      "sha256": "ba0ee1dac894728f86c3f6c7534d88e033f50bb7e1d673d83ef1b3904c1eb735",
       "inlined": [
         {
           "path": ".agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh",
@@ -162,20 +208,20 @@
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/domain-modeling/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/domain-modeling/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "327a2b50620e2fd70abc6893cd6965e76b20f8d0adb0dc2c8d5eb3845efb643e",
       "frontmatter_sha256": "5a45c253ee19296c097f199f9dd44b4e58a56ceb1120b34b7b9029b5d15f7794",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 15185,
-      "lines": 280,
-      "sha256": "cc371e90872abb7b12553d5b543cd5d100a01fa7c51c7312deb0af0cd6aeb92a",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 15671,
+      "lines": 286,
+      "sha256": "f4b935921ac79bfdcca0d5be02792aedef14aa2b3c6cc714aa07191d778f0f29",
       "inlined": [
         {
           "path": ".agents/skills/domain-modeling/ADR-FORMAT.md",
@@ -193,122 +239,157 @@
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/grill-with-docs/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/grill-with-docs/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "fc6401cbf34f1f3b6cb5e97253e25671d822733fc3f985117fe0d162639abf61",
       "frontmatter_sha256": "03a2e52d78d213a3e3f4e7568fa66c7bc6113ee774c7c5a60fa33178491e6416",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 6204,
-      "lines": 93,
-      "sha256": "68775928126de7f648c1e7240dff168cbdbadc14294efb228716009d8a71c87f",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 6690,
+      "lines": 99,
+      "sha256": "8aa2ac1acd64094d2d6e967d46dd45bf33878548b6b1556ad8c3d59b6f25091c",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/grilling/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/grilling/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "10ff989e7498b23b5acb49d5048f11dcd906757d2f79c5cdf8a00001381296f2",
       "frontmatter_sha256": "b338f30a98983521f90c77c0b80e7c44506dcfdd62a3d6480de311cd2d353818",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 7968,
-      "lines": 115,
-      "sha256": "ef5a8ae418676172e8f68d8ffde6882b65efdc98b415e534ea74eeaf2b8ab9f3",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 8454,
+      "lines": 121,
+      "sha256": "396e6da33bd7c3677c4a2f828677ef1c7893cb555a062fca10df3c3669bd9dc4",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/handoff/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/handoff/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "33a8209a74d36c5280e1699f5bc54a313a60671a3599a5c2c8ab8ce327451555",
       "frontmatter_sha256": "d345b2fd25e370cb1d723ff66f0b7fee300b34793c0aff05af6acdab2f0e186a",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 6843,
-      "lines": 102,
-      "sha256": "c234a0f5bf9081b2a5ac51df0f81e57fb495ea27b03754fd3b1d02b13fae5e04",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 7329,
+      "lines": 108,
+      "sha256": "bd3f3d906c187cf35c0d30a2af46f55170f9e25f45ab1f89cd15d09e533664f8",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/implement/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/implement/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "dc27831f466b865bf9e95f28c9361e9e99d59bcfb72a9585aa49a6829b3de3f8",
       "frontmatter_sha256": "a19979727ea9c0073806fd572ad45b042fa01bfeebcaf13c8ae00cdb9045e8d0",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 6384,
-      "lines": 101,
-      "sha256": "d86bccb4015bcad1a3e5b25839f426974920bf27160b26ee58404fbae96fca76",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 6870,
+      "lines": 107,
+      "sha256": "a93f9867ecc0e2cb05ee617daa75d8bcde6cdc4d54621f787279584f9cf04cb8",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/orchestrator/SKILL.md",
       "kind": "skill",
       "source": ".claude/skills/orchestrator/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
-      "source_sha256": "56e9aa5cc7718a9ae89610dd2054364ac08cab9b258cde591ea17bdb16574271",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_sha256": "2bc1209e43d6acff56788a926299825b9c5765a83ab5049b9bf5053304d506ee",
       "frontmatter_sha256": "538cb11b2939c98fad34eb16e74af0b918c66b8427baf37a2025a60f68a5d3bd",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 30425,
-      "lines": 463,
-      "sha256": "407da1881c7cba8c2c29e041b65de962f00d47931d5b1fe6ff2bcb40847d9c5e",
-      "inlined": [],
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 57986,
+      "lines": 616,
+      "sha256": "9457e04c817163c66699ee6bda64bf6d1d3f831b2384498b269a4dbefdc99255",
+      "inlined": [
+        {
+          "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+          "fragment": "converge-reviews-decisions-and-publication",
+          "source_sha256": "e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6",
+          "bytes": 3854,
+          "reason": "Convergence rules the orchestrator applies to reviews, decisions and publication."
+        },
+        {
+          "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+          "fragment": "local-runtime-environments-select-own-validate-and-clean-up",
+          "source_sha256": "e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6",
+          "bytes": 3718,
+          "reason": "Local environment rules the orchestrator applies to live work."
+        },
+        {
+          "path": "docs/agents/sdlc/records.md",
+          "fragment": "retain-local-environment-custody",
+          "source_sha256": "62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934",
+          "bytes": 842,
+          "reason": "Custody record procedure required by the local environment rules."
+        },
+        {
+          "path": "docs/agents/sdlc/records.md",
+          "fragment": "finish-triage-and-clean-up-the-workspace",
+          "source_sha256": "62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934",
+          "bytes": 1744,
+          "reason": "Workspace cleanup procedure required by the local environment rules."
+        },
+        {
+          "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+          "fragment": "publish-a-reviewable-checkpoint",
+          "source_sha256": "b7e354fac2120e8e7b2e81e4144baf7d33402ecd6653b815cae3b1e0027d7442",
+          "bytes": 3532,
+          "reason": "Checkpoint definition required by the convergence rules."
+        },
+        {
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "policy-agent-checkpoints-across-the-process",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 11759,
+          "reason": "Observer and checkpoint contract required by the convergence rules."
+        }
+      ],
       "invokes": [
         "skills/code-review/SKILL.md",
         "skills/sdlc-process/SKILL.md",
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [
-        {
-          "path": "bundle/docs/work/agent-orchestration/process/orchestration.process.md",
-          "fragments": {
-            "converge-reviews-decisions-and-publication": 3854,
-            "local-runtime-environments-select-own-validate-and-clean-up": 3718
-          },
-          "file_bytes": 95516,
-          "reason": "Canonical process. The entry and orchestrator direct sections by situation; sections are retained links, not inlined."
-        }
-      ],
-      "size_flags": []
+      "cited_sources": [],
+      "size_flags": [
+        "616 lines exceeds the recommended 500-line skill size; nothing was truncated"
+      ]
     },
     {
       "path": "skills/prototype/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/prototype/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "714de632d116bb73f65cdb5a882db15b9369a6713b9a47c0fad827848f0bfbe3",
       "frontmatter_sha256": "5644156a5ae159cd7d20b28ee47ad03b91c5e74ed28e6f439a1f88f69baca559",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 22729,
-      "lines": 304,
-      "sha256": "4ac8a8a7a2bec2e5e661ff983ba20244cfc03960343f36fb140bde501f917007",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 23215,
+      "lines": 310,
+      "sha256": "d733ebf65fba5601d3c16d9ba460147d2a7140a5741f32ff1fa1de3dbbd152d9",
       "inlined": [
         {
           "path": ".agents/skills/prototype/LOGIC.md",
@@ -326,25 +407,25 @@
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/research/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/research/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "985569f15739c713d6784887c3d186d4ef9ac85bec5ad9c068d25bf0739928e4",
       "frontmatter_sha256": "19667cf52f1dfba9a563ee347080d7f8d4d9cd55fa95357ec87598374db4740c",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 6775,
-      "lines": 99,
-      "sha256": "c02f96033c87f8671247d3fd6f33b3e3868566e13f53c32da680251709c7a56a",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 7261,
+      "lines": 105,
+      "sha256": "edee9881e39ad62fe38ce69cf994c4eb3ec139c9092c68e969d6ef58915b99ca",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
@@ -354,80 +435,126 @@
       "source_revision": "a2706a96bf7daf46f272cee65a3a0a2565e40ba0",
       "source_sha256": "9d8114f8ef0b31f535a265fc05c364bd8cf2e2895a830040e06c22acb11f54b0",
       "frontmatter_sha256": "2909dbce8514360e4d1935d4d982623e695c239a778f501dde4cf52f9ef7cb18",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 6912,
-      "lines": 101,
-      "sha256": "80e718a0ca0b421f04a4b9bd551ae01803c27a161ef5c6d079d9969aa38843c7",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 7398,
+      "lines": 107,
+      "sha256": "8b3bdbefee247a827f44a0e316c2ac99765b33b2154fb681dba2dfa1878c5ff5",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/sdlc-policy-review/SKILL.md",
       "kind": "skill",
       "source": ".claude/skills/sdlc-policy-review/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "9204acd7c57222c3038eeddde98fc30c0245fdd543961b7b7c5961c610102bc7",
       "frontmatter_sha256": "e5a541c85543c0d546cb35a24b96ebf3f6b08d12a505938a8726f34df6b3f476",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 30141,
-      "lines": 221,
-      "sha256": "877005def3badec5a2e0fb79c7099fa61f31115ff216907d8297bc136088d01e",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 168724,
+      "lines": 1018,
+      "sha256": "203d59ad1971da2d8cea53d9f6da80f4cc4863a93814c96c74b2d6d59ed2f382",
       "inlined": [
+        {
+          "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+          "fragment": null,
+          "source_sha256": "e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6",
+          "bytes": 95121,
+          "reason": "The process is applied in full: its stage checklists, routing, readiness rules, records and reports govern every assessment."
+        },
+        {
+          "path": "docs/agents/issue-tracker.md",
+          "fragment": null,
+          "source_sha256": "bbb066e7f896459fb2b5bdc044ef592153ee8174abdf617d13eb555b82d8a89d",
+          "bytes": 3935,
+          "reason": "Tracker mechanics the process directs."
+        },
+        {
+          "path": "docs/agents/sdlc/records.md",
+          "fragment": null,
+          "source_sha256": "62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934",
+          "bytes": 10601,
+          "reason": "Record, continuity, custody, cleanup and closeout procedures the process directs."
+        },
+        {
+          "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+          "fragment": null,
+          "source_sha256": "b7e354fac2120e8e7b2e81e4144baf7d33402ecd6653b815cae3b1e0027d7442",
+          "bytes": 15053,
+          "reason": "Planning storage, publication and handoff convention the process directs."
+        },
         {
           "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
           "fragment": "policy-agent-checkpoints-across-the-process",
           "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
           "bytes": 11759,
-          "reason": "The checkpoint contract every assessment applies."
+          "reason": "The checkpoint contract the process applies before every advancement."
         },
         {
-          "path": "docs/work/agent-orchestration/process/orchestration.process.md",
-          "fragment": "converge-reviews-decisions-and-publication",
-          "source_sha256": "c691867c5324df0dd7cb2b70535ae1dd36aac8b7bc27eb13fe61971cf90f0ed3",
-          "bytes": 3854,
-          "reason": "Convergence rules the assessment applies."
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "workflow-handoffs-producers-durable-records-and-recipients",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 9655,
+          "reason": "The context mapping of producers, records and recipients the process directs."
+        },
+        {
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "readiness-controls",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 7431,
+          "reason": "Readiness controls the checkpoint contract and context mapping apply."
         }
       ],
       "invokes": [
         "agents/sdlc-policy-reviewer.md",
+        "skills/ask-matt/SKILL.md",
+        "skills/code-review/SKILL.md",
+        "skills/codebase-design/SKILL.md",
+        "skills/diagnosing-bugs/SKILL.md",
+        "skills/domain-modeling/SKILL.md",
+        "skills/grill-with-docs/SKILL.md",
+        "skills/grilling/SKILL.md",
+        "skills/handoff/SKILL.md",
+        "skills/implement/SKILL.md",
         "skills/orchestrator/SKILL.md",
-        "skills/work-artifacts/SKILL.md"
+        "skills/prototype/SKILL.md",
+        "skills/research/SKILL.md",
+        "skills/sdlc-process/SKILL.md",
+        "skills/tdd/SKILL.md",
+        "skills/to-spec/SKILL.md",
+        "skills/to-tickets/SKILL.md",
+        "skills/triage/SKILL.md",
+        "skills/wayfinder/SKILL.md",
+        "skills/work-artifacts/SKILL.md",
+        "skills/writing-for-agents/SKILL.md"
       ],
-      "retained_references": [
+      "cited_sources": [
         {
-          "path": "bundle/docs/work/agent-orchestration/process/orchestration.process.md",
-          "fragments": {
-            "required-stage-completion": 29179
-          },
-          "file_bytes": 95516,
-          "reason": "Canonical process. The entry and orchestrator direct sections by situation; sections are retained links, not inlined."
-        },
-        {
-          "path": "bundle/docs/work/agent-orchestration/process/planning-repository.process.md",
-          "fragments": {
-            "publish-a-reviewable-checkpoint": 3532
-          },
-          "file_bytes": 15652,
-          "reason": "Planning storage and publication convention; read through work-artifacts before writing planning documents."
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "url": "https://github.com/sidkik/planning/blob/09243483254a746e1fef504f1e5ad959d484eaa3/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "file_bytes": 55905,
+          "carried_bytes": 28845,
+          "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
         }
       ],
-      "size_flags": []
+      "size_flags": [
+        "1018 lines exceeds the recommended 500-line skill size; nothing was truncated"
+      ]
     },
     {
       "path": "skills/sdlc-process/SKILL.md",
       "kind": "skill",
       "source": ".claude/skills/sdlc-process/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
-      "source_sha256": "dcd98622faa76cf9272966b44bcaaf782f415124e0e212a01d87fd8ba82b7283",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
+      "source_sha256": "b220392a9ea2273a43456d481126a28965cc47e7b65815b0bfe2c0681cbcf6eb",
       "frontmatter_sha256": "4ace79cc8c9eef559411721332bb0d9cd23936dc404bbfdce8f8205441c11d59",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 30650,
-      "lines": 223,
-      "sha256": "66b2edf2006f15f254f583d344862824912f0e7291d3408f51682b54eb19029b",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 185319,
+      "lines": 1098,
+      "sha256": "68e7706ea53621fe169f32ae0fdf8fa4a2c3a1ceca6f0ecfbe5e390a5c43f31c",
       "inlined": [
         {
           "path": ".agents/skills/ask-matt/PHASE-BOUNDARIES.md",
@@ -435,12 +562,62 @@
           "source_sha256": "a8aa20158609ef39e2b308b6ba0660c91066838d07a867202e63a7744a88a3ed",
           "bytes": 4249,
           "reason": "The session/harness boundary row directs this guidance as part of the flow."
+        },
+        {
+          "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+          "fragment": null,
+          "source_sha256": "e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6",
+          "bytes": 95121,
+          "reason": "The process is applied in full: its stage checklists, routing, readiness rules, records and reports govern the entry."
+        },
+        {
+          "path": "docs/agents/issue-tracker.md",
+          "fragment": null,
+          "source_sha256": "bbb066e7f896459fb2b5bdc044ef592153ee8174abdf617d13eb555b82d8a89d",
+          "bytes": 3935,
+          "reason": "Tracker mechanics the process directs."
+        },
+        {
+          "path": "docs/agents/sdlc/records.md",
+          "fragment": null,
+          "source_sha256": "62e69bc17f62d34ced9dc034d724d3b2aa2f0efcc94c7b22cd38c10ba1146934",
+          "bytes": 10601,
+          "reason": "Record, continuity, custody, cleanup and closeout procedures the process directs."
+        },
+        {
+          "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+          "fragment": null,
+          "source_sha256": "b7e354fac2120e8e7b2e81e4144baf7d33402ecd6653b815cae3b1e0027d7442",
+          "bytes": 15053,
+          "reason": "Planning storage, publication and handoff convention the process directs."
+        },
+        {
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "policy-agent-checkpoints-across-the-process",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 11759,
+          "reason": "The checkpoint contract the process applies before every advancement."
+        },
+        {
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "workflow-handoffs-producers-durable-records-and-recipients",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 9655,
+          "reason": "The context mapping of producers, records and recipients the process directs."
+        },
+        {
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "readiness-controls",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 7431,
+          "reason": "Readiness controls the checkpoint contract and context mapping apply."
         }
       ],
       "invokes": [
         "agents/sdlc-policy-reviewer.md",
         "skills/ask-matt/SKILL.md",
         "skills/code-review/SKILL.md",
+        "skills/codebase-design/SKILL.md",
         "skills/diagnosing-bugs/SKILL.md",
         "skills/domain-modeling/SKILL.md",
         "skills/grill-with-docs/SKILL.md",
@@ -456,90 +633,53 @@
         "skills/to-tickets/SKILL.md",
         "skills/triage/SKILL.md",
         "skills/wayfinder/SKILL.md",
-        "skills/work-artifacts/SKILL.md"
+        "skills/work-artifacts/SKILL.md",
+        "skills/writing-for-agents/SKILL.md"
       ],
-      "retained_references": [
+      "cited_sources": [
         {
-          "path": "bundle/docs/agents/issue-tracker.md",
-          "fragments": {},
-          "file_bytes": 3935,
-          "reason": "Sidkik tracker mechanics; retained link."
-        },
-        {
-          "path": "bundle/docs/agents/sdlc/records.md",
-          "fragments": {
-            "close-out-delivered-work": 1284,
-            "finish-triage-and-clean-up-the-workspace": 1744,
-            "retain-local-environment-custody": 842
-          },
-          "file_bytes": 10601,
-          "reason": "Shared record, continuity and closeout procedure; sections are retained links."
-        },
-        {
-          "path": "bundle/docs/work/agent-orchestration/process/orchestration.process.md",
-          "fragments": {
-            "bug-intake-establish-the-defect-then-preserve-redgreen": 11233,
-            "converge-reviews-decisions-and-publication": 3854,
-            "human-decision-requests-and-accountable-reports": 1161,
-            "invocation-evidence-and-sidkik-adaptations": 4340,
-            "local-runtime-environments-select-own-validate-and-clean-up": 3718,
-            "readiness-and-start-rules": 24644,
-            "repository-board-delegation": 4059,
-            "reproduction-complete-and-ready-for-repair": 5029,
-            "required-stage-completion": 29179,
-            "revisions-and-refinement-during-work": 2916
-          },
-          "file_bytes": 95516,
-          "reason": "Canonical process. The entry and orchestrator direct sections by situation; sections are retained links, not inlined."
-        },
-        {
-          "path": "bundle/docs/work/agent-orchestration/process/planning-repository.process.md",
-          "fragments": {},
-          "file_bytes": 15652,
-          "reason": "Planning storage and publication convention; read through work-artifacts before writing planning documents."
-        },
-        {
-          "path": "bundle/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
-          "fragments": {
-            "policy-agent-checkpoints-across-the-process": 11759
-          },
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "url": "https://github.com/sidkik/planning/blob/09243483254a746e1fef504f1e5ad959d484eaa3/docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
           "file_bytes": 55905,
-          "reason": "Canonical governed-context specification; only the policy checkpoint contract is bundled, and only into policy review."
+          "carried_bytes": 28845,
+          "reason": "Attribution of ownership to the governed-context proposal. Its governing checkpoint contract and handoff mapping are carried; the rest is design rationale and a dated evaluation."
         }
       ],
-      "size_flags": []
+      "size_flags": [
+        "1098 lines exceeds the recommended 500-line skill size; nothing was truncated"
+      ]
     },
     {
       "path": "skills/session-start/SKILL.md",
       "kind": "skill",
       "source": "tools/session-start/SKILL.md",
       "source_revision": "maintained in this repository",
-      "source_sha256": "cbf2b8c7a7ebd8a49cb8281cbfa573feedc7db2b31c3e144194cb5d44c35d82a",
+      "source_sha256": "f3860163ccdff10492b78406edf1762ee0de6ab9a684c82ed1dcca9533b9fcca",
       "frontmatter_sha256": "30c0617aa71b7d439f7d5bee1fe30b70c62fd5cfc9005c5ade5a0a0a31b7006e",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 13881,
-      "lines": 131,
-      "sha256": "3287f639af9b260229e21501cf8192b0257bf2b41e38b456623bdd6bf2969a18",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 14994,
+      "lines": 138,
+      "sha256": "c9d8cd67f5ae2fa962a4865d52adb5313f9eaf1bb923e3c6e29fa13a334f3204",
       "inlined": [],
       "invokes": [
         "skills/sdlc-observer/SKILL.md",
         "skills/sdlc-setup/SKILL.md",
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/tdd/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/tdd/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "cb01f66bebfaa25fa1f88e6b7e769cd9fd9f35b1120b8563749820738814c927",
       "frontmatter_sha256": "18f3c53c39a963a812db738c48d8f51417e69c4e93a5e4a3f55ea8f07048880a",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 13961,
-      "lines": 273,
-      "sha256": "bfd99104022f5193fcde36fcb561779b64b793a2358ccddd3477635c2ad77576",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 14447,
+      "lines": 279,
+      "sha256": "c1115d9456a83dade85513da45b9b94cb99594c235b5a503624861e6ef868d3d",
       "inlined": [
         {
           "path": ".agents/skills/tdd/mocking.md",
@@ -557,56 +697,56 @@
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/to-spec/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/to-spec/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "13c5b992d278aa49f366e6baa8acf76e99e130e7a80ca9b813ff20ff9528e617",
       "frontmatter_sha256": "0e19d6ade8b04f20009be74e678ff616dee06e582be33140f1a9d1227e779d30",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 8992,
-      "lines": 161,
-      "sha256": "6704abc831518409440cc79862676210688ecabeed8e58502cfd16f409e69670",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 9478,
+      "lines": 167,
+      "sha256": "f6422baa4cf392f47bb2a7d592512973626ce78fd4129fb6fed8714b22ef60c4",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/to-tickets/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/to-tickets/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "611ff3528bbf210d964c794f1994c0343b03e27be9bacc70794727d1104a7f06",
       "frontmatter_sha256": "346d20e47a2a1609357228798b4eeacd45b150991437cff297949f6aa86e46ca",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 11623,
-      "lines": 191,
-      "sha256": "e9c6288e3bd33b30ff5259c9d939de081f1a5102dcfdacf8e3e7798c94fa39c8",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 12109,
+      "lines": 197,
+      "sha256": "23785e0feff49efac01277ec554f176226116c2b719c1a60490edec65b283037",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/triage/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/triage/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "fd50291e5a0868acea60e211f48b1156feafb072a5f330e070cca65db98d458e",
       "frontmatter_sha256": "463131800e2568b32da78e1f19fd0baa67cc057d9de69ccae2cd3def3f99468b",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 26031,
-      "lines": 522,
-      "sha256": "849e4595c9fabe64b8b2a5abb745bd7a25c6a2a4e78813ae5e0a4b557e90facb",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 26517,
+      "lines": 528,
+      "sha256": "a73057988f14272b7aeb7c3a63a61b424fd6143a9ddbfa8b5f88aac3132bbff0",
       "inlined": [
         {
           "path": ".agents/skills/triage/AGENT-BRIEF.md",
@@ -624,63 +764,80 @@
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": [
-        "522 lines exceeds the recommended 500-line skill size; nothing was truncated"
+        "528 lines exceeds the recommended 500-line skill size; nothing was truncated"
       ]
     },
     {
       "path": "skills/wayfinder/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/wayfinder/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "2ea36721ad2dfc37ce68baa258ee5c83a6b63b4c3afcf2caacf5b003cf8082c2",
       "frontmatter_sha256": "872b2aec97f5322ea28aac445231eaec88c20cc8f9f976aaf1a3e81c6994019a",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 17953,
-      "lines": 214,
-      "sha256": "f809a583213af48c89189b1d2c741721e7ce11322dbdeb686cc38177eb768e27",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 18439,
+      "lines": 220,
+      "sha256": "8ccc98dd3e1366c878cd2d0afd0fe0c6d3edac7c8aebb37102c89cb8b27bf860",
       "inlined": [],
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/work-artifacts/SKILL.md",
       "kind": "skill",
       "source": ".claude/skills/work-artifacts/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "22bdb0fa74845016dcd495b096f45ccd5532e0bb91de6f7b6404855d53019cfe",
       "frontmatter_sha256": "9ecf733ab33bc19c601ed3e01d5c2c565bada8db2c9bca1451572f4423bb6637",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 20028,
-      "lines": 224,
-      "sha256": "50d569066df2f15a018ff302421db8128943e7e23df9a581e5dfa1535fdf1ec2",
-      "inlined": [],
-      "invokes": [],
-      "retained_references": [
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 51985,
+      "lines": 403,
+      "sha256": "b7f783a79bf29cfdc49669d362c69e73d6adf62b8726c6a3175d99d478825766",
+      "inlined": [
         {
-          "path": "bundle/docs/work/agent-orchestration/process/planning-repository.process.md",
-          "fragments": {},
-          "file_bytes": 15652,
-          "reason": "Planning storage and publication convention; read through work-artifacts before writing planning documents."
+          "path": "docs/work/agent-orchestration/process/planning-repository.process.md",
+          "fragment": null,
+          "source_sha256": "b7e354fac2120e8e7b2e81e4144baf7d33402ecd6653b815cae3b1e0027d7442",
+          "bytes": 15053,
+          "reason": "Storage and publication convention the skill directs before writing planning documents."
+        },
+        {
+          "path": "docs/work/agent-orchestration/process/orchestration.process.md",
+          "fragment": "converge-reviews-decisions-and-publication",
+          "source_sha256": "e5a0cdbffd1b9eef8d80f07da4104b9adffe3ceebb1f0f4e1c8565ec57afbff6",
+          "bytes": 3854,
+          "reason": "Convergence rules the planning convention requires for reassessment of a candidate."
+        },
+        {
+          "path": "docs/work/agent-orchestration/workstreams/context/governed-context.spec.md",
+          "fragment": "policy-agent-checkpoints-across-the-process",
+          "source_sha256": "91d0b32ce1bde1334362b264fc59a56c02d8c03e02e5f77a89698d5a7b4da7b9",
+          "bytes": 11759,
+          "reason": "Policy checkpoint contract that governs publication and handoff."
         }
       ],
+      "invokes": [
+        "skills/orchestrator/SKILL.md"
+      ],
+      "cited_sources": [],
       "size_flags": []
     },
     {
       "path": "skills/writing-for-agents/SKILL.md",
       "kind": "skill",
       "source": ".agents/skills/writing-for-agents/SKILL.md",
-      "source_revision": "00a15fb8682612b6d8fbe9e603b561d42f8688b7",
+      "source_revision": "09243483254a746e1fef504f1e5ad959d484eaa3",
       "source_sha256": "551adca942227b44192edba88acd4e8db911f0121ce58ad16944ccf6a896a74a",
       "frontmatter_sha256": "9ad324816d8b962ae16b38086356973633d0153345485154b28eab2686b407cd",
-      "adapter_sha256": "3b420eaf6066f6a45cab226806fb756ce46dfd5c366ec73eeb2972a0f3a1c0ac",
-      "bytes": 20076,
-      "lines": 198,
-      "sha256": "e45c32b8d04e608ae26fee647735e6ffacefa584b8660e5a8588747b1f0d1bf0",
+      "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
+      "bytes": 20562,
+      "lines": 204,
+      "sha256": "510e428e42b1243b4694a9f5aef833e9cebb4774205f88ae937eb13009a4516f",
       "inlined": [
         {
           "path": ".agents/skills/writing-for-agents/SKILL-MECHANICS.md",
@@ -692,7 +849,7 @@
       "invokes": [
         "skills/work-artifacts/SKILL.md"
       ],
-      "retained_references": [],
+      "cited_sources": [],
       "size_flags": []
     }
   ]

@@ -153,8 +153,8 @@ Distinguish the evidence surfaces:
   and natively invoked the configured board skill from the candidate instructions.
 - Dynamic native acceptance requires the transcript to show candidate loading,
   the model's configured-skill selection and exact event inputs, then successful
-  native invocation and full directed reads. Claude evidence is its `Skill`
-  call/result. Codex evidence is a real accepted structured skill input
+  native invocation whose result delivered the skill's instructions. Claude
+  evidence is its `Skill` call/result. Codex evidence is a real accepted structured skill input
   (`{type:"skill",name,path}`) and turn result; inspect `thread/read` with
   `includeTurns: true` where available. A file read, launch handle, fake reply
   token or reassuring prose proves neither invocation nor routing.
@@ -184,21 +184,32 @@ client session and read the transcript.
   accepted input (`crew-codex task --skill <name>`, resolved name and path) and
   the turn's result; a file read never substitutes. A job launch or skill
   discovery alone is not success.
-- Invocation alone does not satisfy the loading contract. Full loading also needs
-  the complete packaged source read, plus the directed reference files relevant to
-  the work. Check each as its own requirement in the transcript. The sdlc-process
-  native skills and the policy reviewer agent carry their pinned source, the
-  supporting files named in `composition` (`tools/process-sources.json`) and the
-  source adapter contract in the entry itself, so the `Skill` result (or the
-  agent's own definition) is that content: verify it by finding a bundled
-  marker, such as the `## Source adapter contract` heading and a bundled
-  dependency's heading, in the result record. A separate read of the same
-  bundled bytes is not needed. Links the entry retains (canonical process,
-  specification and record sections, other skills) are not covered by the
-  invocation; `sdlc-process/native-composition.json` lists them per asset, and
-  each one the work relies on still needs its own read. The shared process text
-  still says "full read of its packaged source"; until Planning changes it,
-  treat that wording as satisfied by the composed result for bundled content.
+- Invocation alone does not satisfy the loading contract: loading is a native
+  invocation whose result delivers the full governing instructions and the
+  concrete content of every reference the work makes mandatory. Check each as its
+  own requirement in the transcript: the `Skill` call (or accepted structured
+  skill input) and the result record that contains the delivered content. A
+  separate read of the same bytes is not required and never substitutes for the
+  invocation; when invocation is unavailable, source reading is not a fallback
+  load (report the capability gap). A result that only points to a source or
+  reference for the reader to open is an incomplete payload and a load gap, even
+  if the pointed source is later read. The sdlc-process native skills and the
+  policy reviewer agent carry their pinned source, the supporting files and the
+  process, record, planning, tracker and checkpoint sections named in
+  `composition` (`tools/process-sources.json`) and the source adapter contract, so
+  verify delivery by finding bundled markers in the result record (or the agent's
+  own definition): the `## Source adapter contract` heading, a bundled dependency
+  heading and a section the flow requires, such as `Required stage completion`
+  or `Readiness and start rules` in the entry. The generator fails when a
+  governing section is left as a link to read later. What remains linked are
+  separately invoked skills (each needs its own native invocation), live project
+  facts discovered from their owners, and pinned historical evidence;
+  `sdlc-process/native-composition.json` lists each asset's bundled files with
+  sizes and its cited sources. The sdlc-status and grok-crew-runtime skills and
+  the grok-supervisor agent carry their operating contracts the same way
+  (for example the `## Commands` and `## Launch recipes` headings), so no README
+  read is part of their loading. An observer treats such a result as the load
+  and does not require a duplicate `Read` of the packaged source.
 - A tool call is not a successful result. Cite the result record, not only the
   call.
 - Use the client's documented CLI help for invocation flags; record the exact

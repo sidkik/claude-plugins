@@ -115,9 +115,11 @@ class CommittedCompositionTests(unittest.TestCase):
         self.assertIn(build.normalized_prose(source[len(front):]), build.normalized_prose(native))
         review = (BUNDLE / '.claude/skills/sdlc-policy-review/SKILL.md').read_text()
         self.assertIn(plain(review[len(build.frontmatter(review)):]), plain(native))
-        contract = build.section((BUNDLE / SELECTION['composition']['assets']['.claude/agents/sdlc-policy-reviewer.md']['inline'][1]['path']).read_text(),
-                                 'policy-agent-checkpoints-across-the-process')
+        spec = 'docs/work/agent-orchestration/workstreams/context/governed-context.spec.md'
+        contract = build.section((BUNDLE / spec).read_text(), 'policy-agent-checkpoints-across-the-process')
         self.assertIn(plain(contract), plain(native))
+        process = (BUNDLE / 'docs/work/agent-orchestration/process/orchestration.process.md').read_text()
+        self.assertIn(plain(process[len(build.frontmatter(process)):]), plain(native))
         self.assertIn('Return one compact assessment in the existing work issue/PR', native)
         self.assertIn('## Source adapter contract', native)
         self.assertNotRegex(native, r'\]\([^)]*\.claude/(skills|agents)/')
@@ -141,30 +143,88 @@ class CommittedCompositionTests(unittest.TestCase):
                 self.assertNotRegex(body.strip()[:400], r'^Read and follow \[')
         self.assertEqual((PLUGIN / 'agents/sidkik-sdlc-observed-main.md').read_text().split('\n---\n', 1)[1].strip(), '')
 
-    def test_links_resolve_and_every_retained_rule_is_reported(self):
+    def test_links_resolve_and_no_asset_points_to_a_governing_document(self):
         files = {str(p.relative_to(PLUGIN)): p.read_bytes() for folder in ('bundle', 'skills', 'claude-skills', 'agents')
                  for p in (PLUGIN / folder).rglob('*') if p.is_file()}
         files['native-composition.json'] = (PLUGIN / 'native-composition.json').read_bytes()
         build.validate_links(files)
         for asset in REPORT['assets']:
-            prose = ''.join(part for i, part in enumerate(build.FENCES.split((PLUGIN / asset['path']).read_text())) if not i % 2)
-            reported = {r['path'] for r in asset['retained_references']}
-            seen = set()
+            text = (PLUGIN / asset['path']).read_text()
+            prose = ''.join(part for i, part in enumerate(build.FENCES.split(text)) if not i % 2)
             for _, target in build.LINK.findall(prose):
                 resolved = build.target_path(asset['path'], target)
-                if resolved and resolved.startswith('bundle/'):
-                    seen.add(resolved)
-            self.assertEqual(seen, reported, asset['path'])
+                self.assertFalse(resolved and resolved.startswith('bundle/'),
+                                 f"{asset['path']} leaves a governing document as a read-later link: {target}")
+            self.assertNotIn('retained_references', asset)
+            for cited in asset['cited_sources']:
+                self.assertIn(cited['url'], text)
+                self.assertLess(cited['carried_bytes'], cited['file_bytes'])
+                self.assertGreater(cited['carried_bytes'], 0)
 
-    def test_remaining_mandatory_links_are_reported_not_claimed_covered(self):
+    def test_governing_sections_are_delivered_inside_the_asset(self):
+        def body(path):
+            text = (BUNDLE / path).read_text()
+            return text[len(build.frontmatter(text)):] if text.startswith('---\n') else text
+
+        def part(path, fragment):
+            return build.section(body(path), fragment)
+
+        process, tracker, records, planning, spec = (
+            'docs/work/agent-orchestration/process/orchestration.process.md', 'docs/agents/issue-tracker.md',
+            'docs/agents/sdlc/records.md', 'docs/work/agent-orchestration/process/planning-repository.process.md',
+            'docs/work/agent-orchestration/workstreams/context/governed-context.spec.md')
+        checkpoint, handoffs = 'policy-agent-checkpoints-across-the-process', 'workflow-handoffs-producers-durable-records-and-recipients'
+        every = [(path, None) for path in (process, tracker, records, planning)] + [(spec, checkpoint), (spec, handoffs), (spec, 'readiness-controls')]
+        expected = {
+            'skills/sdlc-process/SKILL.md': every, 'skills/sdlc-policy-review/SKILL.md': every, 'agents/sdlc-policy-reviewer.md': every,
+            'skills/orchestrator/SKILL.md': [(process, 'converge-reviews-decisions-and-publication'),
+                                             (process, 'local-runtime-environments-select-own-validate-and-clean-up'),
+                                             (records, 'retain-local-environment-custody'), (records, 'finish-triage-and-clean-up-the-workspace'),
+                                             (planning, 'publish-a-reviewable-checkpoint'), (spec, checkpoint)],
+            'skills/work-artifacts/SKILL.md': [(planning, None), (process, 'converge-reviews-decisions-and-publication'), (spec, checkpoint)],
+        }
+        for native, needed in expected.items():
+            text = plain((PLUGIN / native).read_text())
+            for path, fragment in needed:
+                with self.subTest(asset=native, source=path, fragment=fragment):
+                    wanted = part(path, fragment) if fragment else body(path)
+                    self.assertIsNotNone(wanted)
+                    self.assertIn(plain(wanted), text)
         entry = ASSETS['skills/sdlc-process/SKILL.md']
-        process = next(r for r in entry['retained_references'] if r['path'].endswith('orchestration.process.md'))
-        self.assertGreater(process['fragments']['required-stage-completion'], 20000)
+        self.assertGreater(sum(e['bytes'] for e in entry['inlined']), 100000)
         agent = ASSETS['agents/sdlc-policy-reviewer.md']
-        self.assertTrue(any(r['path'].endswith('orchestration.process.md') for r in agent['retained_references']))
         self.assertIn('skills/work-artifacts/SKILL.md', agent['invokes'])
-        # The checkpoint contract is bundled into review, so it is no longer a retained link there.
-        self.assertFalse(any(r['path'].endswith('governed-context.spec.md') for r in agent['retained_references']))
+        self.assertFalse(any('retained' in key for item in REPORT['assets'] for key in item))
+        # Only the identity of the governed-context proposal is cited; its governing sections are carried.
+        for native in ('skills/sdlc-process/SKILL.md', 'skills/sdlc-policy-review/SKILL.md', 'agents/sdlc-policy-reviewer.md'):
+            cited = ASSETS[native]['cited_sources']
+            self.assertEqual([c['path'] for c in cited], [spec])
+            self.assertEqual(cited[0]['file_bytes'], len((BUNDLE / spec).read_bytes()))
+
+    def test_leaving_any_governing_section_as_a_pointer_fails_the_build(self):
+        canonical = set(SELECTION['composition']['canonical_references'])
+        tried = 0
+        for asset, asset_policy in SELECTION['composition']['assets'].items():
+            for index, entry in enumerate(asset_policy.get('inline', [])):
+                if build.inline_entries([entry])[0]['path'] not in canonical:
+                    continue
+                tried += 1
+                with self.subTest(asset=asset, removed=entry):
+                    selection = json.loads(json.dumps(SELECTION))
+                    del selection['composition']['assets'][asset]['inline'][index]
+                    manifest = json.loads((BUNDLE / 'source-manifest.json').read_text())
+                    texts = {i['path']: (BUNDLE / i['path']).read_text() for i in manifest['files']}
+                    origins = {i['path']: (i['source'], SELECTION['sources'][i['source']], i['source_sha256']) for i in manifest['files']}
+                    with self.assertRaisesRegex(ValueError, 'read-later pointer'):
+                        build.compose_native(selection, texts, origins, build.maintained_texts(selection))
+        self.assertGreaterEqual(tried, 25)
+
+    def test_every_canonical_reference_is_governing_and_inlined_somewhere(self):
+        canonical = SELECTION['composition']['canonical_references']
+        carried = {i['path'] for a in REPORT['assets'] for i in a['inlined']}
+        self.assertEqual(carried & set(canonical), set(canonical))
+        for reason in canonical.values():
+            self.assertNotRegex(reason, r'retained|not inlined|optional|read later')
 
     def test_size_flags_report_without_truncating(self):
         limit = SELECTION['composition']['max_lines']
@@ -209,19 +269,30 @@ class CompositionPolicyTests(unittest.TestCase):
         self.assertIn('```md\n# not a heading\n[x](nowhere.md)\n```', native)
         self.assertEqual(result['report']['assets'][0]['inlined'][0]['path'], dep)
 
-    def test_skill_links_are_native_and_canonical_links_keep_fragments(self):
+    def test_skill_links_stay_native_and_a_governing_link_must_be_inlined(self):
         skill, other = '.agents/skills/a/SKILL.md', '.claude/skills/b/SKILL.md'
         doc = 'docs/process.md'
         texts = {skill: fake(body='# A\n\n[b](../../../.claude/skills/b/SKILL.md#go) [p](../../../docs/process.md#part)\n'),
                  other: fake(body='# B\n\n## Go\n'), doc: '# P\n\n## Part\n' + 'x' * 50}
-        result = self.compose(texts, {}, canonical={doc: 'canonical'})
+        with self.assertRaisesRegex(ValueError, 'governing reference left as a read-later pointer.*docs/process.md#part'):
+            self.compose(texts, {}, canonical={doc: 'canonical'})
+        result = self.compose(texts, {skill: {'inline': [{'path': doc, 'fragment': 'part', 'reason': 'directed'}]}}, canonical={doc: 'canonical'})
         native = result['files']['skills/a/SKILL.md'].decode()
         self.assertIn('[b](../b/SKILL.md#go)', native)
-        self.assertIn('[p](../../bundle/docs/process.md#part)', native)
+        self.assertIn('[p](#part)', native)
         asset = next(a for a in result['report']['assets'] if a['path'] == 'skills/a/SKILL.md')
         self.assertIn('skills/b/SKILL.md', asset['invokes'])
-        self.assertEqual(asset['retained_references'][0]['path'], 'bundle/docs/process.md')
-        self.assertGreater(asset['retained_references'][0]['fragments']['part'], 0)
+        self.assertEqual(asset['cited_sources'], [])
+        self.assertEqual(asset['inlined'][0]['fragment'], 'part')
+
+    def test_whole_file_inline_resolves_every_section_link_into_the_document(self):
+        skill, doc = '.agents/skills/a/SKILL.md', 'docs/process.md'
+        texts = {skill: fake(body='# A\n\nRead [the process](../../../docs/process.md) and [part](../../../docs/process.md#part).\n'),
+                 doc: '# P\n\n## Part\n\nBody.\n'}
+        native = self.compose(texts, {skill: {'inline': [doc]}}, canonical={doc: 'governing'})['files']['skills/a/SKILL.md'].decode()
+        self.assertIn('[the process](#bundled-docs-process-md)', native)
+        self.assertIn('[part](#part)', native)
+        self.assertNotIn('bundle/', native)
 
     def test_unclassified_local_dependency_fails_the_build(self):
         skill = '.agents/skills/a/SKILL.md'
@@ -239,17 +310,47 @@ class CompositionPolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not a native skill or agent'):
             self.compose(texts, {'.agents/skills/a/DEP.md': {}})
 
-    def test_section_inline_retargets_links_that_leave_the_section(self):
+    def test_a_link_leaving_an_inlined_section_must_itself_be_carried(self):
         skill, doc = '.agents/skills/a/SKILL.md', 'docs/spec.md'
         texts = {skill: fake(body='# A\n\nSee [the contract](../../../docs/spec.md#contract).\n'),
                  doc: '# Spec\n\n## Contract\n\nRule, see [controls](#controls).\n\n## Controls\n\nMore.\n'}
-        result = self.compose(texts, {skill: {'inline': [{'path': doc, 'fragment': 'contract'}]}}, canonical={doc: 'spec'})
-        native = result['files']['skills/a/SKILL.md'].decode()
+        with self.assertRaisesRegex(ValueError, 'read-later pointer.*docs/spec.md#controls'):
+            self.compose(texts, {skill: {'inline': [{'path': doc, 'fragment': 'contract'}]}}, canonical={doc: 'spec'})
+        native = self.compose(texts, {skill: {'inline': [{'path': doc, 'fragment': 'contract'}, {'path': doc, 'fragment': 'controls'}]}},
+                              canonical={doc: 'spec'})['files']['skills/a/SKILL.md'].decode()
         self.assertIn('[the contract](#contract)', native)
-        self.assertIn('[controls](../../bundle/docs/spec.md#controls)', native)
-        self.assertNotIn('More.', native)
-        asset = result['report']['assets'][0]
-        self.assertEqual(list(asset['retained_references'][0]['fragments']), ['controls'])
+        self.assertIn('[controls](#controls)', native)
+        self.assertIn('More.', native)
+
+    def test_overlapping_inlines_of_one_file_are_rejected(self):
+        skill, doc = '.agents/skills/a/SKILL.md', 'docs/spec.md'
+        texts = {skill: fake(), doc: '# Spec\n\n## Outer\n\n### Inner\n\nText.\n'}
+        for inline in ([doc, {'path': doc, 'fragment': 'inner'}],
+                       [{'path': doc, 'fragment': 'outer'}, {'path': doc, 'fragment': 'inner'}]):
+            with self.assertRaisesRegex(ValueError, 'overlapping inline'):
+                self.compose(texts, {skill: {'inline': inline}}, canonical={doc: 'spec'})
+
+    def test_cited_identity_link_resolves_to_the_pinned_upstream_and_never_for_a_section(self):
+        skill, doc = '.agents/skills/a/SKILL.md', 'docs/spec.md'
+        texts = {skill: fake(body='# A\n\n[owner](../../../docs/spec.md) and [rule](../../../docs/spec.md#rule)\n'),
+                 doc: '# Spec\n\n## Rule\n\nText.\n\n## Rationale\n\nMore.\n'}
+        with self.assertRaisesRegex(ValueError, 'read-later pointer.*docs/spec.md#rule'):
+            self.compose(texts, {skill: {'cite': [{'path': doc, 'reason': 'identity'}]}}, canonical={doc: 'spec'})
+        result = self.compose(texts, {skill: {'cite': [{'path': doc, 'reason': 'identity'}],
+                                              'inline': [{'path': doc, 'fragment': 'rule', 'reason': 'directed'}]}}, canonical={doc: 'spec'})
+        native = result['files']['skills/a/SKILL.md'].decode()
+        self.assertIn('[owner](https://example.invalid/r/blob/' + 'a' * 40 + '/docs/spec.md)', native)
+        self.assertIn('[rule](#rule)', native)
+        cited = result['report']['assets'][0]['cited_sources'][0]
+        self.assertGreater(cited['file_bytes'], cited['carried_bytes'])
+
+    def test_supplement_links_resolve_to_the_owning_skill_not_to_a_governing_document(self):
+        skill, owner, supplement = '.agents/skills/a/SKILL.md', '.agents/skills/b/SKILL.md', '.agents/skills/b/BRIEF.md'
+        texts = {skill: fake(body='# A\n\nSee [brief](../b/BRIEF.md#shape).\n'), owner: fake(body='# B\n'), supplement: '# Brief\n\n## Shape\n'}
+        result = self.compose(texts, {owner: {'inline': [supplement]}})
+        native = result['files']['skills/a/SKILL.md'].decode()
+        self.assertIn('[brief](../b/SKILL.md#shape)', native)
+        self.assertIn('skills/b/SKILL.md', next(a for a in result['report']['assets'] if a['path'] == 'skills/a/SKILL.md')['invokes'])
 
     def test_unlisted_skill_supplement_fails_instead_of_being_dropped(self):
         skill = '.agents/skills/a/SKILL.md'

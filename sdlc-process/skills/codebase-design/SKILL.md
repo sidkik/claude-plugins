@@ -3,7 +3,7 @@ name: codebase-design
 description: Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.
 ---
 
-<!-- source: https://github.com/sidkik/planning @ 00a15fb8682612b6d8fbe9e603b561d42f8688b7 .agents/skills/codebase-design/SKILL.md sha256:2c20617f87ec8af6a434859f381b2f061a69b530444e74eb39e78bb016a6d1e2 -->
+<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/codebase-design/SKILL.md sha256:2c20617f87ec8af6a434859f381b2f061a69b530444e74eb39e78bb016a6d1e2 -->
 
 > Source precedence: apply the [source adapter contract](#apply-packaged-sources-in-the-working-repository) at the end of this skill for working-repository ownership and source precedence.
 
@@ -122,7 +122,7 @@ Good interfaces make testing natural:
 The instructions above require the following pinned files. They are included here so this invocation loads them; separately invoked skills are not.
 
 <a id="bundled-agents-skills-codebase-design-deepening-md"></a>
-<!-- source: https://github.com/sidkik/planning @ 00a15fb8682612b6d8fbe9e603b561d42f8688b7 .agents/skills/codebase-design/DEEPENING.md sha256:f3dd099ce99289bd213914d8ee3e2429b78309c3957ca4583f7659551b1d53c1 -->
+<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/codebase-design/DEEPENING.md sha256:f3dd099ce99289bd213914d8ee3e2429b78309c3957ca4583f7659551b1d53c1 -->
 
 ### Deepening
 
@@ -163,7 +163,7 @@ Third-party services (Stripe, Twilio, etc.) you don't control. The deepened modu
 - Tests should survive internal refactors, since they describe behaviour, not implementation. If a test has to change when the implementation changes, it's testing past the interface.
 
 <a id="bundled-agents-skills-codebase-design-design-it-twice-md"></a>
-<!-- source: https://github.com/sidkik/planning @ 00a15fb8682612b6d8fbe9e603b561d42f8688b7 .agents/skills/codebase-design/DESIGN-IT-TWICE.md sha256:8e740bf98446dbd4dfdc132ac4346d9a7eedaf93de6a495889171cf7f99f16bd -->
+<!-- source: https://github.com/sidkik/planning @ 09243483254a746e1fef504f1e5ad959d484eaa3 .agents/skills/codebase-design/DESIGN-IT-TWICE.md sha256:8e740bf98446dbd4dfdc132ac4346d9a7eedaf93de6a495889171cf7f99f16bd -->
 
 ### Design It Twice
 
@@ -225,21 +225,27 @@ in this distribution.
 
 Native skills and agents contain their instructions; they are not pointers. Each
 has the pinned source's frontmatter, its full pinned body, the supporting
-instruction and template files that body requires, and this contract.
-Invoking one loads all of that: the `Skill` result is the packaged source, so a
-separate read of the same file adds nothing and never substitutes for the
-invocation. Links that remain are not bundled: other skills (invoke them), and
-canonical process, specification and record documents under `bundle/`
-(read the sections the current action relies on). `native-composition.json`
-lists every asset's bundled files and retained links with sizes. Report a
-retained rule you needed but could not read as a scoped load gap; do not
-claim complete coverage of a rule you did not read.
+instruction and template files that body requires, the shared process,
+specification, record, planning and tracker content that its flows make mandatory
+(the whole process where the source directs reading it), and this contract.
+Invoking one delivers all of that: the `Skill` result (or the agent's own
+definition) is the content, so loading needs no separate read of any source file
+and a read never substitutes for the invocation. Links that remain point to
+separate assets or facts: other skills (invoke each by its name when the work
+reaches it), live project facts such as tracker configuration, issue state,
+ownership and repository documents (discover them from their owners when the
+action needs them), and pinned historical evidence or the governed-context
+proposal's identity (its governing sections are carried here). `native-composition.json`
+lists every asset's bundled files with sizes and these cited sources. If a rule the
+work needs is not in the delivered content, report a scoped load gap; do not
+claim coverage of a rule you did not receive, and do not fill the gap from a
+source read as if it were a load.
 
 1. Establish the actual working repository and its Git remotes. Read its
    `AGENTS.md`/`CLAUDE.md`, configured `docs/agents/issue-tracker.md` when present,
    and applicable engineering instructions. The plugin installation directory
    is a source location, never the work's repository or checkout.
-2. Read the packaged SDLC entry and its required orchestrator dependency before
+2. Natively load the SDLC entry and its required orchestrator dependency before
    route selection. Apply current user authorization and source precedence from
    the host. If a repository distributes a different shared-process revision,
    identify that conflict and its effect before the dependent action; installing
@@ -248,8 +254,8 @@ claim complete coverage of a rule you did not read.
    delivery issue from its full URL and actual work scope. Planning documents
    belong to `sidkik/planning`, including single-repository work launched in a
    delivery checkout. Before writing them, natively invoke
-   [work-artifacts](../work-artifacts/SKILL.md) and read its linked planning
-   storage/publication convention. Delivery implementation, maintained technical
+   [work-artifacts](../work-artifacts/SKILL.md), whose result delivers the
+   planning storage/publication convention. Delivery implementation, maintained technical
    documentation, implementation evidence and implementation-session continuity
    retain their delivery owner; a sufficient small repair brief can remain
    issue-owned. This does not reassign implementation issues to planning.

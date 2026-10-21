@@ -146,16 +146,32 @@ def inline_entries(entries):
 class Composer:
     """Resolves every local link of one native asset by explicit policy; unknown targets fail."""
 
-    def __init__(self, native, texts, policy, canonical, native_of, adapter):
+    def __init__(self, native, texts, policy, canonical, native_of, adapter, origins, supplements):
         self.native, self.texts, self.canonical, self.native_of = native, texts, canonical, native_of
+        self.supplements = supplements
+        self.origins = origins
+        self.cite = {e['path']: e for e in policy.get('cite', [])}
         self.entries = inline_entries(policy.get('inline', []))
         self.adapter = adapter
-        self.invokes, self.agents, self.retained, self.generated = set(), set(), {}, set()
+        self.invokes, self.agents, self.cited, self.generated = set(), set(), {}, set()
         self.whole = {e['path']: e for e in self.entries if not e['fragment'] and e['as'] == 'text'}
         self.parts = {}
         for entry in self.entries:
             if entry['fragment']:
                 self.parts.setdefault(entry['path'], {})[entry['fragment']] = anchors(self.extract(entry))
+        self.reject_overlap()
+
+    def reject_overlap(self):
+        """One path is inlined once: a whole file, or sections that do not contain one another."""
+        for path in {e['path'] for e in self.entries if e['as'] == 'text'}:
+            chosen = [e for e in self.entries if e['path'] == path and e['as'] == 'text']
+            if len(chosen) > 1 and any(not e['fragment'] for e in chosen):
+                raise ValueError(f'overlapping inline of {path} in {self.native}: a whole file and a part of it')
+            for first in chosen:
+                for second in chosen:
+                    if first is not second and first['fragment'] and second['fragment'] and \
+                            second['fragment'] in self.parts[path][first['fragment']]:
+                        raise ValueError(f"overlapping inline of {path} in {self.native}: #{second['fragment']} is inside #{first['fragment']}")
 
     def extract(self, entry):
         text = self.texts[entry['path']]
@@ -194,11 +210,17 @@ class Composer:
             if target.endswith('/SKILL.md'):
                 self.invokes.add(target)
             return self.relative(target) + suffix
+        if target in self.cite and not fragment:
+            self.cited.setdefault(target, set())
+            source = self.origins[target][1]
+            return source['repository'] + '/blob/' + source['revision'] + '/' + quote(target) + suffix
+        if target in self.supplements:
+            native = self.supplements[target]
+            self.invokes.add(native)
+            return self.relative(native) + '#' + (fragment or bundled_id(target))
         if target in self.canonical:
-            self.retained.setdefault(target, set())
-            if fragment:
-                self.retained[target].add(unquote(fragment))
-            return self.relative('bundle/' + target) + suffix
+            raise ValueError(f"governing reference left as a read-later pointer in {self.native}: {target}{suffix}; "
+                             f"inline the section it directs (or the whole file) under this asset's inline policy")
         raise ValueError(f'unclassified local dependency in {self.native}: {target}; inline it, or list it under canonical_references')
 
     def rewrite(self, raw, source, local=None):
@@ -232,10 +254,10 @@ def ordered_unique(items):
     return list(dict.fromkeys(items))
 
 
-def compose_asset(path, kind, native, texts, origins, policy, native_of, adapter_text, canonical, maintained=None):
+def compose_asset(path, kind, native, texts, origins, policy, native_of, adapter_text, canonical, supplements, maintained=None):
     """Concrete native entry: frontmatter, full source body, required dependencies, adapter contract."""
     adapter_on = policy.get('adapter', True)
-    composer = Composer(native, texts, policy, canonical, native_of, adapter_text if adapter_on else None)
+    composer = Composer(native, texts, policy, canonical, native_of, adapter_text if adapter_on else None, origins, supplements)
     source_text = maintained if maintained is not None else texts[path]
     front = frontmatter(source_text)
     body = source_text[len(front):].strip('\n')
@@ -322,20 +344,26 @@ def compose_native(selection, texts, origins, maintained):
         loose = sorted(p for p in texts if p.startswith(home) and p != path and p not in wanted)
         if loose:
             raise ValueError(f"skill supplements are not bundled by the composition policy: {path}: {', '.join(loose)}")
+    supplements = {}
+    for owner, spec in policy['assets'].items():
+        if owner in native_of:
+            for entry in inline_entries(spec.get('inline', [])):
+                if not entry['fragment'] and entry['as'] == 'text' and entry['path'] not in canonical:
+                    supplements.setdefault(entry['path'], native_of[owner])
     files, assets = {}, []
     sources = [(path, native_of[path], 'agent' if native_of[path].startswith('agents/') else 'skill', None) for path in sorted(native_of)]
     sources += [(path, spec['output'], 'skill', maintained[path]) for path, spec in sorted(policy.get('maintained', {}).items())]
     for path, native, kind, own in sources:
         spec = policy['assets'].get(path, policy.get('maintained', {}).get(path, {}))
         text, composer, inlined, front = compose_asset(path, kind, native, texts, origins, spec, native_of,
-                                                       adapter_text, canonical, own)
+                                                       adapter_text, canonical, supplements, own)
         files[native] = text.encode()
-        retained = []
-        for target, fragments in sorted(composer.retained.items()):
+        cited = []
+        for target, fragments in sorted(composer.cited.items()):
             whole = texts[target]
-            sizes = {f: len((section(whole, f) or '').encode()) for f in sorted(fragments)}
-            retained.append({'path': 'bundle/' + target, 'fragments': sizes, 'file_bytes': len(whole.encode()),
-                             'reason': canonical[target]})
+            carried = sum(e['bytes'] for e in inlined if e['path'] == target)
+            cited.append({'path': target, 'url': origins[target][1]['repository'] + '/blob/' + origins[target][1]['revision'] + '/' + target,
+                          'file_bytes': len(whole.encode()), 'carried_bytes': carried, 'reason': composer.cite[target]['reason']})
         lines = text.count('\n')
         flags = []
         if lines > policy['max_lines']:
@@ -350,7 +378,7 @@ def compose_native(selection, texts, origins, maintained):
             'bytes': len(files[native]), 'lines': lines, 'sha256': digest(files[native]),
             'inlined': inlined,
             'invokes': sorted(composer.invokes | composer.agents),
-            'retained_references': retained,
+            'cited_sources': cited,
             'size_flags': flags})
     report = {'schema_version': 1, 'generator': 'tools/build-process.py', 'policy': 'tools/process-sources.json#composition',
               'adapter': {'path': policy['adapter'], 'sha256': adapter_digest},
@@ -360,18 +388,17 @@ def compose_native(selection, texts, origins, maintained):
 
 def summarize(report):
     lines = ['Native composition (explicit policy: tools/process-sources.json#composition)']
-    retained = {}
+    cited = {}
     for asset in report['assets']:
         lines.append(f"  {asset['path']}: {asset['bytes']} bytes, {asset['lines']} lines, {len(asset['inlined'])} bundled")
         for flag in asset['size_flags']:
             lines.append(f"    SIZE: {flag}")
-        for ref in asset['retained_references']:
-            retained.setdefault(ref['path'], {}).setdefault('assets', []).append(asset['path'])
-            retained[ref['path']].setdefault('fragments', {}).update(ref['fragments'])
-    lines.append('Retained linked rules (directed by the pinned text, not inlined; read the sections the action needs):')
-    for path, info in sorted(retained.items()):
-        sizes = ', '.join(f'#{f} {n}' for f, n in sorted(info['fragments'].items(), key=lambda kv: -kv[1])[:4])
-        lines.append(f"  {path} ({len(info['assets'])} assets){': ' + sizes if sizes else ''}")
+        for ref in asset['cited_sources']:
+            cited.setdefault(ref['path'], {'assets': [], 'file_bytes': ref['file_bytes'], 'carried': set()})['assets'].append(asset['path'])
+            cited[ref['path']]['carried'].add(ref['carried_bytes'])
+    lines.append('Cited sources (identity links to the pinned upstream file; only the bundled governing sections are carried):')
+    for path, info in sorted(cited.items()):
+        lines.append(f"  {path}: {len(info['assets'])} assets, file {info['file_bytes']} bytes, carried {', '.join(map(str, sorted(info['carried'])))}")
     return '\n'.join(lines)
 
 

@@ -295,7 +295,8 @@ invocation for the user (`disable-model-invocation: true`), stops the launch wit
 `no job was started`; the dependent action is held. Reading the `SKILL.md` is
 source inspection, never a substitute, and a launch or discovery alone is not
 success: the worker's return or transcript must show the accepted native input
-and result plus the full source and reference reads. A plugin-qualified
+and a result that delivered the skill's instructions and mandatory references; a
+pointer-only result is a load gap, and no source read substitutes. A plugin-qualified
 `<plugin>:<name>` separates same-named skills and stays qualified across resume
 and redirect. Codex discovers repository skills from its own
 locations (for example `.agents/skills`), so a skill present only under

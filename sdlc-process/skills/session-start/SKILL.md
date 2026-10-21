@@ -13,9 +13,9 @@ Use this in the foreground MAIN conversation. Prepare the session and return its
 readiness; this invocation does not assign new work. Optional work supplied by the
 user: `$ARGUMENTS`. Empty or unexpanded arguments supply no work.
 
-1. Apply [the source adapter](#apply-packaged-sources-in-the-working-repository); its contract is included at the end of this skill. Use Claude's native `Skill` tool to invoke `sdlc-process:sdlc-process` and its required `sdlc-process:orchestrator` before work discovery; the entry may invoke its dependency, so reuse that successful invocation rather than duplicating it. Follow each invocation with a full read of its packaged source and applicable references. A file read, grep, discovery listing or this `session-start` invocation alone does not load those dependencies. Reuse prior successful invocations and full reads in this session only with identified evidence and unchanged sources. If a required invocation is unavailable, denied or fails, record that exact load gap and hold its dependent action; independent read-only checks may continue. Establish the actual working directory and repository instructions, applying the adapter's source precedence. A bare session-start request needs no issue creation, tracker search, route selection or implementation. Completion: successful required invocation results, source reads, repository context and supplied work (or none) are explicit.
+1. Apply [the source adapter](#apply-packaged-sources-in-the-working-repository); its contract is included at the end of this skill. Use Claude's native `Skill` tool to invoke `sdlc-process:sdlc-process` and its required `sdlc-process:orchestrator` before work discovery; the entry may invoke its dependency, so reuse that successful invocation rather than duplicating it. Each successful invocation result must itself deliver the skill's full governing instructions and the content of every reference it makes mandatory (the entry carries its process, record, planning and tracker content); no separate `Read` of a packaged source is required and none substitutes for the invocation. A result that only points to a source for the reader to open is an incomplete payload: record it as a load gap, because opening the pointed source is source inspection and does not complete the load. A file read, grep, discovery listing or this `session-start` invocation alone does not load those dependencies. Reuse a prior successful invocation in this session only with identified evidence, unchanged sources and its delivered content still in context; after loss or truncation of that content, invoke again. If a required invocation is unavailable, denied or fails, record that exact load gap and hold its dependent action; independent read-only checks may continue. Establish the actual working directory and repository instructions, applying the adapter's source precedence. A bare session-start request needs no issue creation, tracker search, route selection or implementation. Completion: successful required invocation results with their delivered content, repository context and supplied work (or none) are explicit.
 
-2. Run the read-only doctor from the working directory: `node <plugin-root>/scripts/setup/agent-setup.mjs doctor --client claude`. Resolve the process and status plugin roots from the native plugin list. Invoke `sdlc-status:sdlc-status` and `sdlc-process:sdlc-observer` with the `Skill` tool before their widget/view actions, then read their full packaged instructions and the references they direct for the current action, including the status README. Apply the same evidence-reuse and failed/unavailable-invocation rules as step 1. Report setup gaps separately from observer runtime coverage using [the observer skill](../sdlc-observer/SKILL.md). If setup needs repair, identify [the setup skill](../sdlc-setup/SKILL.md) as the next action within existing authority; session-start makes no installation or configuration changes. Completion: required loads are evidenced or explicitly unmet, and setup readiness reflects the doctor's actual result. Doctor ready verifies setup, not skill loading. An unavailable or unrun doctor leaves setup verification unmet and prevents Ready.
+2. Run the read-only doctor from the working directory: `node <plugin-root>/scripts/setup/agent-setup.mjs doctor --client claude`. Resolve the process and status plugin roots from the native plugin list. Invoke `sdlc-status:sdlc-status` and `sdlc-process:sdlc-observer` with the `Skill` tool before their widget/view actions; each result delivers its instructions, including the status contract, and no README or source read is needed or substitutes. Apply the same delivered-content, evidence-reuse and failed/unavailable-invocation rules as step 1. Report setup gaps separately from observer runtime coverage using [the observer skill](../sdlc-observer/SKILL.md). If setup needs repair, identify [the setup skill](../sdlc-setup/SKILL.md) as the next action within existing authority; session-start makes no installation or configuration changes. Completion: required loads are evidenced or explicitly unmet, and setup readiness reflects the doctor's actual result. Doctor ready verifies setup, not skill loading. An unavailable or unrun doctor leaves setup verification unmet and prevents Ready.
 
 3. Establish current MAIN identity. Claude's skill-body substitution is `${CLAUDE_SESSION_ID}`; it is not a shell environment variable. Use the matching `sessionMetadata` supplied in this plugin's SessionStart hook context for `sessionId` and `transcriptPath`. An unexpanded substitution is not an ID. If both native sources are present they must agree. If the hook path is unavailable but the native ID is known, locate only the exact `<sessionId>.jsonl` filename under the configured Claude `projects` directory; require one absolute MAIN path and records consistent with that session. Never select a newest transcript, infer identity from cwd, or borrow a worker's ID. Missing, ambiguous or conflicting identity holds only same-session widget/view operations; report the exact gap and complete other readiness checks. Completion: the actual MAIN ID and transcript are matched, or their absence is explicit.
 
@@ -23,7 +23,7 @@ user: `$ARGUMENTS`. Empty or unexpanded arguments supply no work.
 
 5. Start or reuse the existing observer live view. First inspect any viewer URL/background handle already retained in this session. Reuse it only after a bounded GET of its `state` endpoint succeeds, matches the current MAIN `sessionId`, and does not report `coverage: unavailable`. Otherwise start `node <plugin-root>/scripts/observer-live.mjs serve --transcript <absolute-main-transcript> --session <actual-main-id>` through the host's supported background-process handle. Keep it alive for the session without an arbitrary total deadline (including a two-hour tool timeout); bounded foreground polling does not set its lifetime. If the host cannot retain it, report the exact limitation. Retain its emitted browser URL, stop URL and process handle in this conversation; verify the new `state` response in the same way. Shell-quote actual paths and IDs. A server start is only viewer readiness, and `coverage: complete` describes transcript parsing, not observer coverage. Empty native observer evidence is **pending**, and unavailable transcript coverage is an explicit gap. Completion: a same-session view is verified or its concrete failure is reported; no browser is opened automatically.
 
-6. Return **SDLC: Ready** only when the required skill invocations and full source reads above succeeded (or have valid same-session reuse evidence), and preparation has no required capability gap. Otherwise return **SDLC: Not ready** with each unmet requirement and its dependent action. List native load results separately from source inspection, setup gaps and widget disposition. This labels preparation, not work approval. Separately show **Observer: pending / observed / unavailable**; qualify observed with its native record timestamp. Include a clickable **Observer view** URL and the stop handle (`node <plugin-root>/scripts/observer-live.mjs stop --url <returned-stop-url>`), or their exact capability gap. Pending observation does not make independent SDLC work unready. With no work, end here and wait for the user's task; with supplied work, identify its next authorized action without executing it as part of preparation.
+6. Return **SDLC: Ready** only when the required skill invocations above succeeded with their instructions delivered (or have valid same-session reuse evidence), and preparation has no required capability gap. Otherwise return **SDLC: Not ready** with each unmet requirement and its dependent action. List native load results (with whether each delivered its instructions) separately from source inspection, setup gaps and widget disposition. This labels preparation, not work approval. Separately show **Observer: pending / observed / unavailable**; qualify observed with its native record timestamp. Include a clickable **Observer view** URL and the stop handle (`node <plugin-root>/scripts/observer-live.mjs stop --url <returned-stop-url>`), or their exact capability gap. Pending observation does not make independent SDLC work unready. With no work, end here and wait for the user's task; with supplied work, identify its next authorized action without executing it as part of preparation.
 
 On the next user work turn, check the retained viewer's current state before
 claiming observation, then follow the governing work route. Pending evidence
@@ -35,11 +35,12 @@ warm-up sequence.
 
 On continuation, pivot or dispatch when a relevant source changed, reconcile the
 installed/discovered revision with the actual path and source bytes returned by
-the successful native skill invocation. Retain that invocation's result and the
-full source/applicable reference reads as separate evidence. A plugin list,
+the successful native skill invocation. Retain that invocation's result, and
+that it delivered the instructions, as the load evidence. A plugin list,
 update, doctor result or source read alone cannot establish that this session
-reloaded. Reinvoke affected skills and read their current sources/references,
-or state the exact load gap and hold only dependent activity. Reuse unchanged
+reloaded. Reinvoke affected skills, whose results deliver the current content,
+or state the exact load gap and hold only dependent activity; a source read does
+not fill the gap. Reuse unchanged
 loads with their identified evidence. Reconcile affected criteria before the
 next dependent recommendation; build authority, ticket acceptance and readiness
 remain separate. Maintain the widget at substantive events under the loaded
@@ -62,21 +63,27 @@ in this distribution.
 
 Native skills and agents contain their instructions; they are not pointers. Each
 has the pinned source's frontmatter, its full pinned body, the supporting
-instruction and template files that body requires, and this contract.
-Invoking one loads all of that: the `Skill` result is the packaged source, so a
-separate read of the same file adds nothing and never substitutes for the
-invocation. Links that remain are not bundled: other skills (invoke them), and
-canonical process, specification and record documents under `bundle/`
-(read the sections the current action relies on). `native-composition.json`
-lists every asset's bundled files and retained links with sizes. Report a
-retained rule you needed but could not read as a scoped load gap; do not
-claim complete coverage of a rule you did not read.
+instruction and template files that body requires, the shared process,
+specification, record, planning and tracker content that its flows make mandatory
+(the whole process where the source directs reading it), and this contract.
+Invoking one delivers all of that: the `Skill` result (or the agent's own
+definition) is the content, so loading needs no separate read of any source file
+and a read never substitutes for the invocation. Links that remain point to
+separate assets or facts: other skills (invoke each by its name when the work
+reaches it), live project facts such as tracker configuration, issue state,
+ownership and repository documents (discover them from their owners when the
+action needs them), and pinned historical evidence or the governed-context
+proposal's identity (its governing sections are carried here). `native-composition.json`
+lists every asset's bundled files with sizes and these cited sources. If a rule the
+work needs is not in the delivered content, report a scoped load gap; do not
+claim coverage of a rule you did not receive, and do not fill the gap from a
+source read as if it were a load.
 
 1. Establish the actual working repository and its Git remotes. Read its
    `AGENTS.md`/`CLAUDE.md`, configured `docs/agents/issue-tracker.md` when present,
    and applicable engineering instructions. The plugin installation directory
    is a source location, never the work's repository or checkout.
-2. Read the packaged SDLC entry and its required orchestrator dependency before
+2. Natively load the SDLC entry and its required orchestrator dependency before
    route selection. Apply current user authorization and source precedence from
    the host. If a repository distributes a different shared-process revision,
    identify that conflict and its effect before the dependent action; installing
@@ -85,8 +92,8 @@ claim complete coverage of a rule you did not read.
    delivery issue from its full URL and actual work scope. Planning documents
    belong to `sidkik/planning`, including single-repository work launched in a
    delivery checkout. Before writing them, natively invoke
-   [work-artifacts](../work-artifacts/SKILL.md) and read its linked planning
-   storage/publication convention. Delivery implementation, maintained technical
+   [work-artifacts](../work-artifacts/SKILL.md), whose result delivers the
+   planning storage/publication convention. Delivery implementation, maintained technical
    documentation, implementation evidence and implementation-session continuity
    retain their delivery owner; a sufficient small repair brief can remain
    issue-owned. This does not reassign implementation issues to planning.
