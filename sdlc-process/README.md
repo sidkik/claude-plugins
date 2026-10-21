@@ -47,6 +47,11 @@ whole-record boundaries, marking exceeded limits and omitted public content.
 The observer consumes this baseline once, then reconciles subsequent digests,
 suppressing overlap conservatively. Targeted reads resolve specific gaps. Missing
 or truncated history stays unknown and cannot prove a prerequisite was skipped.
+A native skill load is a `Skill` call and result plus the separate injected
+skill-content record after them; the baseline can omit that large record, which
+leaves delivery unknown. Claude re-attaches only the first 5,000 tokens of each
+invoked skill after compaction (25,000 combined, newest first), so delivery is
+not assumed to persist past a compaction boundary.
 Claude may persist larger hook output and supply a preview with its exact file
 path. The observer reads that normalized output before claiming it loaded the
 baseline; preview or partial reads remain unknown. This uses Claude’s native

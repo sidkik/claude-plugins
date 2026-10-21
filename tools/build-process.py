@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
-FENCES = re.compile(r'(^```[^\n]*\n.*?^```[^\n]*$|^~~~[^\n]*\n.*?^~~~[^\n]*$)', re.M | re.S)
+FENCE_LINE = re.compile(r' {0,3}(`{3,}|~{3,})([^\n]*)')
 LINK = re.compile(r'(?<!!)\[([^\]]+)\]\(([^\s)]+)\)')
 
 
@@ -40,6 +40,67 @@ def target_path(path, target):
     return posixpath.normpath(posixpath.join(posixpath.dirname(path), unquote(parsed.path)))
 
 
+def split_fences(raw, strict=False):
+    """[prose, code, prose, ...] by CommonMark fences; the parts always concatenate to `raw`.
+
+    A fence opens at up to three spaces of indent and closes on a line of the same character, at least as
+    long, with no info string, so a longer fence can carry a shorter one as content. An unclosed fence runs to
+    the end of the document, which is how Markdown renderers read it; `strict` raises instead.
+    """
+    parts, prose, code, fence = [], [], [], None
+    for number, line in enumerate(raw.splitlines(keepends=True), 1):
+        found = FENCE_LINE.fullmatch(line.rstrip('\r\n'))
+        if fence is None:
+            if found and not (found[1][0] == '`' and '`' in found[2]):
+                parts.append(''.join(prose))
+                prose, code, fence = [], [line], (found[1][0], len(found[1]), number)
+            else:
+                prose.append(line)
+            continue
+        code.append(line)
+        if found and found[1][0] == fence[0] and len(found[1]) >= fence[1] and not found[2].strip():
+            parts.append(''.join(code))
+            code, fence = [], None
+    if fence is not None:
+        if strict:
+            raise ValueError(f'unterminated code fence opened at line {fence[2]}')
+        parts.append(''.join(code))
+        prose = []
+    parts.append(''.join(prose))
+    return parts
+
+
+def fenced_blocks(raw):
+    return split_fences(raw)[1::2]
+
+
+def apply_fence_corrections(texts, origins, corrections):
+    """Lengthen the fence markers of pinned sources whose nested fences close their container early.
+
+    Only the listed marker lines change, each to a longer run of the same character. The correction names the
+    source digest it was written for, so a changed pin needs a new review instead of a silent edit. The
+    pinned bundle copy is never altered; this corrects the text a native asset inlines.
+    """
+    corrected = dict(texts)
+    for path, spec in corrections.items():
+        if path not in texts:
+            raise ValueError(f'fence correction names an unselected source: {path}')
+        if origins[path][2] != spec['source_sha256']:
+            raise ValueError(f'fence correction does not match the pinned source: {path}')
+        lines = texts[path].splitlines(keepends=True)
+        for edit in spec['lines']:
+            number, was, now = edit['line'], edit['was'], edit['now']
+            if not 0 < number <= len(lines) or lines[number - 1].rstrip('\n') != was:
+                raise ValueError(f'fence correction line {number} of {path} is not {was!r}')
+            before, after = FENCE_LINE.fullmatch(was), FENCE_LINE.fullmatch(now)
+            if not (before and after and before[1][0] == after[1][0] and len(after[1]) > len(before[1])
+                    and before[2] == after[2] and was[:was.index(before[1])] == now[:now.index(after[1])]):
+                raise ValueError(f'fence correction may only lengthen the marker run: {path} line {number}')
+            lines[number - 1] = now + lines[number - 1][len(was):]
+        corrected[path] = ''.join(lines)
+    return corrected
+
+
 def relocate_links(raw, path, selected, historical, source):
     def replace(match):
         label, target = match.groups()
@@ -54,7 +115,7 @@ def relocate_links(raw, path, selected, historical, source):
             url += '#' + fragment
         return f'[{label}]({url})'
     return ''.join(part if index % 2 else LINK.sub(replace, part)
-                   for index, part in enumerate(FENCES.split(raw)))
+                   for index, part in enumerate(split_fences(raw)))
 
 
 def snapshot(raw, path, source, captured_at):
@@ -80,7 +141,7 @@ WRAPPER_PHRASE = 'This wrapper supplies discovery'
 
 
 def prose_map(raw, fn):
-    return ''.join(part if index % 2 else fn(part) for index, part in enumerate(FENCES.split(raw)))
+    return ''.join(part if index % 2 else fn(part) for index, part in enumerate(split_fences(raw)))
 
 
 def slug(heading):
@@ -92,7 +153,7 @@ def heading_spans(raw):
     """Headings outside fences as (level, text, base slug, start); duplicates are not renumbered."""
     found = []
     offset = 0
-    for index, part in enumerate(FENCES.split(raw)):
+    for index, part in enumerate(split_fences(raw)):
         if not index % 2:
             found += [(len(m[1]), m[2], slug(m[2]), offset + m.start()) for m in HEADING.finditer(part)]
         offset += len(part)
@@ -289,10 +350,14 @@ def compose_asset(path, kind, native, texts, origins, policy, native_of, adapter
     # Invariants: nothing is silently dropped or left pointer-only.
     if not text.startswith(front):
         raise ValueError(f'frontmatter not preserved: {native}')
+    try:
+        split_fences(text, strict=True)
+    except ValueError as error:
+        raise ValueError(f'{error} in {native}; correct it under composition.fence_corrections') from None
     if normalized_prose(body) not in normalized_prose(text):
         raise ValueError(f'source body not fully loaded: {native}')
     for entry in composer.entries:
-        for block in FENCES.findall(composer.extract(entry)):
+        for block in fenced_blocks(composer.extract(entry)):
             if block not in text:
                 raise ValueError(f"fenced code not preserved: {entry['path']} in {native}")
     spans = heading_spans(text)
@@ -318,6 +383,7 @@ ADAPTER_ANCHOR = 'apply-packaged-sources-in-the-working-repository'
 def compose_native(selection, texts, origins, maintained):
     policy = selection['composition']
     canonical = policy['canonical_references']
+    texts = apply_fence_corrections(texts, origins, policy.get('fence_corrections', {}))
     adapter_text = (ROOT / policy['adapter']).read_text()
     adapter_digest = digest(adapter_text.encode())
     native_of = {}
@@ -358,6 +424,9 @@ def compose_native(selection, texts, origins, maintained):
         text, composer, inlined, front = compose_asset(path, kind, native, texts, origins, spec, native_of,
                                                        adapter_text, canonical, supplements, own)
         files[native] = text.encode()
+        for item in inlined:
+            if item['path'] in policy.get('fence_corrections', {}):
+                item['fence_corrected'] = True
         cited = []
         for target, fragments in sorted(composer.cited.items()):
             whole = texts[target]
@@ -458,7 +527,7 @@ def outputs(selection, checkouts):
 
 
 def anchors(raw):
-    text = ''.join(part for index, part in enumerate(FENCES.split(raw)) if not index % 2)
+    text = ''.join(part for index, part in enumerate(split_fences(raw)) if not index % 2)
     found = set(re.findall(r'<a[^>]+(?:id|name)=["\']([^"\']+)', text))
     seen = {}
     for heading in re.findall(r'^#{1,6}\s+(.+?)\s*#*$', text, re.M):
@@ -476,7 +545,7 @@ def validate_links(result):
     for path, raw in result.items():
         if not path.endswith('.md'):
             continue
-        prose = ''.join(part for index, part in enumerate(FENCES.split(raw.decode())) if not index % 2)
+        prose = ''.join(part for index, part in enumerate(split_fences(raw.decode())) if not index % 2)
         for match in LINK.finditer(prose):
             target = target_path(path, match[2])
             if target is not None and target not in available:

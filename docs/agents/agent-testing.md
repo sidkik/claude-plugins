@@ -153,8 +153,9 @@ Distinguish the evidence surfaces:
   and natively invoked the configured board skill from the candidate instructions.
 - Dynamic native acceptance requires the transcript to show candidate loading,
   the model's configured-skill selection and exact event inputs, then successful
-  native invocation whose result delivered the skill's instructions. Claude
-  evidence is its `Skill` call/result. Codex evidence is a real accepted structured skill input
+  native invocation that delivered the skill's instructions. Claude evidence is
+  its `Skill` call and successful result plus the injected skill-content record
+  that follows (next bullet group). Codex evidence is a real accepted structured skill input
   (`{type:"skill",name,path}`) and turn result; inspect `thread/read` with
   `includeTurns: true` where available. A file read, launch handle, fake reply
   token or reassuring prose proves neither invocation nor routing.
@@ -188,7 +189,19 @@ client session and read the transcript.
   invocation whose result delivers the full governing instructions and the
   concrete content of every reference the work makes mandatory. Check each as its
   own requirement in the transcript: the `Skill` call (or accepted structured
-  skill input) and the result record that contains the delivered content. A
+  skill input), its successful result, and the record that contains the
+  delivered content. In Claude the content is not necessarily in the
+  `tool_result`: the recorded Claude Code 2.1.305 `stream-json` session
+  (`sdlc-process:sdlc-process`, claude-sonnet-5-5) returned only
+  `Launching skill: sdlc-process:sdlc-process` as the `tool_result`
+  (`tool_use_result: {success: true, commandName}`) and then a separate synthetic
+  user record (`isSynthetic: true`, 184,972 bytes) that opens
+  `Base directory for this skill:` and holds the full body, including
+  `## Source adapter contract` and `Required stage completion`. The two records
+  share no ID; correlate them by transcript order, skill name and base directory,
+  and take delivery from the content record. A call and result without that
+  following record, or a stored-transcript shape you have not read, leaves
+  delivery unknown. A
   separate read of the same bytes is not required and never substitutes for the
   invocation; when invocation is unavailable, source reading is not a fallback
   load (report the capability gap). A result that only points to a source or
@@ -208,8 +221,20 @@ client session and read the transcript.
   sizes and its cited sources. The sdlc-status and grok-crew-runtime skills and
   the grok-supervisor agent carry their operating contracts the same way
   (for example the `## Commands` and `## Launch recipes` headings), so no README
-  read is part of their loading. An observer treats such a result as the load
-  and does not require a duplicate `Read` of the packaged source.
+  read is part of their loading. An observer treats the call, result and
+  subsequent content record together as the load and does not require a
+  duplicate `Read` of the packaged source.
+- Delivery is not permanent. Claude Code
+  [re-attaches after compaction](https://code.claude.com/docs/en/skills) only the
+  most recent invocation of each skill, the first 5,000 tokens of it, within a
+  combined 25,000 tokens filled from the newest invocation, so older skills can
+  drop entirely. The bundled references sit after the body in the large native
+  skills and agents, so past the first 5,000 tokens they can be lost at
+  compaction while the pre-compaction transcript still shows delivery. The
+  generator does not prevent this and nothing in the transcript announces which
+  rule was cut. Compaction was not exercised in this repair's native runs; treat
+  delivery after a compaction boundary as unknown, and cite a later record of
+  the rule being applied rather than the earlier invocation.
 - A tool call is not a successful result. Cite the result record, not only the
   call.
 - Use the client's documented CLI help for invocation flags; record the exact

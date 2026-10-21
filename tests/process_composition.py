@@ -8,6 +8,11 @@ import re
 import unittest
 from pathlib import Path
 
+try:
+    from markdown_it import MarkdownIt
+except ImportError:  # the independent Markdown checks need a CommonMark parser that is not the generator's
+    MarkdownIt = None
+
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('build_process', ROOT / 'tools/build-process.py')
 build = importlib.util.module_from_spec(spec)
@@ -44,6 +49,14 @@ def pinned_assets():
             yield path, (BUNDLE / path).read_text()
 
 
+def pinned_text(path):
+    """The bundle text of a source as the generator inlines it: pinned bytes plus declared fence corrections."""
+    manifest = {item['path']: item for item in json.loads((BUNDLE / 'source-manifest.json').read_text())['files']}
+    origins = {path: ('planning', SELECTION['sources']['planning'], manifest[path]['source_sha256'])}
+    corrections = {k: v for k, v in SELECTION['composition'].get('fence_corrections', {}).items() if k == path}
+    return build.apply_fence_corrections({path: (BUNDLE / path).read_text()}, origins, corrections)[path]
+
+
 def native_text(path):
     return (PLUGIN / ASSETS_BY_SOURCE[path]).read_text()
 
@@ -76,7 +89,7 @@ class CommittedCompositionTests(unittest.TestCase):
             native = native_text(source_path)
             for entry in build.inline_entries(asset_policy.get('inline', [])):
                 with self.subTest(asset=source_path, dependency=entry['path'], fragment=entry['fragment']):
-                    raw = (BUNDLE / entry['path']).read_text()
+                    raw = pinned_text(entry['path'])
                     if entry['as'] == 'code':
                         self.assertIn(raw.rstrip('\n'), native)
                         continue
@@ -86,7 +99,7 @@ class CommittedCompositionTests(unittest.TestCase):
                         raw = build.section(raw, entry['fragment'])
                         self.assertIsNotNone(raw)
                     self.assertIn(plain(raw), plain(native))
-                    for block in build.FENCES.findall(raw):
+                    for block in build.fenced_blocks(raw):
                         self.assertIn(block, native)
 
     def test_named_supporting_files_reach_their_skills(self):
@@ -150,7 +163,7 @@ class CommittedCompositionTests(unittest.TestCase):
         build.validate_links(files)
         for asset in REPORT['assets']:
             text = (PLUGIN / asset['path']).read_text()
-            prose = ''.join(part for i, part in enumerate(build.FENCES.split(text)) if not i % 2)
+            prose = ''.join(build.split_fences(text)[::2])
             for _, target in build.LINK.findall(prose):
                 resolved = build.target_path(asset['path'], target)
                 self.assertFalse(resolved and resolved.startswith('bundle/'),
@@ -384,6 +397,164 @@ class CompositionPolicyTests(unittest.TestCase):
         native = self.compose(texts, {skill: {'inline': [{'path': script, 'as': 'code', 'lang': 'sh'}]}})['files']['skills/a/SKILL.md'].decode()
         self.assertIn('````sh\n#!/bin/sh\necho "```"\n````', native)
         self.assertIn('### Template: scripts/run.sh', native)
+
+
+def parse(text):
+    return MarkdownIt('commonmark').parse(text)
+
+
+def unterminated(text):
+    """Opening line numbers of fences that reach the end of the document without a closing line."""
+    lines = text.split('\n')
+    return [token.map[0] + 1 for token in parse(text)
+            if token.type == 'fence' and not (token.map[1] - 1 > token.map[0] and lines[token.map[1] - 1].lstrip().startswith(token.markup))]
+
+
+def rendered_headings(text):
+    """(level, text) of every heading a CommonMark renderer produces, so headings inside code do not count."""
+    tokens, found = parse(text), []
+    for index, token in enumerate(tokens):
+        if token.type == 'heading_open':
+            inline = tokens[index + 1]
+            found.append((int(token.tag[1:]), ''.join(c.content for c in inline.children if c.type in ('text', 'code_inline'))))
+    return found
+
+
+def rendered_anchors(text):
+    seen, anchors = {}, set()
+    for _, heading in rendered_headings(text):
+        base = re.sub(r'[^\w\- ]', '', heading.lower()).replace(' ', '-')
+        anchors.add(base + (f'-{seen[base]}' if base in seen else ''))
+        seen[base] = seen.get(base, 0) + 1
+    for token in parse(text):
+        for html in [token.content] + [c.content for c in token.children or [] if c.type == 'html_inline']:
+            if token.type in ('html_block', 'inline'):
+                anchors |= set(re.findall(r'<a[^>]+id="([^"]+)"', html))
+    return anchors
+
+
+def rendered_fragment_links(text):
+    return [child.attrs['href'][1:] for token in parse(text) if token.type == 'inline'
+            for child in token.children or [] if child.type == 'link_open' and child.attrs['href'].startswith('#')]
+
+
+class FenceSplitTests(unittest.TestCase):
+    def test_parts_alternate_prose_and_code_and_rejoin_to_the_input(self):
+        for raw in ('a\n```\nx\n```\nb\n', '```\nopen\n', 'no fences\n', '~~~\n```\n~~~\nz', '   ```js\nx\n   ```\n'):
+            self.assertEqual(''.join(build.split_fences(raw)), raw)
+            self.assertEqual(len(build.split_fences(raw)) % 2, 1)
+
+    def test_a_longer_fence_holds_a_shorter_fence_as_content(self):
+        parts = build.split_fences('p\n````markdown\n```ts\ncode\n```\n````\nq\n')
+        self.assertEqual(parts, ['p\n', '````markdown\n```ts\ncode\n```\n````\n', 'q\n'])
+
+    def test_closer_needs_same_character_enough_length_and_no_info_string(self):
+        self.assertEqual(build.split_fences('```\n```ts\n~~~\n``\n```\nafter\n')[1], '```\n```ts\n~~~\n``\n```\n')
+        self.assertEqual(build.split_fences('````\n```\nstill\n````\n')[1], '````\n```\nstill\n````\n')
+
+    def test_unterminated_fence_runs_to_the_end_and_strict_mode_fails_closed(self):
+        raw = 'prose\n```\n## Not a heading\n'
+        self.assertEqual(build.split_fences(raw), ['prose\n', '```\n## Not a heading\n', ''])
+        with self.assertRaisesRegex(ValueError, 'unterminated code fence opened at line 2'):
+            build.split_fences(raw, strict=True)
+
+
+@unittest.skipIf(MarkdownIt is None, 'markdown-it-py is required for the independent CommonMark checks')
+class MalformedNestedFenceTests(unittest.TestCase):
+    """The pinned triage OUT-OF-SCOPE.md closes its markdown example at the nested ts fence and leaves a stray opener."""
+    SOURCE = CompositionPolicyTests.SOURCE
+    SKILL, DEP = '.agents/skills/a/SKILL.md', '.agents/skills/a/EXAMPLE.md'
+    TEXT = ('# Example\n\nIntro.\n\n```markdown\n# Title\n\n## Why\n\n```ts\nconst x = 1;\n```\n\n## Prior\n\n- one\n```\n\n'
+              '## After\n\nTail text.\n')
+    NESTED = ('# Title\n\n## Why\n\n```ts\nconst x = 1;\n```\n\n## Prior\n\n- one\n')
+    FIX = {'source_sha256': build.digest(TEXT.encode()), 'reason': 'fixture',
+           'lines': [{'line': 5, 'was': '```markdown', 'now': '````markdown'}, {'line': 17, 'was': '```', 'now': '````'}]}
+
+    def compose(self, **extra):
+        return CompositionPolicyTests.compose(self, {self.SKILL: fake(body='# A\n\nSee the example below.\n'), self.DEP: self.TEXT},
+                                              {self.SKILL: {'inline': [self.DEP]}}, **extra)
+
+    def test_the_fixture_reproduces_the_swallowing_fence_in_an_independent_parser(self):
+        self.assertEqual(unterminated(self.TEXT), [17])
+        self.assertNotIn(('After'), [h for _, h in rendered_headings(self.TEXT)])
+
+    def test_uncorrected_inline_fails_closed_and_names_the_asset_and_the_remedy(self):
+        with self.assertRaisesRegex(ValueError, r'unterminated code fence opened at line \d+ in skills/a/SKILL.md; correct it under composition.fence_corrections'):
+            self.compose()
+
+    def test_declared_correction_makes_the_example_one_block_with_its_text_unchanged(self):
+        native = self.compose(fence_corrections={self.DEP: self.FIX})['files']['skills/a/SKILL.md'].decode()
+        self.assertEqual(unterminated(native), [])
+        fences = [t for t in parse(native) if t.type == 'fence' and t.info == 'markdown']
+        self.assertEqual([t.content for t in fences], [self.NESTED])
+        headings = [h for _, h in rendered_headings(native)]
+        for kept in ('After', 'Source adapter contract', 'Apply packaged sources in the working repository'):
+            self.assertIn(kept, headings)
+        for hidden in ('Title', 'Why', 'Prior'):
+            self.assertNotIn(hidden, headings)
+        self.assertLessEqual(set(rendered_fragment_links(native)), rendered_anchors(native))
+        self.assertIn('apply-packaged-sources-in-the-working-repository', rendered_fragment_links(native))
+
+    def test_correction_is_reported_and_its_source_is_never_rewritten(self):
+        result = self.compose(fence_corrections={self.DEP: self.FIX})
+        self.assertTrue(result['report']['assets'][0]['inlined'][0]['fence_corrected'])
+        self.assertEqual(result['report']['assets'][0]['inlined'][0]['source_sha256'], build.digest(self.TEXT.encode()))
+
+    def test_corrections_fail_closed_when_the_pin_the_line_or_the_edit_is_wrong(self):
+        for label, change in (
+            ('digest', {'source_sha256': '0' * 64}),
+            ('line text', {'lines': [{'line': 5, 'was': '```md', 'now': '````md'}]}),
+            ('past the end', {'lines': [{'line': 99, 'was': '```', 'now': '````'}]}),
+            ('shorter marker', {'lines': [{'line': 17, 'was': '```', 'now': '``'}]}),
+            ('changed info string', {'lines': [{'line': 5, 'was': '```markdown', 'now': '````text'}]}),
+            ('different character', {'lines': [{'line': 17, 'was': '```', 'now': '~~~~'}]}),
+            ('added text', {'lines': [{'line': 17, 'was': '```', 'now': '```` x'}]}),
+        ):
+            with self.subTest(label), self.assertRaisesRegex(ValueError, 'fence correction'):
+                self.compose(fence_corrections={self.DEP: {**self.FIX, **change}})
+        with self.assertRaisesRegex(ValueError, 'unselected source'):
+            self.compose(fence_corrections={'missing.md': self.FIX})
+
+
+@unittest.skipIf(MarkdownIt is None, 'markdown-it-py is required for the independent CommonMark checks')
+class CommittedNativeMarkdownTests(unittest.TestCase):
+    """Judged by markdown-it-py (CommonMark), not by the generator's own parser."""
+    NATIVES = sorted(a['path'] for a in REPORT['assets'])
+
+    def test_no_native_asset_has_a_fence_that_swallows_the_rest_of_the_document(self):
+        for path in self.NATIVES:
+            with self.subTest(path=path):
+                self.assertEqual(unterminated((PLUGIN / path).read_text()), [])
+
+    def test_every_in_document_link_reaches_a_rendered_heading_or_anchor(self):
+        for path in self.NATIVES:
+            with self.subTest(path=path):
+                text = (PLUGIN / path).read_text()
+                self.assertLessEqual(set(rendered_fragment_links(text)), rendered_anchors(text))
+
+    def test_triage_adapter_contract_is_a_rendered_heading_and_the_example_is_the_pinned_text(self):
+        text = native_text('.agents/skills/triage/SKILL.md')
+        headings = rendered_headings(text)
+        self.assertIn((2, 'Source adapter contract'), headings)
+        self.assertIn((3, 'Apply packaged sources in the working repository'), headings)
+        self.assertIn((5, 'Naming the file'), headings)
+        self.assertIn('apply-packaged-sources-in-the-working-repository', rendered_fragment_links(text))
+        source = 'sdlc-process/bundle/.agents/skills/triage/OUT-OF-SCOPE.md'
+        pinned = (ROOT / source).read_text().split('\n')
+        example = [t for t in parse(text) if t.type == 'fence' and t.info == 'markdown' and '# Dark Mode' in t.content]
+        self.assertEqual(len(example), 1)
+        self.assertEqual(example[0].markup, '````')
+        self.assertEqual(example[0].content, '\n'.join(pinned[23:53]) + '\n')
+
+    def test_the_pinned_bundle_copy_is_unchanged_by_the_correction(self):
+        path = '.agents/skills/triage/OUT-OF-SCOPE.md'
+        manifest = {item['path']: item for item in json.loads((BUNDLE / 'source-manifest.json').read_text())['files']}
+        fix = SELECTION['composition']['fence_corrections'][path]
+        data = (BUNDLE / path).read_bytes()
+        self.assertEqual(build.digest(data), manifest[path]['sha256'])
+        self.assertEqual(build.digest(data), fix['source_sha256'])
+        self.assertEqual(manifest[path]['representation'], 'unchanged pinned source')
+        self.assertEqual(data.decode().split('\n')[22], '```markdown')
 
 
 if __name__ == '__main__':

@@ -744,9 +744,9 @@
       "source_sha256": "fd50291e5a0868acea60e211f48b1156feafb072a5f330e070cca65db98d458e",
       "frontmatter_sha256": "463131800e2568b32da78e1f19fd0baa67cc057d9de69ccae2cd3def3f99468b",
       "adapter_sha256": "de8bedaa601d64362d4cc5f3259e8b5a78a8dbe1a11167009d5aa3266bb3affd",
-      "bytes": 26517,
+      "bytes": 26519,
       "lines": 528,
-      "sha256": "a73057988f14272b7aeb7c3a63a61b424fd6143a9ddbfa8b5f88aac3132bbff0",
+      "sha256": "23c9f6bdfd38c0009ac3447990bbb6e4519c5cf3c9b724c3165b2f04213594f4",
       "inlined": [
         {
           "path": ".agents/skills/triage/AGENT-BRIEF.md",
@@ -758,7 +758,8 @@
           "path": ".agents/skills/triage/OUT-OF-SCOPE.md",
           "fragment": null,
           "source_sha256": "1fbf9b432130c6380aa65813b55553cfda150309b27c595e183f8e335b8a190d",
-          "bytes": 4667
+          "bytes": 4669,
+          "fence_corrected": true
         }
       ],
       "invokes": [
