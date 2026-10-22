@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {run,sectionByHeading,publicLine,visibleLines,auditReads,costSummary,isolationBreach,auditGreps,fixtureEnvironment,baselineCoverage} from './observer-session-replay.mjs';
+import {run,canonical,sectionByHeading,publicLine,visibleLines,auditReads,costSummary,isolationBreach,auditGreps,fixtureEnvironment,baselineCoverage} from './observer-session-replay.mjs';
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex'),session='11111111-2222-4333-8444-555555555555';
 const tmp=t=>{const d=fs.mkdtempSync(path.join(os.tmpdir(),'observer-replay-test-'));t.after(()=>fs.rmSync(d,{recursive:true,force:true}));return d};
 // A six-record MAIN history with reasoning, request metadata and an internal request blob, and three digests delivered between its records.
@@ -185,4 +185,20 @@ test('a recorded session is judged by the rules MAIN received, not the generated
  const late=setupRun(t,{rules:true,badRule:true});fs.writeFileSync(late.agent,generated);
  await assert.rejects(()=>run(late.manifestFile,'a',{source:late.source,agent:late.agent,out:path.join(late.dir,'out'),model:'m',claude:late.claude,revision:'t'}),/not in the history visible at the first digest/);
  assert.equal(sectionByHeading('# A\n\n## B\n\nx\n\n### C\n\ny\n\n## D\n\nz\n','B'),'## B\n\nx\n\n### C\n\ny\n');assert.equal(sectionByHeading('# A\n','missing'),null);
+});
+test('a symlinked output parent is the same fixture, and a symlink out of the fixture is not',async t=>{
+ // The client resolves its working directory to the real path (macOS /var is /private/var), so a lexical alias must not make a fixture read look foreign.
+ const dir=tmp(t),real=path.join(dir,'real'),alias=path.join(dir,'alias');fs.mkdirSync(real);fs.symlinkSync(real,alias);
+ const s=setupRun(t),root=path.join(s.dir,'real-parent'),link=path.join(s.dir,'link-parent');fs.mkdirSync(root);fs.symlinkSync(root,link);
+ process.env.SHIM_MODE='read-good';const out=path.join(link,'out');
+ const meta=await run(s.manifestFile,'a',{source:s.source,agent:s.agent,out,model:'m',claude:s.claude,revision:'t'});delete process.env.SHIM_MODE;
+ assert.equal(meta.failure,undefined);assert.ok(fs.readFileSync(path.join(out,'turns.jsonl'),'utf8').includes(fs.realpathSync(out)));
+ // Isolation holds through the alias: content from outside still fails, and so does a symlink inside the fixture that leaves it.
+ process.env.SHIM_MODE='read-bad';await assert.rejects(()=>run(s.manifestFile,'a',{source:s.source,agent:s.agent,out:path.join(link,'out-bad'),model:'m',claude:s.claude,revision:'t'}),/returned content from outside the fixture/);delete process.env.SHIM_MODE;
+ const work=path.join(dir,'work'),outside=path.join(dir,'outside');fs.mkdirSync(work);fs.mkdirSync(outside);fs.writeFileSync(path.join(outside,'secret.txt'),'x');fs.symlinkSync(outside,path.join(work,'escape'));fs.writeFileSync(path.join(work,`${session}.jsonl`),'');
+ const aliasWork=path.join(dir,'alias-work');fs.symlinkSync(work,aliasWork);
+ assert.equal(auditReads([{file_path:path.join(aliasWork,`${session}.jsonl`)}],work,session).length,0);
+ assert.equal(auditReads([{file_path:path.join(work,'escape','secret.txt')}],aliasWork,session).length,1);
+ assert.equal(auditGreps([{pattern:'x',path:path.join(work,'escape')}],work).length,1);assert.equal(auditGreps([{pattern:'x',path:path.join(aliasWork,'other')}],work).length,0);
+ assert.equal(canonical(path.join(alias,'missing','deeper')),path.join(fs.realpathSync(real),'missing','deeper'));
 });

@@ -92,17 +92,25 @@ export function isolationBreach(init){
  return found.length?found.join(', '):null;
 }
 // The observer may read only the MAIN copy and the persisted hook output, both inside the work directory.
+// A path as the filesystem sees it: symlinks and platform aliases (such as macOS /var and /private/var) resolved through the nearest existing ancestor, so a lexical alias of the fixture is the fixture and a symlink out of it is not.
+export function canonical(p){
+ const wanted=path.resolve(p),tail=[];
+ for(let current=wanted;;){
+  try{return path.join(fs.realpathSync(current),...tail.reverse())}
+  catch{const parent=path.dirname(current);if(parent===current)return wanted;tail.push(path.basename(current));current=parent}
+ }
+}
 export function auditReads(reads,work,session){
- const root=path.resolve(work)+path.sep,transcript=path.join(root,`${session}.jsonl`),tools=path.join(root,session,'tool-results')+path.sep;
+ const base=canonical(work),root=base+path.sep,transcript=path.join(base,`${session}.jsonl`),tools=path.join(base,session,'tool-results')+path.sep;
  return reads.filter(r=>{
-  const p=typeof r.file_path==='string'?path.resolve(root,r.file_path):'';
+  const p=typeof r.file_path==='string'?canonical(path.resolve(root,r.file_path)):'';
   return !(p===transcript||p.startsWith(tools));
  });
 }
 // A search may only look inside the fixture too: no path, or one under the work directory.
 export function auditGreps(greps,work){
- const root=path.resolve(work)+path.sep;
- return greps.filter(g=>(g.path!==undefined&&!(path.resolve(root,String(g.path))+path.sep).startsWith(root))||String(g.glob??'').includes('..'));
+ const root=canonical(work)+path.sep;
+ return greps.filter(g=>(g.path!==undefined&&!(canonical(path.resolve(root,String(g.path)))+path.sep).startsWith(root))||String(g.glob??'').includes('..'));
 }
 // total_cost_usd is a session-cumulative figure: the run total is the last value, valid only while it never decreases.
 export function costSummary(totals){
@@ -179,7 +187,8 @@ const failure=(meta,out,kind,detail)=>{meta.failure={kind,detail:String(detail).
 export async function run(manifestFile,id,opts){
  const manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8')),episode=episodeOf(manifest,id,opts);
  const out=path.resolve(opts.out);if(fs.existsSync(out))throw new Error('--out must not exist');
- const work=path.join(out,'work');fs.mkdirSync(work,{recursive:true});
+ fs.mkdirSync(path.join(out,'work'),{recursive:true});
+ const work=fs.realpathSync(path.join(out,'work'));
  const s=setup(manifest,episode,path.resolve(opts.source),path.resolve(opts.agent),work);
  const plan=s.all.filter(d=>d.n>=episode.from&&d.n<=episode.through).map(d=>({...d,visible:visibleLines(s.main,d.timestamp)}));
  let revision=opts.revision;
