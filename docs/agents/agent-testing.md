@@ -25,7 +25,9 @@ python3 tools/build-process.py --planning <planning-checkout> --core <core-check
 Find `<planning-checkout>` and `<core-checkout>` from `git worktree list` and the
 sibling checkouts of this repository (the tracker doc names `../planning`); the
 generator reads Git objects at the pinned commits in `tools/process-sources.json`.
-Run `--check` when the change touches generated bundle files.
+Run `--check` when the change touches generated bundle files, native skills or
+agents, or the `composition` policy. `tests/process_composition.py` checks the
+committed native files against a fresh composition without source checkouts.
 
 ## Behavioral replay
 
@@ -39,11 +41,12 @@ Keep the maintained agent model until the affected behavioral comparison support
 a change. A replay result establishes only the tested cases, not live observation
 or another agent's fitness.
 
-The maintained observer selects `claude-haiku-5-5` following the accepted matched
-ten-case replay comparison. Both models met the existing acceptance table, but
-both skipped the native delivery-identity read before the f3 assessment. That
-shared instruction-conformance gap remains; replay acceptance does not qualify
-live MAIN delivery. Grok supervisors and Codex forwarding agents retain Sonnet.
+The maintained observer is configured with `claude-opus-5-5` and explicit `effort: low`, a documented
+subagent frontmatter field. The replay passes the same effort; the foreground observer's effort is read from
+its own recorded API requests, never from a flag. This is the configuration, not an acceptance claim: results
+for the exact bytes, with model, effort and client version, are recorded in the pull request that changes
+them, and replay results never qualify live MAIN delivery. Grok supervisors and Codex forwarding agents
+retain Sonnet.
 
 Cases and acceptance live in
 [observer-behavioral-prompts.md](../../sdlc-process/tests/observer-behavioral-prompts.md);
@@ -73,7 +76,144 @@ add or change cases there, not here.
    and record trials that diverge: an earlier run that failed a case a later run
    passed is evidence of variance, not a pass for every old trial.
 
+### Real-session replay
+
+Use this when a failure came from a real MAIN session that fixtures cannot
+reproduce (clipped digests, a prefix-only baseline, intervening work, a user who
+catches the miss). The cases, deadlines and failure classes are the
+[real-session regression contract](../../sdlc-process/tests/observer-behavioral-prompts.md);
+write or extend them there before any model run or prompt edit.
+
+1. Copy the MAIN transcript, the observer transcript and the persisted baseline to
+   scratch as `main.jsonl`, `observer.jsonl` and `baseline.txt`. The manifest
+   `sdlc-process/tests/sessions/observer-session-1fc054d8.json` pins their
+   SHA-256 values and the digest stream; the driver refuses any other bytes. Raw
+   transcripts stay in scratch.
+2. `node sdlc-process/tests/observer-session-replay.mjs <manifest> <episode> --source <scratch> --agent <agent.md> --model <full model id> --out <new dir>`
+   replays one contiguous episode through a stateful `claude -p` observer; `--through N`
+   shortens it. Add `<manifest> report <run dir>` for read, report, marker and cost
+   facts. A client failure, off-fixture `Read` or isolation breach ends the run non-zero.
+   The observer's generated rule excerpts are replaced by the same sections from MAIN's own
+   records (manifest `historicalExtracts`), so a past session is never judged by present-day
+   rules; a manifest or agent that cannot supply them fails the run.
+3. Grade the transcript against the contract, never the markers alone: a missed target,
+   a report the delivered records contradict, or a retroactive rule application is a
+   fail even when every marker parses. Judge by the rules in force in the recorded
+   session. Record unrun digests as unrun.
+4. The recorded observer run is the baseline. Add a matched fresh run of the unchanged
+   agent only for the first material miss, then the candidate on each model under
+   comparison. This surface proves the episodes run, not live MAIN delivery.
+
+What the observer carries, so a run can be read against it: a startup index of the whole MAIN
+snapshot (`Skill` calls and results, skill-content records, compaction boundaries and the human's messages,
+with source lines, coverage and a completeness flag) that records what the transcript contains and never
+that anything was loaded or followed; three bounded excerpts of the process generated from the pinned
+sources (the entry's routing table, triage's steps with their conditional grilling step, and the entry's
+mandatory-process rule), with provenance, headings shifted and local links resolved to the upstream, so not
+the sources and not exact bytes; and `Read` plus a read-only `Grep` to recover anything else from the MAIN
+transcript. The replay episodes come from the one session that shaped this repair. They are a known
+regression, not evidence of generalization, and no held-out session exists. Qualification results for a
+candidate belong in the PR, with the exact bytes, model, effort and client version.
+
 ## Native integration
+
+### Board delegation acceptance plan
+
+Test the public seams: status CLI `write`/`record` responses, its read-only
+`next-work` response, and the accountable agent's native skill invocation. Use
+synthetic delivery repositories and a fake board skill that makes no board or
+GitHub writes. Native verification remains ongoing; the cases below are
+acceptance requirements, not passing receipts. Independent review and actual
+native evidence are required before acceptance.
+
+Materialize fixtures without model calls (destination must not exist):
+
+```bash
+node sdlc-status/tests/board-native-materialize.mjs /absolute/disposable/board-fixtures
+```
+
+Freeze candidate revisions and fixture source digests before execution; keep
+candidate skill bytes unchanged during runs. The materializer creates project
+skill trees in Claude `.claude/skills` and Codex `.agents/skills`, preserving
+source-relative references, README, runtime and templates. `candidate-skills.json`
+records native status/process paths, sources and SHA-256. Require native loading
+of those exact candidates using bare project names `sdlc-status` and
+`sdlc-process`; loading an older installed skill and then reading the candidate
+fails acceptance. Codex need not have an installed status plugin. Disposable
+skill trees are test assets, not release bundles; immutable distribution still
+uses the established generator and committed source pin.
+
+Isolate global plugins and hooks while preserving native project discovery.
+Verified Claude setup lesson: enable project settings sources, for example
+`--setting-sources project,local`. An empty `--setting-sources` value hides
+project skills and cannot qualify a candidate run. Use isolated client
+configuration; for Codex, use a copied/patched official runtime as described in
+`codex-crew/tests/live-capabilities.test.mjs`. Preserve shared installs and caches.
+Record client versions, runtime capabilities and resolved skill paths. Fixtures
+require no GitHub/network access.
+
+Run these cases in each harness:
+
+| Case | Trigger | Required observation |
+| --- | --- | --- |
+| Initial | `write initial.json` | native `fake-board` invocation with `stage-change`, issue `https://github.com/example/delivery/issues/17`, route `delivery`, stage `IN`, outcome `null` |
+| Unchanged | repeat identical write | no board request or invocation |
+| Stage change | `record change.json` | native invocation with same issue/route, `stage-change`, stage `RS`, outcome `null` |
+| Combined advancement | `record advance.json` | native finish `RS` with outcome `ready assessed; start not authorized` **before** native `stage-change:DE`, same issue/route |
+| Repeated finish | repeat `advance.json`, then `finish.json` | no additional request or invocation for the unchanged finish |
+| CLI next work | `next-work` | native invocation with `{"event":"next-work","readOnly":true}`; candidate 18, fixture-only ordering and unknown real availability; no start |
+| Ordinary next work | separate `next-work-prompt.txt` session | candidate process routes the ordinary request to the configured board skill; exact read-only input, candidate 18 and evidence limits; no start |
+| No skill | same sequence in `no-skill` | no board requests or invocations |
+| Unavailable | same sequence in `unavailable` | actual native resolution failure for `no-such-board`, visible scoped gap and continued fixture work |
+| Delivery versus cwd | all CLI commands run from `other-cwd` | selected `fake-board` from explicit delivery tracker; never `wrong-board` |
+
+Launch from the delivery fixture for native project discovery; its CLI commands
+exercise the distinct `other-cwd` tracker control. Repeat configured, no-skill
+and unavailable cases. Example native status runs:
+
+```bash
+cd /absolute/disposable/board-fixtures/claude/configured && claude -p --model claude-sonnet-5-5 --setting-sources project,local --output-format stream-json --verbose "$(cat prompt.txt)"
+cd /absolute/disposable/board-fixtures/codex/configured && crew-codex task --background --write --model gpt-6.1-sol --effort low --skill sdlc-status "$(cat prompt.txt)"
+```
+
+For ordinary next-work routing, use separate new sessions with
+`next-work-prompt.txt`. That prompt contains an ordinary request, no CLI command
+or board-skill name; the candidate process owns routing:
+
+```bash
+cd /absolute/disposable/board-fixtures/claude/configured && claude -p --model claude-sonnet-5-5 --setting-sources project,local --output-format stream-json --verbose "$(cat next-work-prompt.txt)"
+cd /absolute/disposable/board-fixtures/codex/configured && crew-codex task --background --model gpt-6.1-sol --effort low --skill sdlc-process "$(cat next-work-prompt.txt)"
+```
+
+Distinguish the evidence surfaces:
+
+- CLI `SDLC_BOARD_DELEGATE` output proves the exact request was emitted. Node
+  cannot issue a native Skill call. Manually dispatching that request can test
+  the emitter/executor seam; it does not prove that the model dynamically chose
+  and natively invoked the configured board skill from the candidate instructions.
+- Dynamic native acceptance requires the transcript to show candidate loading,
+  the model's configured-skill selection and exact event inputs, then successful
+  native invocation that delivered the skill's instructions. Claude evidence is
+  its `Skill` call and successful result plus the injected skill-content record
+  that follows (next bullet group). Codex evidence is a real accepted structured skill input
+  (`{type:"skill",name,path}`) and turn result; inspect `thread/read` with
+  `includeTurns: true` where available. A file read, launch handle, fake reply
+  token or reassuring prose proves neither invocation nor routing.
+- Codex needs a capable native runtime. A child sandbox may be unable to launch
+  an app-server or detached background job. Report that exact capability gap;
+  it is not a passing case. Use the runtime's supported controls from a capable
+  environment, with launch and await/result calls separate and at the same cwd.
+  An acceptance-only transport bridge supplies only the evidence it actually
+  demonstrates; it imposes no production transport or shim requirement.
+
+No configured skill produces no board invocation. Unavailable native resolution
+must leave a visible scoped board gap while fixture work continues. Next-work
+must preserve ordering/evidence limits and never authorize start. Retain
+transcripts in disposable storage and record scoped results in the owning PR;
+explicit CLI next-work or manual dispatch alone cannot establish ordinary-request
+routing. The entry skill owns next-work routing, so the status skill description
+needs no expansion. Small independent fixtures may duplicate bounded setup;
+this acceptance work does not require a shared test framework or extra refactor.
 
 When the change concerns skill loading or main-session delivery, run it in a real
 client session and read the transcript.
@@ -85,9 +225,56 @@ client session and read the transcript.
   accepted input (`crew-codex task --skill <name>`, resolved name and path) and
   the turn's result; a file read never substitutes. A job launch or skill
   discovery alone is not success.
-- Invocation alone does not satisfy the loading contract. Full loading also needs
-  the complete packaged source read, plus the directed reference files relevant to
-  the work. Check each as its own requirement in the transcript.
+- Invocation alone does not satisfy the loading contract: loading is a native
+  invocation whose result delivers the full governing instructions and the
+  concrete content of every reference the work makes mandatory. Check each as its
+  own requirement in the transcript: the `Skill` call (or accepted structured
+  skill input), its successful result, and the record that contains the
+  delivered content. In Claude the content is not necessarily in the
+  `tool_result`: the recorded Claude Code 2.1.305 `stream-json` session
+  (`sdlc-process:sdlc-process`, claude-sonnet-5-5) returned only
+  `Launching skill: sdlc-process:sdlc-process` as the `tool_result`
+  (`tool_use_result: {success: true, commandName}`) and then a separate synthetic
+  user record (`isSynthetic: true`, 184,972 bytes) that opens
+  `Base directory for this skill:` and holds the full body, including
+  `## Source adapter contract` and `Required stage completion`. The two records
+  share no ID; correlate them by transcript order, skill name and base directory,
+  and take delivery from the content record. A call and result without that
+  following record, or a stored-transcript shape you have not read, leaves
+  delivery unknown. A
+  separate read of the same bytes is not required and never substitutes for the
+  invocation; when invocation is unavailable, source reading is not a fallback
+  load (report the capability gap). A result that only points to a source or
+  reference for the reader to open is an incomplete payload and a load gap, even
+  if the pointed source is later read. The sdlc-process native skills and the
+  policy reviewer agent carry their pinned source, the supporting files and the
+  process, record, planning, tracker and checkpoint sections named in
+  `composition` (`tools/process-sources.json`) and the source adapter contract, so
+  verify delivery by finding bundled markers in the result record (or the agent's
+  own definition): the `## Source adapter contract` heading, a bundled dependency
+  heading and a section the flow requires, such as `Required stage completion`
+  or `Readiness and start rules` in the entry. The generator fails when a
+  governing section is left as a link to read later. What remains linked are
+  separately invoked skills (each needs its own native invocation), live project
+  facts discovered from their owners, and pinned historical evidence;
+  `sdlc-process/native-composition.json` lists each asset's bundled files with
+  sizes and its cited sources. The sdlc-status and grok-crew-runtime skills and
+  the grok-supervisor agent carry their operating contracts the same way
+  (for example the `## Commands` and `## Launch recipes` headings), so no README
+  read is part of their loading. An observer treats the call, result and
+  subsequent content record together as the load and does not require a
+  duplicate `Read` of the packaged source.
+- Delivery is not permanent. Claude Code
+  [re-attaches after compaction](https://code.claude.com/docs/en/skills) only the
+  most recent invocation of each skill, the first 5,000 tokens of it, within a
+  combined 25,000 tokens filled from the newest invocation, so older skills can
+  drop entirely. The bundled references sit after the body in the large native
+  skills and agents, so past the first 5,000 tokens they can be lost at
+  compaction while the pre-compaction transcript still shows delivery. The
+  generator does not prevent this and nothing in the transcript announces which
+  rule was cut. Compaction was not exercised in this repair's native runs; treat
+  delivery after a compaction boundary as unknown, and cite a later record of
+  the rule being applied rather than the earlier invocation.
 - A tool call is not a successful result. Cite the result record, not only the
   call.
 - Use the client's documented CLI help for invocation flags; record the exact

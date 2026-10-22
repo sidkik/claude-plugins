@@ -2,15 +2,34 @@
 
 The bundle is a generated, revision-pinned distribution of shared instructions.
 Its source manifest records each upstream repository, commit and byte digest.
-Update the canonical source, then regenerate the package; edit wrappers only
-through the generator. Managed planning documents retain their canonical owner
-and become provenance-bearing snapshots in this distribution.
+Update the canonical source, then regenerate the package; native skills and
+agents are generated outputs and are never edited directly. Managed planning
+documents retain their canonical owner and become provenance-bearing snapshots
+in this distribution.
+
+Native skills and agents contain their instructions; they are not pointers. Each
+has the pinned source's frontmatter, its full pinned body, the supporting
+instruction and template files that body requires, the shared process,
+specification, record, planning and tracker content that its flows make mandatory
+(the whole process where the source directs reading it), and this contract.
+Invoking one delivers all of that: the `Skill` result (or the agent's own
+definition) is the content, so loading needs no separate read of any source file
+and a read never substitutes for the invocation. Links that remain point to
+separate assets or facts: other skills (invoke each by its name when the work
+reaches it), live project facts such as tracker configuration, issue state,
+ownership and repository documents (discover them from their owners when the
+action needs them), and pinned historical evidence or the governed-context
+proposal's identity (its governing sections are carried here). `native-composition.json`
+lists every asset's bundled files with sizes and these cited sources. If a rule the
+work needs is not in the delivered content, report a scoped load gap; do not
+claim coverage of a rule you did not receive, and do not fill the gap from a
+source read as if it were a load.
 
 1. Establish the actual working repository and its Git remotes. Read its
    `AGENTS.md`/`CLAUDE.md`, configured `docs/agents/issue-tracker.md` when present,
    and applicable engineering instructions. The plugin installation directory
    is a source location, never the work's repository or checkout.
-2. Read the packaged SDLC entry and its required orchestrator dependency before
+2. Natively load the SDLC entry and its required orchestrator dependency before
    route selection. Apply current user authorization and source precedence from
    the host. If a repository distributes a different shared-process revision,
    identify that conflict and its effect before the dependent action; installing
@@ -19,8 +38,8 @@ and become provenance-bearing snapshots in this distribution.
    delivery issue from its full URL and actual work scope. Planning documents
    belong to `sidkik/planning`, including single-repository work launched in a
    delivery checkout. Before writing them, natively invoke
-   [work-artifacts](skills/work-artifacts/SKILL.md) and read its linked planning
-   storage/publication convention. Delivery implementation, maintained technical
+   [work-artifacts](skills/work-artifacts/SKILL.md), whose result delivers the
+   planning storage/publication convention. Delivery implementation, maintained technical
    documentation, implementation evidence and implementation-session continuity
    retain their delivery owner; a sufficient small repair brief can remain
    issue-owned. This does not reassign implementation issues to planning.
@@ -32,7 +51,7 @@ and become provenance-bearing snapshots in this distribution.
    is an engineering plugin, use its canonical sources or exact installed bundle
    for those instructions. From any starting repository, route contributions to
    the plugin-owned sources to the owner's authorized checkout; generated bundles,
-   wrappers and agents remain distribution outputs.
+   native skills and agents remain distribution outputs.
    For Core's explicitly adopted migration, `sidkik/core-plugins` owns these
    engineering instructions under `core-engineering/source`. Legacy Core copies
    of migrated instructions cannot silently override that authority; report

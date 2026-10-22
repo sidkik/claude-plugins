@@ -7,9 +7,9 @@ import {materialize} from './observer-decision-materialize.mjs';
 import {inspectTranscript} from '../scripts/observer-live.mjs';
 const dir=path.join(import.meta.dirname,'fixtures'),names=fs.readdirSync(dir).filter(f=>f.endsWith('.json')).sort();
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const partial=new Set(['observer-decision-f8','observer-decision-f10','observer-decision-f20','observer-decision-f24','observer-decision-f11','observer-decision-f12','observer-decision-f13','observer-decision-f19','observer-decision-f21','observer-decision-f22']),delivered=new Set(['observer-decision-f3','observer-decision-f4','observer-decision-f15']);
+const partial=new Set(['observer-decision-f8','observer-decision-f10','observer-decision-f20','observer-decision-f24','observer-decision-f11','observer-decision-f12','observer-decision-f13','observer-decision-f19','observer-decision-f21','observer-decision-f22']),delivered=new Set(['observer-decision-f3','observer-decision-f4','observer-decision-f15','observer-decision-f30']);
 test('every fixture materializes a valid raw MAIN transcript and the real normalized baseline',t=>{
- assert.equal(names.length,25);
+ assert.equal(names.length,32);
  for(const name of names){
   const out=fs.mkdtempSync(path.join(os.tmpdir(),'observer-decision-test-'));t.after(()=>fs.rmSync(out,{recursive:true,force:true}));
   const m=materialize(path.join(dir,name),out),b=m.baseline,id=m.fixture;
@@ -21,7 +21,7 @@ test('every fixture materializes a valid raw MAIN transcript and the real normal
   const state=inspectTranscript(m.transcript,b.sessionId);
   assert.equal(state.reports.length,delivered.has(id)?1:0,id);
   if(delivered.has(id)){
-   const [finding]=state.ledger.findings;assert.equal(finding.protocol,'tracked',id);assert.equal(finding.id,'O-1');assert.equal(finding.reportUuid,state.reports[0].uuid);assert.equal(finding.stage,'assessed');assert.equal(finding.disposition,'accepted');assert.deepEqual(finding.actionRefs,[]);
+   const [finding]=state.ledger.findings;assert.equal(finding.protocol,'tracked',id);assert.equal(finding.id,'O-1');assert.equal(finding.reportUuid,state.reports[0].uuid);assert.equal(finding.stage,'assessed');assert.equal(finding.disposition,id==='observer-decision-f30'?'disputed':'accepted');assert.deepEqual(finding.actionRefs,[]);
    // The baseline keeps only public text, so the delivery appears as a user record carrying the native report text.
    assert.ok(b.records.some(r=>r.uuid===finding.reportUuid&&r.content[0].text.includes('SDLC_FINDING')),id);
   }

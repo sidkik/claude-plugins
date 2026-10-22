@@ -66,7 +66,8 @@ agent definitions from the process plugin and enables the native observer
 experiment. Claude's current plugin-agent loader does not preserve observer
 attachment fields, so setup handles that local adapter for you. The main agent's
 body stays empty to preserve Claude's normal coding instructions, chosen model
-and permissions; the observer uses the explicit `claude-haiku-5-5` model. Existing
+and permissions; the observer uses the explicit `claude-opus-5-5` model at low effort
+(how it is evaluated is in the [agent testing procedure](agents/agent-testing.md)). Existing
 custom-agent selections and unmanaged files are preserved and reported as scoped
 conflicts.
 

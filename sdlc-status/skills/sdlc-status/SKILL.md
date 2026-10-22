@@ -5,7 +5,7 @@ description: Initialize and update the required SDLC stage checklist at session 
 
 Follow the governing `sdlc-process` entry first: load available `orchestrator` before choosing the route or next action. If unavailable, report the capability gap and hold only dependent work; initialization reports the missing load as unknown, never N/A. Loading it does not require spawning agents.
 
-Read [setup and the projection contract](../../README.md) before the first update. Locate `scripts/status.mjs` relative to this installed plugin. When this plugin is available, initialization and substantive updates are required. If unavailable, present the same required criteria and unmet steps in terminal responses and name the missing display capability. The accountable agent maintains this display; the human need not construct JSON or prescribe the route.
+The setup, projection and evidence contract is carried in this skill below; no README read is needed or substitutes. Locate `scripts/status.mjs` relative to this installed plugin. When this plugin is available, initialization and substantive updates are required. If unavailable, present the same required criteria and unmet steps in terminal responses and name the missing display capability. The accountable agent maintains this display; the human need not construct JSON or prescribe the route.
 
 1. Establish the actual CLI and session identity. Use Claude/Grok's current session ID, or an explicitly arranged token shared with the renderer; Codex uses that token. Completion: writer and renderer identify this session, not a repository or another agent.
 2. Read the owning GitHub work, governing SDLC process, current decisions and applicable skills. Following the applicable process is mandatory. Initialize with `template --route triage|feature|delivery|research`; preserve its template, source revision and all required criteria. Select the prescribed route, not a smaller route to hide obligations. Set work, actual evidence revision, active stage, next authorized action and human need. Completion: the checklist includes the governing route and triggered skill requirements before the affected activity. For triggered specialists, add source-pinned load/application declarations before governed activity (for example `X-temporal-workflow-writer-load` and `-apply` before Temporal code). Existing declarations and prior-route snapshots persist when omitted. A template is a starting skeleton, never proof of completion.
@@ -15,8 +15,80 @@ Read [setup and the projection contract](../../README.md) before the first updat
 5. Validate the same-session inspection returned by `record`, or run `inspect --client CLIENT --session ID` after `write`, using the same client, session and state directory. Check its exit status and compare the returned work identity, phase/active stage, affected criterion results, next action and human need with the intended update. A successful write alone does not establish that the correct session displays the result. Report an inspection failure or mismatch immediately before the ordinary reply, correct it within authority and verify again. Reconcile every current unmet criterion. Recover authorized omissions directly. If a required step cannot be met, identify the exact criterion, blocker, dependent work held and needed human decision/capability. Continue independent authorized work. A human exception requires its actual scoped authority, conditions and alternative evidence; it remains E, never a successful performance claim.
 6. After correction or relevant source/implementation change, withdraw affected passes and dependent questions/recommendations, verify the underlying flow and update the actual evidence revision. Compare against current known revisions using `--source-revision` and `--evidence-revision` when rendering/inspecting. Update only after reconciling real work; refreshing a timestamp alone does not restore evidence. Completion: affected checks are unresolved or supported by fresh evidence before dependent continuation.
 
+Apply the governing process's repository board delegation after recorded route/stage
+changes and stage finishes. Supply `--delivery-repo ABSOLUTE_CHECKOUT` on initialization
+(and when the delivery owner changes); same-work records retain it. Record explicit
+stage-finish dispositions with `finished: {stage, outcome}`. For every
+`SDLC_BOARD_DELEGATE` response, the accountable native agent invokes the selected
+skill with the exact `input` at `deliveryRepository`, then checks that invocation's actual result and that it delivered the board skill's instructions. Node only emits the request. Report `SDLC_BOARD_GAP` or failed
+native invocation as a scoped board gap and continue authorized work. Unchanged
+status emits nothing. Use `next-work --delivery-repo ABSOLUTE_CHECKOUT` for the
+read-only candidate request under the same governing contract.
+
 Keep GitHub and the existing owning work record authoritative. The footer reports assertions; it cannot authenticate the actor, detect an unreported action, read your mind, authorize a transition or enforce the process. Missing template/capability is a visible gap, not permission to fabricate a pass. Questions and silence are not human approval. Source reads must be described as reads, not unavailable native skill invocations.
 
 The compact observer label reports `seen Ns ago` only from session-matched native observer evidence with its task and timestamp. Launch intent without that evidence is starting; a setup/version/custom-agent conflict is unavailable. Installation, configuration and agent-definition presence never prove activity. The recorded state is an as-of observation, not a heartbeat or policy approval.
 
 The compact footer prioritizes an actual human need, then the current route and stage completion, then the next action. Its symbols report the projection: completed, unknown, failed, excepted and future stages remain distinct, and the current-stage arrow never replaces that status. Stale or source-changed evidence withdraws green completion. Full criterion identities, reasons and references remain available through the same-session inspection.
+
+## Session identity and display
+
+- Claude's footer reads `session_id` from its JSON stdin. Obtain the current ID from Claude's session information or the current transcript filename and confirm it belongs to this session before writing; never infer it from the working directory.
+- Grok's native `session_id` is accepted, namespaced separately from Claude. Fixtures exercise its documented shape; a live Grok TUI session has not been tested.
+- A CLI that omits session identity needs an explicit token allocated for this launch: `node <plugin-root>/scripts/status.mjs new-session`, exposed to both the renderer and you as `SDLC_STATUS_SESSION` and reused only when resuming that same work session. Use it only when the native ID is absent; if both exist they must agree, otherwise rendering reports UNKNOWN. Never place one fixed token in global settings or a shared shell startup file. The writer always takes explicit client and identity.
+- Codex has no supported native footer. Present `node <plugin-root>/scripts/status.mjs text --client codex --session "$SDLC_STATUS_SESSION"` at substantive changes; this is a manual text fallback, not persistent native integration.
+- Configuring a footer (Claude `statusLine`, Grok `[ui.status_line]`) is a separate explicit setup step the human requests; the examples in the README are not permission to alter user settings. Preserve any existing status command or settings: a wrapper reads stdin once and passes the same JSON to each renderer.
+- `--color auto|always|never` (auto respects `NO_COLOR` and `TERM=dumb`), and `--width` (20–500 columns). `inspect` is always plain and retains full names, attribution and references; use it when the compact footer truncates.
+- The footer reports assertions only. Nothing here verifies claims, approves work, advances a workflow, polls GitHub or stores a history.
+
+## Commands
+
+```sh
+node <plugin-root>/scripts/status.mjs template --route triage|feature|delivery|research
+node <plugin-root>/scripts/status.mjs write --client claude --session SESSION_ID < session-payload.json
+node <plugin-root>/scripts/status.mjs record --client claude --session SESSION_ID < event.json
+node <plugin-root>/scripts/status.mjs inspect --client claude --session SESSION_ID
+node <plugin-root>/scripts/status.mjs next-work --delivery-repo /absolute/delivery/checkout
+```
+
+`template` generates an exhaustive starting payload that you fill with the real work data and evidence. `record` accepts one atomic event with `changed` state fields, affected `results`, and optional shared `evidence` and `assessment`; it validates, writes the merged state and returns the same inspection used for verification. Shared evidence does not supply independent approval. Invalid writes preserve the previous projection, so an old footer is not evidence the new update succeeded; refreshing only a timestamp does not renew evidence. The renderer cannot detect an omitted write or authenticate reported events. The template is `sidkik-sdlc@3`; templates of an earlier version lose green until reinitialized, carrying forward only applicable current evidence, and a same-route upgrade needs no new review checkpoint. This plugin requires verified display updates after substantive events and before yielding changed state to the user, retains Intake orchestrator load and the explicit bug reproduction criteria, and rejects replacing a template's required IDs with a caller's list.
+
+## Stages and footer symbols
+
+Stages abbreviate Intake, Verify, Refine, Brief, Review, Ready/start, Deliver and Closeout; the route governs which appear. Load requirements occur before their governed activity and application requirements need actual outputs. Conditional skills stay visible until supported or explicitly dispositioned N/A. Missing skill availability stays an explicit unknown capability gap and only dependent work pauses. Feature refinement chooses its applicable grill/wayfinder path and records why other conditional skills are inapplicable.
+
+`✓` green: every applicable required criterion has current reported proof, including independent assessment where required. `?` amber: pending or unknown. `·`: future work. `✕` red: a failure, or amber for attempted advancement or explicit completion with an unknown prerequisite. `E` amber: an authorized exception, never an unqualified complete stage. `-`: justified N/A. `→`: the current stage, without concealing its separate status symbol. Meanings survive disabled color. Even an independent assessment is a reported reference, not a verified identity.
+
+## Progress object and criterion results
+
+The JSON's `progress` object has `template`, `route`, `sourceRevision`, `evidenceRevision`, `active`, `claimedComplete`, `activities` and `results`. `sourceRevision` is the pinned canonical SHA-256; `evidenceRevision` identifies the actual candidate or context used for evidence. A result is keyed by a template criterion ID:
+
+```json
+{"status":"passed","actor":"primary","reference":"GitHub receipt or concrete retained output","revision":"actual-candidate-revision"}
+```
+
+Status is `unknown`, `pending`, `passed`, `failed`, `na` or `exception`. Missing results, pass claims without evidence, mismatched revisions and absent required independent assessments derive unknown. `na` is permitted only for conditional criteria and requires `reason`. A required independent criterion also needs `assessment: {"result":"passed","actor":"different-reviewer","reference":"assessment receipt","revision":"actual-candidate-revision"}`. An exception needs a reason, alternative evidence and `authority: {"kind":"human","actor":"actual decision maker","reference":"scoped decision receipt","revision":"actual-candidate-revision"}`; required independent assessment still applies. References are text and are never executed.
+
+Set `activities` to include `delegation` before attempting dispatch, add stage IDs to `claimedComplete` when claiming completion, and set `active` to the stage being entered. Missing prior criteria become violations. A phase sentence such as "verification done" has no authority over the chain: the tool does not parse natural-language claims or observe unreported activity, so report these explicit events accurately. A user correction requires invalidating the affected criterion results, not merely changing the phase sentence.
+
+For a triggered specialist skill beyond the template, add declarations before its governed activity to `progress.additions`, each with a separate load and application criterion:
+
+```json
+{"id":"X-temporal-workflow-writer-load","stage":"DE","label":"temporal-workflow-writer loaded","source":".claude/skills/temporal-workflow-writer/SKILL.md","sourceRevision":"actual-skill-sha256"}
+```
+
+Declare the matching `X-temporal-workflow-writer-apply` requirement and record its actual outputs under `results`. Declarations are bounded to 40, use `X-` IDs and cannot replace a template criterion. They persist when omitted from an update for the same work and route/template; omitted results become unknown. A changed declaration is rejected. A justified N/A requires a declaration marked `conditional: true` and a result reason. Changing the projected route needs no manufactured review: display bookkeeping is not execution. The writer preserves an immutable prior route snapshot, keeps attempted failures visible, and requires an evidenced `historyDispositions` entry before those failures stop holding delivery completion. Triage and Delivery completion stay distinct in the compact summary. Tracked work cannot be downgraded to schema 1; schema-1 writes remain supported for migration, display `legacy/untracked` and provide no stage completion. The writer assigns schema version, client/session and timestamp, and each bounded valid write atomically replaces one private local projection.
+
+Rendering compares source evidence to the packaged pin. Supply known current revisions with `--source-revision SHA256 --evidence-revision REVISION` to detect later changes; no background GitHub fetch occurs. Stale state, mismatched revisions and unknown template versions withdraw green. Reconcile evidence before writing fresh state; `inspect` preserves reported evidence for diagnosis.
+
+## Repository board hook
+
+Supply `--delivery-repo /absolute/delivery/checkout` when initializing with `write` and when changing the owner with `write` or `record`. Same-work records retain the path and new work needs its own delivery checkout. The runtime reads that repository's `docs/agents/issue-tracker.md`, never the cwd's tracker. After a successful update, `SDLC_BOARD_DELEGATE` lines carry the selected skill, delivery checkout and exact event input; you execute them and check the result. Node emits requests; it does not load skills or move cards. No configured skill emits nothing. `SDLC_BOARD_GAP` reports configuration or tracker access failures without failing the successful status update; native resolution or invocation failures remain your visible scoped board gap.
+
+Record a finish with an explicit disposition, including unsuccessful or partial outcomes, without manufacturing a completion claim:
+
+```json
+{"finished":{"stage":"DE","outcome":"review-ready"}}
+```
+
+New `claimedComplete` stages also emit finishes using the actual reported projection standing; an unmet claim emits `held`. Read-only candidate selection with `next-work` creates no session state and grants no start authority. Rendering, inspection, unchanged writes and criterion-only updates emit no board request. The session state retains `boardDispositions.finishes`, the latest outcome per stage. Repeating a finish within unchanged work, route and source/evidence revisions emits nothing, including after intervening writes; changed outcomes or revisions and stage re-entry permit a new finish; combined finish/advance records emit finishes before entering the next stage. These saved dispositions describe recorded events, not successful native invocation receipts. The hook depends on you processing its tool response; it has no daemon, automatic replay or background delivery guarantee.
