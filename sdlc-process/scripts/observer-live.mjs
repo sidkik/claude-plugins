@@ -242,7 +242,93 @@ function publicState(state, assessments) {
     assessments: current,
   };
 }
-export function createViewer({ transcriptPath, sessionId }) {
+// Linux /proc identity reads. A missing process reads as null; other read
+// failures throw so the caller can retry rather than treat them as an exit.
+const linuxProc = {
+  stat: (pid) => procRead(`/proc/${pid}/stat`),
+  cmdline: (pid) => procRead(`/proc/${pid}/cmdline`)?.split("\0").filter(Boolean) ?? null,
+};
+function procRead(file) {
+  try {
+    return fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT" || error.code === "ESRCH") return null;
+    throw error;
+  }
+}
+// Fields after the command name's closing parenthesis: state (3), ppid (4) and
+// starttime (22) as the exact decimal string.
+function statFields(text) {
+  if (!text) return null;
+  const rest = text.slice(text.lastIndexOf(")") + 2).trim().split(" ");
+  return { state: rest[0], ppid: rest[1], startTicks: rest[19] };
+}
+function ownerLive(owner, proc) {
+  const fields = statFields(proc.stat(owner.pid));
+  return Boolean(
+    fields &&
+      fields.state !== "Z" &&
+      fields.state !== "X" &&
+      fields.startTicks === owner.startTicks,
+  );
+}
+function ownerProc(proc) {
+  if (proc) return proc;
+  if (process.platform !== "linux")
+    throw Error(
+      `Owned viewer binding requires Linux /proc; unsupported platform: ${process.platform}`,
+    );
+  return linuxProc;
+}
+// Walk this process's own ancestors and select the one native MAIN whose argv
+// carries the exact session ID after --session-id or --resume.
+export function resolveOwner({ sessionId, proc, startPid = String(process.pid) }) {
+  proc = ownerProc(proc);
+  const matches = [];
+  for (
+    let pid = statFields(proc.stat(startPid))?.ppid, hops = 0;
+    pid && pid !== "0" && hops < 4096;
+    pid = statFields(proc.stat(pid))?.ppid, hops++
+  ) {
+    const argv = proc.cmdline(pid) || [];
+    if (
+      argv.some(
+        (arg, i) =>
+          (arg === "--session-id" || arg === "--resume") &&
+          argv[i + 1] === sessionId,
+      )
+    )
+      matches.push(pid);
+  }
+  if (matches.length !== 1)
+    throw Error(
+      matches.length
+        ? `Ambiguous owner: ${matches.length} ancestor native sessions match this session ID`
+        : "No ancestor native session matches this session ID",
+    );
+  const fields = statFields(proc.stat(matches[0]));
+  if (!fields) throw Error("Owner process ended during discovery");
+  return { pid: matches[0], startTicks: fields.startTicks };
+}
+export function createViewer({
+  transcriptPath,
+  sessionId,
+  owner = null,
+  proc,
+  ownerCheckMs = 5000,
+}) {
+  if (owner) {
+    if (
+      !/^[1-9][0-9]*$/.test(owner.pid ?? "") ||
+      owner.pid === "1" ||
+      !/^(0|[1-9][0-9]*)$/.test(owner.startTicks ?? "")
+    )
+      throw Error("Owner requires a decimal PID greater than 1 and decimal start ticks");
+    proc = ownerProc(proc);
+    if (!ownerLive(owner, proc))
+      throw Error("Owner process identity does not match a live process");
+    owner = { pid: owner.pid, startTicks: owner.startTicks };
+  }
   if (
     !path.isAbsolute(transcriptPath) ||
     !uuid(sessionId) ||
@@ -319,6 +405,7 @@ export function createViewer({ transcriptPath, sessionId }) {
       return res.end(
         JSON.stringify({
           ...publicState(state, assessments),
+          owner,
         }),
       );
     }
@@ -368,12 +455,52 @@ export function createViewer({ transcriptPath, sessionId }) {
     if (req.method === "POST" && req.url === base + "stop") {
       res.writeHead(202);
       res.end("stopping\n");
-      return setImmediate(() => server.close());
+      return setImmediate(shutdown);
     }
     res.writeHead(404);
     res.end("not found\n");
   });
-  return { server, cap, assessments };
+  // One shutdown path for the stop endpoint and the owner's end: release the
+  // liveness timer and close this server once. No process is signalled.
+  let watch = null;
+  function shutdown() {
+    clearInterval(watch);
+    watch = null;
+    if (server.listening) server.close();
+  }
+  server.on("close", () => clearInterval(watch));
+  if (owner)
+    server.on("listening", () => {
+      watch = setInterval(() => {
+        let live = true;
+        try {
+          live = ownerLive(owner, proc);
+        } catch {
+          live = true; // unreadable but present: retry on the next check
+        }
+        if (!live) shutdown();
+      }, ownerCheckMs);
+      watch.unref();
+    });
+  return { server, cap, assessments, owner };
+}
+// Owner selection for `serve`: --owner-main, or the exact --owner-pid and
+// --owner-start-ticks pair, or neither (unowned manual view). Modes never mix.
+export function ownerOptions(args, sessionId, proc) {
+  const main = args.includes("--owner-main"),
+    hasPid = args.includes("--owner-pid"),
+    hasTicks = args.includes("--owner-start-ticks");
+  if (main && (hasPid || hasTicks))
+    throw Error("Use either --owner-main or --owner-pid with --owner-start-ticks, not both");
+  if (hasPid !== hasTicks)
+    throw Error("--owner-pid and --owner-start-ticks must be given together");
+  if (main) return resolveOwner({ sessionId, proc });
+  if (hasPid)
+    return {
+      pid: args[args.indexOf("--owner-pid") + 1],
+      startTicks: args[args.indexOf("--owner-start-ticks") + 1],
+    };
+  return null;
 }
 async function post(url, body) {
   const response = await fetch(url, {
@@ -392,6 +519,7 @@ async function main(argv) {
     const viewer = createViewer({
       transcriptPath: get("--transcript"),
       sessionId: get("--session"),
+      owner: ownerOptions(args, get("--session")),
     });
     viewer.server.listen(0, "127.0.0.1", () => {
       const base = `http://127.0.0.1:${viewer.server.address().port}/${viewer.cap}/`;
@@ -400,6 +528,7 @@ async function main(argv) {
           url: base,
           assessmentUrl: base + "assess",
           stopUrl: base + "stop",
+          owner: viewer.owner,
           retention:
             "Manual assessments are memory-only. Automatic tracking is rebuilt from native transcripts and follows Claude retention; no separate archive is created.",
         }),
@@ -418,7 +547,7 @@ async function main(argv) {
     });
   if (command === "stop") return post(get("--url"));
   throw Error(
-    "Usage: observer-live.mjs serve --transcript ABSOLUTE.jsonl --session SESSION_ID | assess --url URL --report UUID --outcome corrected|continued|disputed|unresolved --assessor ID --role ROLE --rationale TEXT --refs UUID,... | stop --url URL",
+    "Usage: observer-live.mjs serve --transcript ABSOLUTE.jsonl --session SESSION_ID [--owner-main | --owner-pid PID --owner-start-ticks TICKS] | assess --url URL --report UUID --outcome corrected|continued|disputed|unresolved --assessor ID --role ROLE --rationale TEXT --refs UUID,... | stop --url URL",
   );
 }
 function invokedDirectly() {
