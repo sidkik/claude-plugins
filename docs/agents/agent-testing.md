@@ -41,11 +41,12 @@ Keep the maintained agent model until the affected behavioral comparison support
 a change. A replay result establishes only the tested cases, not live observation
 or another agent's fitness.
 
-The maintained observer selects `claude-haiku-5-5` following the accepted matched
-ten-case replay comparison. Both models met the existing acceptance table, but
-both skipped the native delivery-identity read before the f3 assessment. That
-shared instruction-conformance gap remains; replay acceptance does not qualify
-live MAIN delivery. Grok supervisors and Codex forwarding agents retain Sonnet.
+The maintained observer is configured with `claude-opus-5-5` and explicit `effort: low`, a documented
+subagent frontmatter field. The replay passes the same effort; the foreground observer's effort is read from
+its own recorded API requests, never from a flag. This is the configuration, not an acceptance claim: results
+for the exact bytes, with model, effort and client version, are recorded in the pull request that changes
+them, and replay results never qualify live MAIN delivery. Grok supervisors and Codex forwarding agents
+retain Sonnet.
 
 Cases and acceptance live in
 [observer-behavioral-prompts.md](../../sdlc-process/tests/observer-behavioral-prompts.md);
@@ -74,6 +75,45 @@ add or change cases there, not here.
 7. One success on a nondeterministic model is one observation. Report it as that,
    and record trials that diverge: an earlier run that failed a case a later run
    passed is evidence of variance, not a pass for every old trial.
+
+### Real-session replay
+
+Use this when a failure came from a real MAIN session that fixtures cannot
+reproduce (clipped digests, a prefix-only baseline, intervening work, a user who
+catches the miss). The cases, deadlines and failure classes are the
+[real-session regression contract](../../sdlc-process/tests/observer-behavioral-prompts.md);
+write or extend them there before any model run or prompt edit.
+
+1. Copy the MAIN transcript, the observer transcript and the persisted baseline to
+   scratch as `main.jsonl`, `observer.jsonl` and `baseline.txt`. The manifest
+   `sdlc-process/tests/sessions/observer-session-1fc054d8.json` pins their
+   SHA-256 values and the digest stream; the driver refuses any other bytes. Raw
+   transcripts stay in scratch.
+2. `node sdlc-process/tests/observer-session-replay.mjs <manifest> <episode> --source <scratch> --agent <agent.md> --model <full model id> --out <new dir>`
+   replays one contiguous episode through a stateful `claude -p` observer; `--through N`
+   shortens it. Add `<manifest> report <run dir>` for read, report, marker and cost
+   facts. A client failure, off-fixture `Read` or isolation breach ends the run non-zero.
+   The observer's generated rule excerpts are replaced by the same sections from MAIN's own
+   records (manifest `historicalExtracts`), so a past session is never judged by present-day
+   rules; a manifest or agent that cannot supply them fails the run.
+3. Grade the transcript against the contract, never the markers alone: a missed target,
+   a report the delivered records contradict, or a retroactive rule application is a
+   fail even when every marker parses. Judge by the rules in force in the recorded
+   session. Record unrun digests as unrun.
+4. The recorded observer run is the baseline. Add a matched fresh run of the unchanged
+   agent only for the first material miss, then the candidate on each model under
+   comparison. This surface proves the episodes run, not live MAIN delivery.
+
+What the observer carries, so a run can be read against it: a startup index of the whole MAIN
+snapshot (`Skill` calls and results, skill-content records, compaction boundaries and the human's messages,
+with source lines, coverage and a completeness flag) that records what the transcript contains and never
+that anything was loaded or followed; three bounded excerpts of the process generated from the pinned
+sources (the entry's routing table, triage's steps with their conditional grilling step, and the entry's
+mandatory-process rule), with provenance, headings shifted and local links resolved to the upstream, so not
+the sources and not exact bytes; and `Read` plus a read-only `Grep` to recover anything else from the MAIN
+transcript. The replay episodes come from the one session that shaped this repair. They are a known
+regression, not evidence of generalization, and no held-out session exists. Qualification results for a
+candidate belong in the PR, with the exact bytes, model, effort and client version.
 
 ## Native integration
 
