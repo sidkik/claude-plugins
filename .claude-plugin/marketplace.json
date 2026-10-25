@@ -36,6 +36,12 @@
       "version": "0.4.18",
       "source": "./sdlc-process",
       "description": "Portable Sidkik SDLC process, policy, orchestration and pinned Pocock skills."
+    },
+    {
+      "name": "sidkik-pstack-documentation",
+      "version": "0.1.0",
+      "source": "./sidkik-pstack-documentation",
+      "description": "PStack-specific documentation ownership and artifact locations shared across Sidkik projects."
     }
   ]
 }

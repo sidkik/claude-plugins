@@ -1,0 +1,14 @@
+{
+  "name": "sidkik-pstack-documentation",
+  "version": "0.1.0",
+  "description": "PStack-specific documentation ownership and artifact locations shared across Sidkik projects.",
+  "author": {
+    "name": "Sidkik"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Sidkik PStack Documentation",
+    "shortDescription": "Organize durable PStack work documents.",
+    "category": "Productivity"
+  }
+}
