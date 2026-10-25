@@ -29,3 +29,34 @@ jobs:
         run: python3 -m unittest discover -s tests -p 'process*.py' -v
       - name: codex-crew broker identity tests
         run: bash codex-crew/tests/identity.sh
+
+  pstack-docs:
+    runs-on: ubuntu-latest
+    env:
+      LYCHEE_VERSION: 0.24.2
+      LYCHEE_SHA256: 73657a111819a30c47c08352896796f23d64e4eb2b3ed39b6d32149241566fc5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Documentation checker tests
+        run: node --test tests/pstack-docs.test.mjs
+      - name: Markdown lint
+        run: >-
+          npx --yes markdownlint-cli2@0.24.0
+          --config .github/linters/pstack-docs.markdownlint-cli2.jsonc
+          "sidkik-pstack-documentation/**/*.md"
+      - name: Install Lychee
+        run: |
+          set -euo pipefail
+          archive=lychee-x86_64-unknown-linux-musl.tar.gz
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/lycheeverse/lychee/releases/download/lychee-v$LYCHEE_VERSION/$archive"
+          echo "$LYCHEE_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/lychee-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
+      - name: Local links and fragments
+        run: |
+          set -euo pipefail
+          lychee --version | grep -Fx "lychee $LYCHEE_VERSION"
+          lychee --offline --include-fragments --no-progress "sidkik-pstack-documentation/**/*.md"

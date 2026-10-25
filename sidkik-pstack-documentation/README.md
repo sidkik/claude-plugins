@@ -7,18 +7,25 @@ their own documentation configuration.
 It provides two skills:
 
 - `sidkik-pstack-documentation:setup-documentation` records repository locations
-  in `docs/agents/pstack-docs.md` and links that file from agent instructions.
+  in `docs/agents/pstack-docs.md` and links that file from the root `AGENTS.md`
+  or `CLAUDE.md`.
 - `sidkik-pstack-documentation:work-artifacts` organizes durable findings, plans,
   decisions, reviews and verification evidence using that configuration.
 
+The work-artifacts skill ships `scripts/check-artifacts.mjs`, a dependency-free
+Node 20 checker. Given an absolute repository root and existing artifact files,
+it checks the repository's contract, its declared paths, and each file's name,
+location and owner. The [contract reference](skills/work-artifacts/references/contract.md)
+defines the format, results and exit status. The checker does not read plan
+content, external repositories or link targets.
+
 PStack must be available separately. This plugin does not select or bundle PStack,
 replace its playbooks, or install hooks. A different workflow can supply its own
-documentation plugin with a distinct namespace. Use the plugin matching the
-repository's selected workflow and qualified skill names when both are installed.
-The legacy Codex crew resolver rejects an unqualified `work-artifacts` request
-when both plugins expose that name. Use the qualified identity in dispatch briefs
-and invocations. Existing callers using a bare name need qualification before
-enabling both plugins; a separate namespace does not make bare names unambiguous.
+documentation plugin with a distinct namespace. When both are installed, use the
+plugin matching the repository's selected workflow, and use qualified skill names
+in dispatch briefs and invocations. The legacy Codex crew resolver rejects an
+unqualified `work-artifacts` request when both plugins expose that name, so
+qualify existing bare-name callers before enabling both plugins.
 
 ## Path ownership
 
@@ -30,10 +37,16 @@ directory. Resolve that root before reading or writing them.
 plugin does not create it. The `setup-documentation` skill creates it in each
 repository you select, then adds an instruction pointer after checking that the
 file exists. Until setup runs, `work-artifacts` uses existing repository
-conventions or its documented fallback; it does not require this file.
+conventions or its documented fallback without running setup. When the
+repository has neither the configuration file nor an instruction pointer to it,
+the checker run without artifacts reports `UNCONFIGURED`, and records written
+under the fallback are reported as not validated. Passing artifacts to an
+unconfigured repository fails. Once an instruction pointer names the file, a
+missing file is a setup error.
 
 The plugin bundles `skills/work-artifacts/SKILL.md`, its
-`references/artifact-map.md`, and `skills/setup-documentation/SKILL.md`.
+`references/artifact-map.md` and `references/contract.md`, its
+`scripts/check-artifacts.mjs`, and `skills/setup-documentation/SKILL.md`.
 Relative Markdown links within these files resolve from the containing file.
 PStack's own skills and runtime paths come from the separately installed PStack
 plugin. Work directories are destinations created when needed, not bundled files.
@@ -73,3 +86,18 @@ per-repository configuration pattern without depending on Pocock skills.
 The skill files in this directory are the editable source. No generated bundle
 or copied PStack instructions are maintained here. Both client manifests expose
 the same skill tree.
+
+## Validation
+
+From the marketplace repository root:
+
+```bash
+node --test tests/pstack-docs.test.mjs
+```
+
+The `pstack-docs` CI job runs the same tests, then lints only this plugin's
+Markdown with `markdownlint-cli2` 0.24.0 and checks its local links and
+fragments with Lychee 0.24.2 in offline mode, so external URLs are not checked.
+Lint settings live in `.github/linters/`, outside the installed plugin. A
+missing tool fails the job. These checks prove the files are well formed. They
+do not prove what an agent does with the instructions.

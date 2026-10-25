@@ -39,7 +39,7 @@
     },
     {
       "name": "sidkik-pstack-documentation",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "source": "./sidkik-pstack-documentation",
       "description": "PStack-specific documentation ownership and artifact locations shared across Sidkik projects."
     }

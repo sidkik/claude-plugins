@@ -27,22 +27,29 @@ Keep one source and configure consumers to read it rather than creating divergen
 copies for each client.
 
 The phrase "agent store's docs" is not a precise path in the reviewed multi-phase
-playbook. A repository adopting this plugin can explicitly select its durable
-work root for authored plans. This changes the plan destination, not its skeleton,
-validator, execution authorization or orchestration store.
+playbook. A repository adopting this plugin can name a durable destination for
+those plans with `multiphasePlan` in its [contract](contract.md). This changes the
+plan destination, not its skeleton, validator, execution authorization or
+orchestration store. The plugin's checker reports each such plan it is given
+as pending and prints the `check-plan.mjs` command; it does not parse plan
+content. Other `.plan.md` files are ordinary plans and are not sent to that
+validator.
 
 ## Sidkik conventions for durable documents
 
 Preserve an existing canonical record unless the user explicitly changes its
 ownership. For new records, use the repository configuration. The fallback is
-`docs/work/<work-key>/` in the repository owning the change.
+`docs/work/<work-key>/` in the repository owning the change. The configuration
+can override a kind's location, bind a work key to an established directory,
+scope a kind for one work key to another repository, and list legacy records
+file by file.
 
 | Record | Default relative to the work root | When useful |
 | --- | --- | --- |
 | Research | `<topic>.research.md` | Findings must survive the conversation or be shared with another worker |
 | Specification | `<topic>.spec.md` | The task needs a durable behavioral contract not already owned elsewhere |
 | Plan | `<topic>.plan.md` | PStack or the user calls for a persisted plan |
-| Decision | `<topic>.decision.md`, or the existing ADR location | A consequential choice needs a lasting rationale |
+| Decision | `<topic>.decision.md` | A consequential work choice needs a lasting rationale that is not already in a decision record |
 | Review | `<topic>.review.md` | A requested or necessary review record needs more than the existing PR discussion |
 | Evidence summary | `<run-id>.evidence.md` | Revision, result and links to retained proof must survive the run |
 | Handoff | `<topic>.handoff.md` | Another session needs durable context not already captured by PStack's store |
@@ -52,10 +59,16 @@ They neither require a document for every type nor authorize GitHub publication.
 An existing initiative hierarchy can remain intact. Work keys identify the same
 effort across repositories without giving every repository a copy of its shared plan.
 
-Domain glossaries, architecture references, API docs and runbooks stay in their
-established maintained locations. Pocock's root `CONTEXT.md` and `docs/adr/` pattern
-is compatible when already adopted. This plugin does not impose domain modeling
-or rename an existing `ARCHITECTURE.md`, ADR tree or runbook collection.
+Domain glossaries, context maps, decision records, architecture references, API
+docs and runbooks stay in their established maintained locations. The
+configuration records them as resources, and points to the repository's own
+domain contract when it has one. That contract decides how glossaries and
+decision records are read and written, including whether a decision becomes an
+ADR. Repositories differ: one may keep several context glossaries and more than
+one decision-record home, and Pocock's skills renamed `CONTEXT.md` to
+`GLOSSARY.md` in 1.3.0. This plugin does not impose domain modeling, choose a
+glossary file name or ADR home, or rename an existing `ARCHITECTURE.md`, ADR tree
+or runbook collection.
 
 ## Source boundaries
 
