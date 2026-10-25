@@ -20,6 +20,24 @@ when both plugins expose that name. Use the qualified identity in dispatch brief
 and invocations. Existing callers using a bare name need qualification before
 enabling both plugins; a separate namespace does not make bare names unambiguous.
 
+## Path ownership
+
+Paths such as `docs/agents/pstack-docs.md` and `docs/work/` are relative to the
+consuming repository root, not this plugin directory or the shell working
+directory. Resolve that root before reading or writing them.
+
+`docs/agents/pstack-docs.md` is setup output, not a bundled file. Installing the
+plugin does not create it. The `setup-documentation` skill creates it in each
+repository you select, then adds an instruction pointer after checking that the
+file exists. Until setup runs, `work-artifacts` uses existing repository
+conventions or its documented fallback; it does not require this file.
+
+The plugin bundles `skills/work-artifacts/SKILL.md`, its
+`references/artifact-map.md`, and `skills/setup-documentation/SKILL.md`.
+Relative Markdown links within these files resolve from the containing file.
+PStack's own skills and runtime paths come from the separately installed PStack
+plugin. Work directories are destinations created when needed, not bundled files.
+
 ## Set up a repository
 
 After this version is published to the `sidkik-plugins` marketplace, install

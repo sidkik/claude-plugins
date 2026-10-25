@@ -8,6 +8,10 @@ description: Configure a repository to use sidkik-pstack-documentation with PSta
 Configure only the repository or repositories named by the user. Installing this
 plugin alone does not authorize editing every checkout or selecting PStack.
 Use the [work-artifacts skill](../work-artifacts/SKILL.md) and its artifact map.
+Resolve each consuming repository root before any path lookup. All `docs/` paths
+below are relative to that root, not this plugin or the current shell directory.
+`docs/agents/pstack-docs.md` is output this skill creates. It is not a bundled
+prerequisite and need not exist before setup.
 
 1. Establish the repository identity and selected workflow. Read its agent
    instructions, `docs/agents/pstack-docs.md` if present, tracker configuration,
@@ -32,7 +36,8 @@ Use the [work-artifacts skill](../work-artifacts/SKILL.md) and its artifact map.
    retention is local only or unconfigured.
    Separate observed configuration from a newly chosen default. Do not leave
    placeholder values or claim an artifact service is available without checking it.
-4. Add or update one documentation pointer in the repository's governing agent
+4. Confirm the configuration written in step 3 exists at the resolved repository
+   path and can be read. Only then add or update one documentation pointer in the repository's governing agent
    instructions. Preserve surrounding rules. Prefer the existing shared authority
    when CLAUDE.md and AGENTS.md already reference one another. If they are independent
    client entrypoints, each may point to the same configuration; do not duplicate
@@ -58,7 +63,10 @@ Use this instruction pointer under the stable heading:
 
 > When PStack work needs durable documentation, use
 > `sidkik-pstack-documentation:work-artifacts` and read
-> `docs/agents/pstack-docs.md` for this repository's ownership and locations.
+> `<repository-root>/docs/agents/pstack-docs.md` for ownership and locations.
+> Resolve `<repository-root>` to this repository, not the installed plugin. If the
+> configuration is missing, use the skill's absent-configuration fallback and
+> report the missing setup output.
 
 The configuration must state that PStack owns its runtime stores and trail format.
 When this configuration selects an explicit durable path for multi-phase plans,

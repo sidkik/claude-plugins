@@ -11,8 +11,14 @@ ownership conventions across repositories. It adds no stages or approval gates.
 
 ## Find the owning record
 
-Read `docs/agents/pstack-docs.md` when present, the repository instructions, and
-the existing record for this work. Follow an explicit user ownership or relocation
+Resolve the consuming repository root from the requested checkout and its Git
+root. Repository paths below are relative to that root, never the plugin root
+or an unrelated current directory. `docs/agents/pstack-docs.md` is optional
+configuration created by `setup-documentation`; it is not shipped in the plugin.
+Check whether `<repository-root>/docs/agents/pstack-docs.md` exists before reading
+it. If absent, use the fallback below and report that repository setup has not
+created a configuration. Read the repository instructions and existing record
+for this work. Follow an explicit user ownership or relocation
 decision first. Otherwise preserve the existing canonical record for this work;
 apply configured locations only to new records. Use the fallback below only when
 neither an existing owner nor a configured location applies.
