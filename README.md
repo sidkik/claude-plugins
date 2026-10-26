@@ -1,6 +1,9 @@
 # Sidkik agent plugins
 
-Portable SDLC process, status display and agent delegation for Sidkik.
+Workflow-specific documentation, SDLC process, status display and agent delegation for Sidkik.
+
+For PStack projects, use [sidkik-pstack-documentation](sidkik-pstack-documentation/).
+The SDLC setup instructions below apply only to projects selecting the Sidkik SDLC workflow.
 
 Install **sdlc-process** and reload the client. Ask the agent to
 **“Finish SDLC setup”** when you want installation verification or repair.
@@ -13,6 +16,7 @@ from native observer evidence; installation repair remains the setup workflow.
 
 | Plugin | Purpose |
 |---|---|
+| [sidkik-pstack-documentation](sidkik-pstack-documentation/) | PStack-specific artifact ownership and repository documentation locations, shared across projects. |
 | [sdlc-process](sdlc-process/) | Shared SDLC instructions, Pocock flows, policy review and a native Claude main-session observer, with pinned source provenance. |
 | [sdlc-status](sdlc-status/) | Per-session stage completion, evidence standing, blockers, next action and human decisions. |
 | [codex-crew](codex-crew/) | Codex delegate agents for Claude, using the official Codex companion plugin. |
